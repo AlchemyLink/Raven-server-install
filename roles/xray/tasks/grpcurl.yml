@@ -1,0 +1,119 @@
+---
+
+# ---------------------------------------------------------
+# Get latest grpcurl version from GitHub
+# ---------------------------------------------------------
+
+- name: Get latest grpcurl release
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/fullstorydev/grpcurl/releases/latest
+    method: GET
+    return_content: true
+    status_code: 200
+  register: grpcurl_release
+  retries: 3
+  delay: 3
+  until: grpcurl_release.status == 200
+  failed_when: false
+  run_once: true
+
+- name: Set grpcurl version fact
+  ansible.builtin.set_fact:
+    grpcurl_version: >-
+      {{
+        (grpcurl_release.json.tag_name | regex_replace('^v', ''))
+        if grpcurl_release is defined
+        and grpcurl_release.json is defined
+        else grpcurl_default_version
+      }}
+
+- name: Detect architecture for grpcurl
+  ansible.builtin.set_fact:
+    grpcurl_arch: >-
+      {{
+        'x86_64' if ansible_architecture in ['x86_64', 'amd64']
+        else 'arm64' if ansible_architecture in ['aarch64', 'arm64']
+        else ansible_architecture
+      }}
+
+# ---------------------------------------------------------
+# Download grpcurl binary
+# ---------------------------------------------------------
+
+- name: Download grpcurl archive
+  ansible.builtin.get_url:
+    url: "https://github.com/fullstorydev/grpcurl/releases/download/v{{ grpcurl_version }}/grpcurl_{{ grpcurl_version }}_linux_{{ grpcurl_arch }}.tar.gz"
+    dest: "/tmp/grpcurl_{{ grpcurl_version }}.tar.gz"
+    mode: "0644"
+  register: grpcurl_download
+
+- name: Extract grpcurl binary
+  ansible.builtin.unarchive:
+    src: "/tmp/grpcurl_{{ grpcurl_version }}.tar.gz"
+    dest: /tmp/
+    remote_src: true
+  when: grpcurl_download.changed
+
+- name: Install grpcurl binary
+  ansible.builtin.copy:
+    src: /tmp/grpcurl
+    dest: /usr/local/bin/grpcurl
+    owner: root
+    group: root
+    mode: "0755"
+    remote_src: true
+
+- name: Remove temporary files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/tmp/grpcurl"
+    - "/tmp/grpcurl_{{ grpcurl_version }}.tar.gz"
+
+# ---------------------------------------------------------
+# Download Xray proto files to /opt/xray/proto
+# ---------------------------------------------------------
+
+- name: Ensure proto directory exists
+  ansible.builtin.file:
+    path: /opt/xray/proto
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Download proto files
+  ansible.builtin.get_url:
+    url: "{{ item.url }}"
+    dest: "/opt/xray/proto/{{ item.dest }}"
+    mode: "0644"
+  loop:
+    - { url: "https://raw.githubusercontent.com/XTLS/Xray-core/master/app/stats/command/command.proto", dest: "command.proto" }
+    - { url: "https://raw.githubusercontent.com/XTLS/Xray-core/master/common/serial/typed_message.proto", dest: "typed_message.proto" }
+  register: proto_download
+  retries: 3
+  delay: 2
+  until: proto_download is succeeded
+
+# ---------------------------------------------------------
+# Health check Xray API using grpcurl
+# ---------------------------------------------------------
+
+- name: Check Xray API health
+  ansible.builtin.command: >
+    grpcurl -plaintext
+    -import-path /opt/xray/proto
+    -proto command.proto
+    -d '{"pattern": ""}'
+    127.0.0.1:10085
+    xray.app.stats.command.StatsService.QueryStats
+  register: grpc_health
+  failed_when: grpc_health.rc != 0
+  changed_when: false
+  retries: 3
+  delay: 2
+
+- name: Display Xray API health output
+  ansible.builtin.debug:
+    msg: "{{ grpc_health.stdout }}"

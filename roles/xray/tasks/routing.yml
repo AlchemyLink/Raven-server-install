@@ -1,0 +1,12 @@
+---
+- name: Deploy routing config
+  ansible.builtin.template:
+    src: "{{ item }}"
+    owner: "{{ xray_user }}"
+    group: "{{ xray_group }}"
+    mode: "0644"
+    dest: "{{ xray_config_dir }}config.d/{{ item | basename | regex_replace('\\.j2$', '') }}"
+  loop: "{{ query('fileglob', role_path + '/templates/conf/routing/*.j2') }}"
+  notify:
+    - Validate xray
+    - Restart xray

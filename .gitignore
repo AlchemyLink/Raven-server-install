@@ -1,0 +1,10 @@
+vault_password.txt
+.vscode
+.ansible
+roles/hosts.yml
+roles/sing-box/defaults/secrets.yml
+roles/sing-box-playbook/defaults/secrets.yml
+roles/hosts.yml
+roles/xray/defaults/secrets.yml
+roles/xray/defaults/vic_secret.yml
+

@@ -1,0 +1,259 @@
+# tasks/main.yml
+# Main tasks for the sing-box role with Hysteria2 and auto-update
+
+- name: Display OS information
+  ansible.builtin.debug:
+    msg: "Operating System: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}"
+  tags: ["always"]
+
+# --- System Configuration ---
+- name: Enable IPv4 forwarding
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    state: present
+    sysctl_set: true
+    reload: true
+  tags: ["full_reinstall"]
+
+- name: Disable ICMP echo (ping)
+  ansible.posix.sysctl:
+    name: net.ipv4.icmp_echo_ignore_all
+    value: "1"
+    state: present
+    sysctl_set: true
+    reload: true
+  tags: ["full_reinstall"]
+
+- name: Optimize network performance - increase TCP buffer sizes
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_set: true
+    reload: true
+  loop:
+    - { name: "net.core.rmem_max", value: "134217728" }
+    - { name: "net.core.wmem_max", value: "134217728" }
+    - { name: "net.ipv4.tcp_rmem", value: "4096 87380 67108864" }
+    - { name: "net.ipv4.tcp_wmem", value: "4096 65536 67108864" }
+    - { name: "net.ipv4.tcp_congestion_control", value: "bbr" }
+  tags: ["full_reinstall"]
+
+# --- Get Latest Sing-box Version ---
+- name: Get latest sing-box release from GitHub
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/{{ singbox_repo }}/releases/latest"
+    return_content: true
+    headers:
+      Accept: "application/vnd.github.v3+json"
+  register: singbox_latest_release
+  when: singbox_auto_update
+  ignore_errors: true
+  tags: ["full_reinstall"]
+
+- name: Set singbox_version from latest release
+  ansible.builtin.set_fact:
+    singbox_version: "{{ singbox_latest_release.json.tag_name | default(singbox_version) | regex_replace('^v', '') }}"
+  when: singbox_auto_update and singbox_latest_release is succeeded
+  tags: ["full_reinstall"]
+
+- name: Display sing-box version to be installed
+  ansible.builtin.debug:
+    msg: "Installing sing-box version: {{ singbox_version }}"
+  tags: ["full_reinstall"]
+
+# --- Download and Install Sing-box ---
+- name: Create installation directory
+  ansible.builtin.file:
+    path: "{{ singbox_install_dir }}"
+    state: directory
+    mode: "0755"
+  tags: ["full_reinstall"]
+
+- name: Download sing-box archive
+  ansible.builtin.get_url:
+    url: "{{ singbox_url }}/v{{ singbox_version }}/sing-box-{{ singbox_version }}-linux-{{ singbox_architecture }}.tar.gz"
+    dest: "/tmp/sing-box-{{ singbox_version }}.tar.gz"
+    mode: "0644"
+    timeout: 300
+  tags: ["full_reinstall"]
+
+- name: Extract sing-box archive
+  ansible.builtin.unarchive:
+    src: "/tmp/sing-box-{{ singbox_version }}.tar.gz"
+    dest: "/tmp"
+    remote_src: true
+  tags: ["full_reinstall"]
+
+- name: Install sing-box binary
+  ansible.builtin.copy:
+    src: "/tmp/sing-box-{{ singbox_version }}-linux-{{ singbox_architecture }}/sing-box"
+    dest: "{{ singbox_install_dir }}/sing-box"
+    remote_src: true
+    mode: "0755"
+    owner: root
+    group: root
+  tags: ["full_reinstall"]
+
+- name: Clean up downloaded files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/tmp/sing-box-{{ singbox_version }}.tar.gz"
+    - "/tmp/sing-box-{{ singbox_version }}-linux-{{ singbox_architecture }}"
+  tags: ["full_reinstall"]
+
+- name: Verify sing-box installation
+  ansible.builtin.command: "{{ singbox_install_dir }}/sing-box version"
+  register: singbox_version_output
+  changed_when: false
+  tags: ["full_reinstall"]
+
+- name: Display sing-box version
+  ansible.builtin.debug:
+    msg: "{{ singbox_version_output.stdout }}"
+  tags: ["full_reinstall"]
+
+# --- Configuration Setup ---
+- name: Create sing-box configuration directory
+  ansible.builtin.file:
+    path: "{{ singbox_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - full_reinstall
+    - config_update
+
+- name: Create ACME certificate directory
+  ansible.builtin.file:
+    path: "{{ singbox.tls_acme_data_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: singbox.tls_enabled
+  tags:
+    - full_reinstall
+    - config_update
+
+- name: Create log directory
+  ansible.builtin.file:
+    path: "{{ singbox_log_output | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - full_reinstall
+    - config_update
+
+- name: Download GeoIP database
+  ansible.builtin.get_url:
+    url: "{{ singbox_geoip_url }}"
+    dest: "{{ singbox_geoip_path }}"
+    mode: "0644"
+    timeout: 300
+  when: singbox_geoip_enabled
+  tags:
+    - full_reinstall
+    - config_update
+
+- name: Download GeoSite database
+  ansible.builtin.get_url:
+    url: "{{ singbox_geosite_url }}"
+    dest: "{{ singbox_geosite_path }}"
+    mode: "0644"
+    timeout: 300
+  when: singbox_geosite_enabled
+  tags:
+    - full_reinstall
+    - config_update
+
+- name: Generate sing-box configuration from template
+  ansible.builtin.template:
+    src: config.json.j2
+    dest: "{{ singbox_config_dir }}/config.json"
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "{{ singbox_install_dir }}/sing-box check -c %s"
+  notify: Restart sing-box service
+  tags:
+    - full_reinstall
+    - config_update
+
+# --- Systemd Service Setup ---
+- name: Create systemd service file
+  ansible.builtin.template:
+    src: sing-box.service.j2
+    dest: /etc/systemd/system/sing-box.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd and restart sing-box
+  tags: ["full_reinstall"]
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+  tags: ["full_reinstall"]
+
+- name: Enable and start sing-box service
+  ansible.builtin.systemd:
+    name: sing-box
+    enabled: true
+    state: started
+  tags: ["full_reinstall"]
+
+# --- Final Status Check ---
+- name: Wait for sing-box to start
+  ansible.builtin.wait_for:
+    timeout: 10
+  tags:
+    - full_reinstall
+    - config_update
+
+- name: Check sing-box service status
+  ansible.builtin.systemd:
+    name: sing-box
+  register: singbox_service_status
+  tags:
+    - full_reinstall
+    - config_update
+
+- name: Display sing-box service status
+  ansible.builtin.debug:
+    msg: "sing-box service is {{ singbox_service_status.status.ActiveState }}"
+  tags:
+    - full_reinstall
+    - config_update
+
+- name: Display connection information
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      Sing-box Hysteria2 Server Configuration
+      ========================================
+      Server: {{ singbox.tls_server_name }}
+      Port: {{ singbox_hysteria2_listen_port }}
+      Protocol: Hysteria2
+      TLS: Enabled (ACME)
+      Obfuscation: {{ singbox_hysteria2_obfs_type if singbox_hysteria2_obfs_enabled else 'Disabled' }}
+
+      Client Configuration:
+      - Server: {{ singbox.tls_server_name }}:{{ singbox_hysteria2_listen_port }}
+      - Password: (check your secrets.yml)
+      - SNI: {{ singbox.tls_server_name }}
+      - ALPN: h3
+      - Obfs Type: {{ singbox_hysteria2_obfs_type if singbox_hysteria2_obfs_enabled else 'none' }}
+
+      Logs: {{ singbox_log_output }}
+      Config: {{ singbox_config_dir }}/config.json
+      ========================================
+  tags:
+    - full_reinstall
+    - config_update

@@ -1,0 +1,57 @@
+# defaults/main.yml
+# Default variables for configuration server role
+
+# Apt package for install
+srv_prepare_apps_list_apt:
+  - iptables
+  - htop
+  - sudo
+  - vim
+  - git
+  - curl
+  - tar
+  - gzip
+  - openssl
+  - dnsutils
+  - jq
+  - docker
+  - docker-compose
+  - sqlite3
+
+# Yum package for install
+srv_prepare_apps_list_rpm:
+  - iptables-services
+  - htop
+  - sudo
+  - vim
+  - git
+  - curl
+  - tar
+  - gzip
+  - openssl
+
+# Apk package for install
+srv_prepare_apps_list_alpine:
+  - iptables
+  - htop
+  - sudo
+  - vim
+  - git
+  - curl
+  - tar
+  - gzip
+  - openssl
+  - ca-certificates
+
+# Default sysctl settings
+srv_prepare_bbr_settings:
+  net.ipv4.tcp_congestion_control: bbr        # Enable BBR
+  net.core.default_qdisc: fq                  # Set default queue discipline to fq
+  net.core.rmem_max: 67108864                 # Maximum receive buffer size
+  net.core.wmem_max: 67108864                 # Maximum send buffer size
+  net.ipv4.tcp_rmem: 4096 87380 67108864      # Minimum, default, and maximum receive buffer sizes
+  net.ipv4.tcp_wmem: 4096 65536 67108864      # Minimum, default, and maximum send buffer sizes
+  net.core.netdev_max_backlog: 250000         # Maximum number of packets queued on the input side
+  net.core.somaxconn: 65535                   # Maximum number of connections that can be queued for acceptance
+  net.ipv4.tcp_tw_reuse: 1                    # Allow reusing TIME-WAIT sockets for new connections
+  net.ipv4.tcp_fin_timeout: 15                # Reduce the time a socket stays in TIME-WAIT state

@@ -1,0 +1,35 @@
+---
+- name: Deploy systemd unit
+  ansible.builtin.template:
+    src: xray.service.j2
+    dest: "/etc/systemd/system/{{ xray_service_name }}.service"
+    mode: "0644"
+  when: ansible_facts.service_mgr == "systemd"
+  notify:
+    - Reload systemd
+    - Restart xray
+
+- name: Deploy OpenRC service
+  ansible.builtin.template:
+    src: xray.openrc.j2
+    dest: "/etc/init.d/{{ xray_service_name }}"
+    mode: "0755"
+  when: ansible_facts.service_mgr == "openrc"
+  notify: Restart xray
+
+- name: Ensure Xray service is enabled and started
+  ansible.builtin.service:
+    name: "{{ xray_service_name }}"
+    enabled: true
+    state: started
+
+- name: Gather service facts
+  ansible.builtin.service_facts:
+
+- name: Validate Xray service is running
+  ansible.builtin.fail:
+    msg: "Xray service is not running"
+  when:
+    - ansible_facts.services is defined
+    - ansible_facts.services[xray_service_name + '.service'] is defined
+    - ansible_facts.services[xray_service_name + '.service'].state != 'running'

@@ -1,0 +1,12 @@
+---
+- name: Deploy DNS config
+  ansible.builtin.template:
+    src: "{{ item }}"
+    dest: "{{ xray_config_dir }}config.d/{{ item | basename | regex_replace('\\.j2$', '') }}"
+    owner: "{{ xray_user }}"
+    group: "{{ xray_group }}"
+    mode: "0644"
+  loop: "{{ query('fileglob', role_path + '/templates/conf/dns/*.j2') }}"
+  notify:
+    - Validate xray
+    - Restart xray

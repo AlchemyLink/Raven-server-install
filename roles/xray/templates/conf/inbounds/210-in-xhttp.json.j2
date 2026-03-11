@@ -1,0 +1,61 @@
+{
+  "inbounds": [
+    {
+      "port": {{ xray_xhttp.port }},
+      "protocol": "vless",
+      "tag": "{{ xray_common.inbound_tag.vless_xhttp_in }}", 
+      "settings": {
+        "clients": [          
+          {% for user in xray_users %}
+          {
+            "id": "{{ user.id }}",
+            "flow": "",
+            "email": "{{ user.email | default('') }}",
+            "level": 0
+          }{{ "," if not loop.last }}
+          {% endfor %}
+        ],
+         "decryption": "none"
+      },
+      "sniffing": {
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "enabled": true
+      },
+      "streamSettings": {
+        "network": "{{ xray_xhttp.network }}",
+        "realitySettings": {
+          "dest": "{{ xray_reality_dest }}",
+          "privateKey": "{{ xray_reality.private_key }}",
+          "serverNames": [
+            {% for name in xray_reality_server_names %}
+            "{{ name }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "shortIds": [
+            {% for short_id in xray_reality.short_id %}
+            "{{ short_id }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "show": false,
+          "xver": 0
+        },
+        "security": "reality",
+        "xhttpSettings": {
+          "mode": "{{ xray_xhttp.xhttpSettings.mode }}",
+          "path": "{{ xray_xhttp.xhttpSettings.path }}",
+          "scMaxPacketSize": "{{ xray_xhttp.xhttpSettings.scMaxPacketSize }}",
+          "xmux": {
+            "cids": [
+              1
+            ],
+            "maxConcurrency": 16
+          }
+        }
+      }
+    }
+  ]
+}

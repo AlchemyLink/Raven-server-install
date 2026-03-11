@@ -1,0 +1,15 @@
+# File: playbooks/xray_setup.yml
+---
+- name: Install and configure Xray
+  hosts: vm_my_srv
+  become: true
+  gather_facts: true
+
+  vars_files:
+    - "xray/defaults/secrets.yml"  # secrets для Xray (UUID, email и т.п.)
+
+  roles:
+    - role: srv_prepare
+      tags:
+        - srv_prepare
+    - role: xray
