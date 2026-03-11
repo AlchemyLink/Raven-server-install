@@ -1,0 +1,13 @@
+---
+- name: Deploy Sing-box
+  hosts: vm_my_srv
+  become: true
+
+  vars:
+    # Enable automatic retrieval of latest sing-box release by default
+    singbox_auto_update: true
+  vars_files:
+    - "sing-box-playbook/defaults/secrets.yml" # Include secrets for xray configuration
+
+  roles:
+    - sing-box-playbook

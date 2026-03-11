@@ -1,0 +1,169 @@
+# File: roles/xray/tasks/install.yml
+
+---
+- name: "Ensure the {{ xray_group }} group exists"
+  ansible.builtin.group:
+    name: "{{ xray_group }}"
+    state: present
+    system: true
+
+- name: Set nologin shell path based on OS family
+  ansible.builtin.set_fact:
+    nologin_shell: |
+      {% if ansible_facts['os_family'] == 'Alpine' %}
+      /sbin/nologin
+      {% else %}
+      /usr/sbin/nologin
+      {% endif %}
+
+- name: Create a dedicated system user for Xray ({{ xray_user }})
+  ansible.builtin.user:
+    name: "{{ xray_user }}"
+    state: present
+    system: true
+    shell: "{{ xray_nologin_shell }}"
+    group: "{{ xray_group }}"
+
+- name: Ensure Xray log directory exists and has correct permissions
+  ansible.builtin.file:
+    path: "{{ xray_log_dir }}"
+    state: directory
+    owner: "{{ xray_user }}"
+    group: "{{ xray_group }}"
+    mode: "0755"
+    recurse: true
+
+- name: Ensure Xray configuration directory exists and has correct permissions
+  ansible.builtin.file:
+    path: "{{ xray_config_dir }}"
+    state: directory
+    owner: "{{ xray_user }}"
+    group: "{{ xray_group }}"
+
+    mode: "0755"
+    recurse: true
+
+- name: "Correct ownership for Xray executable (if needed)"
+  ansible.builtin.file:
+    path: "{{ xray_bin_dir }}/xray"
+    owner: "{{ xray_user }}"
+    group: "{{ xray_group }}"
+
+    mode: "0755"
+  ignore_errors: true
+  when: xray_bin_dir is defined and xray_bin_dir != ''
+
+- name: Correct permissions for Xray service files (if necessary)
+  ansible.builtin.file:
+    path: "{{ xray_install_dir }}"
+    owner: "{{ xray_user }}"
+    group: "{{ xray_group }}"
+
+- name: Ensure Xray install directory exists
+  ansible.builtin.file:
+    path: "{{ xray_install_dir }}"
+    state: directory
+
+    mode: "0755"
+
+- name: Ensure Xray config directory exists
+  ansible.builtin.file:
+    path: "{{ xray_config_dir }}config.d"
+    state: directory
+
+    mode: "0755"
+
+- name: Get latest Xray release version
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/{{ xray_github_repo }}/releases/latest"
+    method: GET
+    return_content: true
+    headers:
+      Accept: "application/vnd.github.v3+json"
+    status_code: 200
+  register: xray_release_info
+  run_once: true
+  retries: 3
+  delay: 3
+  until: xray_release_info.status == 200
+
+- name: Set Xray version fact
+  ansible.builtin.set_fact:
+    xray_version: "{{ xray_release_info.json.tag_name }}"
+    ansible_version_full: "{{ ansible_version.full }}"
+
+- name: Download Xray using get_url (Ansible >= 2.16.0)
+  block:
+    - name: Download Xray archive (Ansible >= 2.16.0)
+      ansible.builtin.get_url:
+        url: "{{ xray_download_url }}"
+        dest: "/tmp/Xray-{{ xray_version }}-linux-64.zip"
+
+        mode: "0644"
+      register: download_xray
+    - name: Unarchive Xray
+      ansible.builtin.unarchive:
+        src: "{{ download_xray.dest }}"
+        dest: "{{ xray_install_dir }}"
+        remote_src: true
+  when: ansible_version_full is version('2.16.0', '>=')
+
+  notify: "Restart xray"
+
+- name: Download Xray using curl (Ansible < 2.16.0)
+  block:
+    - name: Download Xray archive (Ansible < 2.16.0)
+      ansible.builtin.command: >
+        curl -L --output /tmp/Xray-{{ xray_version }}-linux-64.zip "{{ xray_download_url }}"
+      args:
+        creates: "/tmp/Xray-{{ xray_version }}-linux-64.zip"
+      register: download_xray
+      changed_when: download_xray.rc == 0 and not "already exists" in download_xray.stdout
+    - name: Unarchive Xray
+      ansible.builtin.unarchive:
+        src: "/tmp/Xray-{{ xray_version }}-linux-64.zip"
+        dest: "{{ xray_install_dir }}"
+        remote_src: true
+  when: ansible_version_full is version('2.16.0', '<')
+
+  notify: "Restart xray"
+
+- name: Create symlink for Xray executable
+  ansible.builtin.file:
+    src: "{{ xray_install_dir }}/xray"
+    dest: /usr/local/bin/xray
+    state: link
+    force: true
+
+- name: Deploy Xray systemd service file
+  ansible.builtin.template:
+    src: xray.service.j2
+    dest: /etc/systemd/system/{{ xray_service_name }}.service
+
+    mode: "0644"
+  when: ansible_facts['service_mgr'] == "systemd"
+  notify:
+    - Reload systemd
+
+    - Restart xray
+
+- name: Deploy Logrotate configuration for Xray
+  ansible.builtin.template:
+    src: logrotate.json.j2
+    dest: /etc/logrotate.d/xray
+
+    mode: "0644"
+  notify:
+
+    - Restart xray
+
+- name: Deploy Xray OpenRC service file
+  ansible.builtin.template:
+    src: xray.openrc.j2
+    dest: /etc/init.d/{{ xray_service_name }}
+
+    mode: "0755"
+  when: ansible_facts['service_mgr'] == "openrc"
+  notify:
+    - Reload openrc
+    - Restart xray

@@ -1,0 +1,52 @@
+{
+  "inbounds": [
+   {
+      "port": {{ xray_vless_port }},
+      "protocol": "vless",
+      "tag": "{{ xray_vless_tag }}",
+      "settings": {
+        "clients": [
+          {% for user in xray_users %}
+          {
+            "id": "{{ user.id }}",
+            "flow": "{{ user.flow }}",
+            "email": "{{ user.email | default('') }}",
+            "level": 0
+          }{{ "," if not loop.last }}
+          {% endfor %}
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "{{ xray_reality_dest }}",
+          "spiderX": "{{ xray_reality.spiderX }}",
+          "xver": 0,
+          "serverNames": [
+            {% for name in xray_reality_server_names %}
+            "{{ name }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "privateKey": "{{ xray_reality.private_key }}",
+          "shortIds": [
+            {% for short_id in xray_reality.short_id %}
+            "{{ short_id }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ]
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "routeOnly": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+---
+- name: Xray | Install
+  ansible.builtin.import_tasks: install.yml
+  tags: xray_install
+
+- name: Xray | Base
+  ansible.builtin.import_tasks: base.yml
+  tags: xray_base
+
+- name: Xray | API
+  ansible.builtin.import_tasks: api.yml
+  tags: xray_api
+
+- name: Xray | Inbounds
+  ansible.builtin.import_tasks: inbounds.yml
+  tags: xray_inbounds
+
+# - name: Xray | Users
+#   ansible.builtin.import_tasks: users.yml
+#   tags: xray_users
+
+- name: Xray | Routing
+  ansible.builtin.import_tasks: routing.yml
+  tags: xray_routing
+
+- name: Xray | Service
+  ansible.builtin.import_tasks: service.yml
+  tags: xray_service
+
+- name: Xray | DNS
+  ansible.builtin.import_tasks: dns.yml
+  tags: xray_dns
+
+- name: Xray | Outbounds
+  ansible.builtin.import_tasks: outbounds.yml
+  tags: xray_outbounds
+
+- name: Xray | GRPCurl
+  ansible.builtin.import_tasks: grpcurl.yml
+  tags: grpcurl

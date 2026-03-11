@@ -1,0 +1,11 @@
+{
+ "dns": {
+    "servers": [
+      {% for server in xray_dns_servers %}
+      "{{ server }}"{{ "," if not loop.last }}
+      {% endfor %}
+    ],
+    "disableFallback": {{ xray_dns_disable_fallback | to_json }},
+    "queryStrategy": "{{ xray_dns_query_strategy }}"
+  }
+}

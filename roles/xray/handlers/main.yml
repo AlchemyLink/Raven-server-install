@@ -1,0 +1,31 @@
+---
+- name: Restart xray
+  ansible.builtin.systemd:
+    name: "{{ xray_service_name }}"
+    state: restarted
+    daemon_reload: true
+  when: ansible_facts['service_mgr'] == "systemd"
+
+- name: Restart openrc
+  ansible.builtin.service:
+    name: "{{ xray_service_name }}"
+    state: restarted
+  when: ansible_facts['service_mgr'] == "openrc"
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: ansible_facts['service_mgr'] == "systemd"
+
+- name: Reload openrc
+  ansible.builtin.command: rc-update
+  changed_when: false
+  when: ansible_facts['service_mgr'] == "openrc"
+
+- name: Validate xray
+  ansible.builtin.command:
+    cmd: "xray -test -confdir {{ xray_config_dir }}config.d"
+  register: validate_result
+  changed_when: false
+  failed_when: validate_result.rc != 0
+  when: ansible_facts['service_mgr'] in ['systemd', 'openrc']

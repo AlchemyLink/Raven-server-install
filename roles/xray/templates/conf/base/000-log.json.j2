@@ -1,0 +1,8 @@
+{
+  "log": {
+    "loglevel": "{{ xray_log_config.log_level }}",
+    "access": "{{ xray_log_config.log_path }}/{{ xray_log_config.access_log }}",
+    "error": "{{ xray_log_config.log_path }}/{{ xray_log_config.error_log }}",
+    "dnsLog": {{ xray_log_config.dns_log | to_json }}
+  }
+}

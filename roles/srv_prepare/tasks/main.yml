@@ -1,0 +1,95 @@
+# tasks/main.yml
+# Main tasks for the configuration server role
+
+
+- name: Get OS name
+  ansible.builtin.debug:
+    var: ansible_facts
+
+- name: Apt update Debian
+  ansible.builtin.apt:
+    upgrade: true
+    update_cache: true
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Rpm update
+  ansible.builtin.dnf:
+    update_cache: true
+  when: ansible_facts['os_family'] == "RedHat"
+
+- name: Apk update Alpine
+  community.general.apk:
+    update_cache: true
+    upgrade: true
+  when: ansible_facts['os_family'] == "Alpine"
+
+- name: Apt install pkg
+  ansible.builtin.apt:
+    name: "{{ srv_prepare_apps_list_apt }}"
+    state: present
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Yum install pkg
+  ansible.builtin.dnf:
+    name: "{{ srv_prepare_apps_list_rpm }}"
+    state: present
+  when: ansible_facts['os_family'] == "RedHat"
+
+- name: Apk install pkg
+  community.general.apk:
+    name: "{{ srv_prepare_apps_list_alpine }}"
+    state: present
+  when: ansible_facts['os_family'] == "Alpine"
+
+- name: Enable and persist ip forwarding
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    state: present
+    sysctl_set: true
+    reload: true
+  when: ansible_facts['service_mgr'] == "systemd" or ansible_facts['service_mgr'] == "openrc"
+
+- name: Disable icmp
+  ansible.posix.sysctl:
+    name: net.ipv4.icmp_echo_ignore_all
+    value: "1"
+    state: present
+    sysctl_set: true
+    reload: true
+  when: ansible_facts['service_mgr'] == "systemd" or ansible_facts['service_mgr'] == "openrc"
+
+- name: Enable BBR to sysctl
+  block:
+    - name: Ensure BBR module is loaded
+      community.general.modprobe:
+        name: tcp_bbr
+        state: present
+
+    - name: Add BBR and Cubic to sysctl configuration
+      ansible.posix.sysctl:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        state: present
+        sysctl_file: /etc/sysctl.conf
+        reload: true
+      loop: "{{ srv_prepare_bbr_settings | dict2items }}"
+      when: ansible_facts['os_family'] in ["Debian", "RedHat", "Alpine"]
+
+    - name: Verify BBR is enabled
+      ansible.builtin.command: sysctl net.ipv4.tcp_congestion_control
+      register: bbr_status
+      changed_when: false
+
+    - name: Display BBR status
+      ansible.builtin.debug:
+        msg: "BBR status: {{ bbr_status.stdout }}"
+
+    - name: Verify default qdisc
+      ansible.builtin.command: sysctl net.core.default_qdisc
+      register: qdisc_status
+      changed_when: false
+
+    - name: Display default qdisc status
+      ansible.builtin.debug:
+        msg: "Default qdisc status: {{ qdisc_status.stdout }}"

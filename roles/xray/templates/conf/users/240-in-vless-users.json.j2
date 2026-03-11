@@ -1,0 +1,21 @@
+{
+  "inbounds": [
+    {
+      "tag": "{{ xray_common.inbound_tag.vless_reality_in }}",
+      "settings": {
+        "clients": [          
+          {% for user in xray_users %}
+          {
+            "id": "{{ user.id }}",
+            "flow": "",
+            "email": "{{ user.email | default('') }}",
+            "level": 0
+          }{{ "," if not loop.last }}
+          {% endfor %}
+        ],
+        "decryption": "none",
+        "security": "reality"
+      }
+    }
+  ]
+}

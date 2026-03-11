@@ -1,0 +1,98 @@
+---
+
+xray_common:
+  inbound_tag:                           # Common tag for all Xray inbounds
+    vless_reality_in: "vless-reality-in"        # Tag for VLESS + XTLS-Reality inbound
+    vless_xhttp_in: "vless-xhttp-in"            # Tag for VLESS + XHTTP inbound
+    api_in: "api-in"                            # Tag for Xray API inbound
+
+xray_install_dir: /opt/xray                   # Xray installation directory
+xray_config_dir: /etc/xray/                    # Directory for Xray configuration files
+xray_service_name: xray                       # Xray systemd service name
+xray_github_repo: XTLS/Xray-core              # Xray GitHub repository
+xray_download_url: "https://github.com/{{ xray_github_repo }}/releases/download/{{ xray_version }}/Xray-linux-64.zip" # Download URL for Xray
+xray_user: "xrayuser"                         # System user to run Xray
+xray_group: "xrayuser"                        # System group to run Xray
+xray_log_dir: "/var/log/Xray"                 # Directory for Xray logs
+xray_bin_dir: "/usr/local/bin"                # Directory for Xray binaries
+xray_nologin_shell: "/usr/sbin/nologin"       # Shell for the Xray user (to prevent login)
+
+# VLESS + XTLS-Reality Configuration
+xray_vless_tag: vless-reality-in              # Tag for VLESS inbound
+xray_vless_port: 443                          # Port for incoming VLESS connections
+xray_reality_dest: "askubuntu.com:443"        # Destination for XTLS-Reality (usually a TLS website)
+xray_reality_server_names:                    # List of domain names for SNI/ServerName (used in Reality)
+  - "askubuntu.com"                             # Replace with your actual domain or leave empty for random
+
+# DNS for config
+xray_dns_servers:                             # List of DNS servers for Xray
+  - "tcp+local://dns.adguard.com"             # AdGuard DNS via QUIC
+  - "8.8.8.8"                                 # Google DNS (plain)
+  - "1.1.1.1"                                 # Cloudflare DNS (plain)
+xray_dns_disable_fallback: false              # Set to true to disable fallback to system DNS
+xray_dns_query_strategy: "UseIP"              # DNS query strategy: "UseIP", "UseIPIfNonMatch", "UseIPv4", "UseIPv6"
+
+# Log vars
+xray_log_config:
+  service_rotate_name: logrotate.service    # Logrotate service name for Xray logs
+  log_level: "warning"                      # Log level for Xray (debug, info, warning, error, none)
+  log_path: "/var/log/Xray"                # Directory for Xray logs
+  access_log: "access.log"                  # Path for Xray access log
+  error_log: "error.log"                    # Path for Xray error log
+  logrotate_config: "/etc/logrotate.d/xray" # Path for logrotate configuration
+  dns_log: false                            # Enable or disable DNS logging
+
+# Blocked domains
+xray_blocked_domains:                         # List of domains to block
+  - "geosite:category-ads-all"
+  - "geosite:category-ads"
+  - "geosite:category-public-tracker"
+  - "geosite:google-ads"
+  - "geosite:spotify-ads"
+
+# Xray Reality api configuration
+xray_api:
+  enable: true                               # Enable Xray API
+  services:                                   # List of API services
+    - "StatsService"                          # Service for statistics
+    - "HandlerService"                        # Service for handling requests
+    - "ReflectionService"                     # Service for list other services
+    # - "LoggerService"                         # Service for logging
+  inbound:
+    address: "127.0.0.1"                      # API address (localhost)
+    port: 10085                               # API port
+    protocol: "dokodemo-door"                 # Protocol for API (dokodemo-door)"
+    tag: "api-inbound"
+
+# Xray XHTTP configuration
+xray_xhttp:
+  tag: "vless-xhttp-in"                       # Tag for XHTTP inbound
+  port: 2053                                  # Port for XHTTP inbound
+  network: "xhttp"                             # Network type for XHTTP (http or ws)
+  xhttpSettings:
+    mode: "auto"
+    path: "/api/v3/data-sync"
+    scMaxPacketSize: 50000
+
+
+##### !!!!! This is a secret, do not share it publicly !!!!!####
+##### Please replace this segment in secrets.yml file in role/xray/defaults folder and encrypt with ansible-vault #####
+##### Xray reality #####
+
+# xray_reality:
+#   private_key: "PrivateKeyHere"          # Replace with your actual reality private key
+#   spiderX: "spiderXHere"                 # Replace with your actual spiderX value
+#   short_id:
+#     - "shortId1Here"                     # Replace with your actual short ID (openssl rand -hex 8)
+#   public_key: "public keyHere"           # Replace with your actual reality public key.
+
+# xray_users:
+#   - id: "UUID_1"                         # Replace with your actual UUID
+#     flow: "xtls-rprx-vision"
+#     email: "someEmailForIdentyfy"
+#   - id: "UUID_2"
+#     flow: "xtls-rprx-vision"
+#     email: "someEmailForIdentyfy"
+#   - id: UUID_3"
+#     flow: "xtls-rprx-vision"
+#     email: "someEmailForIdentyfy"

@@ -1,0 +1,39 @@
+  {
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      {
+        "type": "field",
+        "inboundTag": [
+          {% for key, value in xray_common.inbound_tag.items() %}
+            "{{ value }}"{{ "," if not loop.last }}
+          {% endfor %}
+        ],
+        "outboundTag": "freedom"
+        },
+      {
+        "type": "field",
+        "domain": [
+          {% for domain in xray_blocked_domains %}
+          "{{ domain }}"{{ "," if not loop.last }}
+          {% endfor %}
+        ],
+        "outboundTag": "blocked",
+        "settings": {
+          "response": {
+            "type":
+              "http"
+          }
+        }
+      }
+      {% if xray_api.enable %}
+      ,
+      {
+        "type": "field",
+        "inboundTag": ["{{ xray_common.inbound_tag.api_in }}"],
+        "outboundTag": "{{ xray_common.inbound_tag.api_in }}"
+      }
+      {% endif %}
+    ]
+  }
+}    

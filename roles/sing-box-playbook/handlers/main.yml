@@ -1,0 +1,22 @@
+# handlers/main.yml
+# Handlers for the sing-box role
+
+- name: Reload systemd and restart sing-box
+  ansible.builtin.systemd:
+    daemon_reload: true
+    name: sing-box
+    state: restarted
+    enabled: true
+  listen: "Reload systemd and restart sing-box"
+
+- name: Restart sing-box service
+  ansible.builtin.systemd:
+    name: sing-box
+    state: restarted
+  listen: "Restart sing-box service"
+
+- name: Reload sing-box configuration
+  ansible.builtin.systemd:
+    name: sing-box
+    state: reloaded
+  listen: "Reload sing-box configuration"

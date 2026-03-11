@@ -1,0 +1,14 @@
+{
+  {% if xray_api.enable %}
+  "stats": {},
+  "api": {
+    "tag": "{{ xray_api.inbound.tag }}",
+    "listen": "{{ xray_api.inbound.address }}:{{ xray_api.inbound.port }}",
+    "services": [
+      {% for service in xray_api.services %}
+      "{{ service }}"{{ "," if not loop.last }}
+      {% endfor %}
+    ]
+  }
+  {% endif %}
+}
