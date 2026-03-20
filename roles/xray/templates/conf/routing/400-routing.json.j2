@@ -2,6 +2,7 @@
   "routing": {
     "domainStrategy": "IPIfNonMatch",
     "rules": [
+      {% if xray_blocked_domains | length > 0 %}
       {
         "type": "field",
         "domain": [
@@ -10,16 +11,15 @@
           {% endfor %}
         ],
         "outboundTag": "blocked"
-      }
+      },
+      {% endif %}
       {% if xray_api.enable %}
-      ,
       {
         "type": "field",
         "inboundTag": ["{{ xray_api.inbound.tag }}"],
         "outboundTag": "{{ xray_api.inbound.tag }}"
-      }
+      },
       {% endif %}
-      ,
       {
         "type": "field",
         "inboundTag": [
