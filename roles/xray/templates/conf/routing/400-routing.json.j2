@@ -18,20 +18,14 @@
           "{{ domain }}"{{ "," if not loop.last }}
           {% endfor %}
         ],
-        "outboundTag": "blocked",
-        "settings": {
-          "response": {
-            "type":
-              "http"
-          }
-        }
+        "outboundTag": "blocked"
       }
       {% if xray_api.enable %}
       ,
       {
         "type": "field",
-        "inboundTag": ["{{ xray_common.inbound_tag.api_in }}"],
-        "outboundTag": "{{ xray_common.inbound_tag.api_in }}"
+        "inboundTag": ["{{ xray_api.inbound.tag }}"],
+        "outboundTag": "{{ xray_api.inbound.tag }}"
       }
       {% endif %}
     ]

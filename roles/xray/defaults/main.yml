@@ -4,7 +4,7 @@ xray_common:
   inbound_tag:                           # Common tag for all Xray inbounds
     vless_reality_in: "vless-reality-in"        # Tag for VLESS + XTLS-Reality inbound
     vless_xhttp_in: "vless-xhttp-in"            # Tag for VLESS + XHTTP inbound
-    api_in: "api-in"                            # Tag for Xray API inbound
+    api_in: "api-inbound"                       # Tag for Xray API inbound
 
 xray_install_dir: /opt/xray                   # Xray installation directory
 xray_config_dir: /etc/xray/                    # Directory for Xray configuration files
