@@ -1,0 +1,26 @@
+# Docker test stack: mock subscription HTTP + subscription checker + optional Xray client.
+# Usage:
+#   cd docker/test && docker compose up -d --build
+#   docker compose run --rm subtest ./scripts/test-subscription.sh http://subscription-mock/sub
+#   curl -x socks5h://127.0.0.1:11080 -sI https://example.com   # after xray-client up
+
+services:
+  subscription-mock:
+    image: nginx:alpine
+    container_name: raven-subscription-mock
+    volumes:
+      - ./mock-sub/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./mock-sub:/usr/share/nginx/html:ro
+    ports:
+      - "18088:80"
+
+  xray-client:
+    build: ./xray-client
+    container_name: raven-xray-client
+    environment:
+      # JSON base64 subscription (same mock as /sub): works with entrypoint.
+      SUBSCRIPTION_URL: ${SUBSCRIPTION_URL:-http://subscription-mock/sub}
+    ports:
+      - "11080:1080"
+    depends_on:
+      - subscription-mock

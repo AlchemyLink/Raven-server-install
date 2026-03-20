@@ -1,0 +1,13 @@
+# Переопределения только для рендера в tests/ (пути логов в /tmp).
+---
+xray_log_config:
+  service_rotate_name: logrotate.service
+  log_level: "warning"
+  log_path: "/tmp/raven-xray-test-logs"
+  access_log: "access.log"
+  error_log: "error.log"
+  logrotate_config: "/etc/logrotate.d/xray"
+  dns_log: false
+
+# geosite.dat отсутствует в тестовой среде — используем пустой список.
+xray_blocked_domains: []

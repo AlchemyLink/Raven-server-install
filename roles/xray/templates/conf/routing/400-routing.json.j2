@@ -2,15 +2,7 @@
   "routing": {
     "domainStrategy": "IPIfNonMatch",
     "rules": [
-      {
-        "type": "field",
-        "inboundTag": [
-          {% for key, value in xray_common.inbound_tag.items() %}
-            "{{ value }}"{{ "," if not loop.last }}
-          {% endfor %}
-        ],
-        "outboundTag": "freedom"
-        },
+      {% if xray_blocked_domains | length > 0 %}
       {
         "type": "field",
         "domain": [
@@ -19,15 +11,23 @@
           {% endfor %}
         ],
         "outboundTag": "blocked"
-      }
+      },
+      {% endif %}
       {% if xray_api.enable %}
-      ,
       {
         "type": "field",
         "inboundTag": ["{{ xray_api.inbound.tag }}"],
         "outboundTag": "{{ xray_api.inbound.tag }}"
-      }
+      },
       {% endif %}
+      {
+        "type": "field",
+        "inboundTag": [
+          "{{ xray_common.inbound_tag.vless_reality_in }}",
+          "{{ xray_common.inbound_tag.vless_xhttp_in }}"
+        ],
+        "outboundTag": "freedom"
+      }
     ]
   }
 }    
