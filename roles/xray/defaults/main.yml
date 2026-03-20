@@ -80,11 +80,23 @@ xray_xhttp:
 ##### Xray reality #####
 
 # xray_reality:
-#   private_key: "PrivateKeyHere"          # Replace with your actual reality private key
-#   spiderX: "spiderXHere"                 # Replace with your actual spiderX value
+#   private_key: "..."     # xray x25519
+#   public_key:  "..."     # xray x25519
+#   spiderX:     "/"
 #   short_id:
-#     - "shortId1Here"                     # Replace with your actual short ID (openssl rand -hex 8)
-#   public_key: "public keyHere"           # Replace with your actual reality public key.
+#     - "abc12345"         # openssl rand -hex 8
+#
+#   # MLDSA65 post-quantum signatures (optional, Xray >= 25.x)
+#   # mldsa65_seed:   server secret — keep in encrypted secrets.yml
+#   # mldsa65_verify: public key   — share with clients
+#   mldsa65_seed:   "..."
+#   mldsa65_verify: "..."
+
+# VLESS payload encryption mode.
+# "none" — standard VLESS, compatible with all clients.
+# For post-quantum set cipher string (Xray-core >= 25.x).
+# All clients on the inbound must support the chosen cipher.
+xray_vless_decryption: "none"
 
 # xray_users:
 #   - id: "UUID_1"                         # Replace with your actual UUID
