@@ -3,11 +3,13 @@
     {
       "tag": "{{ xray_common.inbound_tag.vless_reality_in }}",
       "settings": {
-        "clients": [          
+        "clients": [
+          {% set _pq = xray_vless_decryption | default('none') != 'none' %}
           {% for user in xray_users %}
+          {% set _flow = user.flow | default('xtls-rprx-vision') %}
           {
             "id": "{{ user.id }}",
-            "flow": "{{ user.flow | default('xtls-rprx-vision') }}",
+            "flow": "{{ 'xtls-rprx-vision' if _pq else _flow }}",
             "email": "{{ user.email | default('') }}",
             "level": 0
           }{{ "," if not loop.last }}
