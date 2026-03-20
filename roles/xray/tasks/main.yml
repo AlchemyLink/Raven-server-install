@@ -15,10 +15,6 @@
   ansible.builtin.import_tasks: inbounds.yml
   tags: xray_inbounds
 
-# - name: Xray | Users
-#   ansible.builtin.import_tasks: users.yml
-#   tags: xray_users
-
 - name: Xray | Routing
   ansible.builtin.import_tasks: routing.yml
   tags: xray_routing

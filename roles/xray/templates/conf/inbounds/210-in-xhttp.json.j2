@@ -30,6 +30,7 @@
         "realitySettings": {
           "dest": "{{ xray_reality_dest }}",
           "privateKey": "{{ xray_reality.private_key }}",
+          "spiderX": "{{ xray_reality.spiderX }}",
           "serverNames": [
             {% for name in xray_reality_server_names %}
             "{{ name }}"{{ "," if not loop.last }}
@@ -47,13 +48,7 @@
         "xhttpSettings": {
           "mode": "{{ xray_xhttp.xhttpSettings.mode }}",
           "path": "{{ xray_xhttp.xhttpSettings.path }}",
-          "scMaxPacketSize": "{{ xray_xhttp.xhttpSettings.scMaxPacketSize }}",
-          "xmux": {
-            "cids": [
-              1
-            ],
-            "maxConcurrency": 16
-          }
+          "scMaxPacketSize": {{ xray_xhttp.xhttpSettings.scMaxPacketSize }}
         }
       }
     }
