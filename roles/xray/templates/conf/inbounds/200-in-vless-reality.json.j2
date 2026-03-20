@@ -32,6 +32,14 @@
             {% endfor %}
           ],
           "privateKey": "{{ xray_reality.private_key }}",
+          {% set _seed = xray_reality.mldsa65_seed | default('') %}
+          {% if _seed %}
+          "mldsa65Seed": "{{ xray_reality.mldsa65_seed }}",
+          {% set _verify = xray_reality.mldsa65_verify | default('') %}
+          {% if _verify %}
+          "mldsa65Verify": "{{ xray_reality.mldsa65_verify }}",
+          {% endif %}
+          {% endif %}
           "shortIds": [
             {% for short_id in xray_reality.short_id %}
             "{{ short_id }}"{{ "," if not loop.last }}
