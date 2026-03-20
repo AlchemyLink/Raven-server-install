@@ -15,7 +15,7 @@
           }{{ "," if not loop.last }}
           {% endfor %}
         ],
-         "decryption": "none"
+        "decryption": "{{ xray_vless_decryption | default('none') }}"
       },
       "sniffing": {
         "enabled": true,
@@ -32,6 +32,12 @@
           "dest": "{{ xray_reality_dest }}",
           "privateKey": "{{ xray_reality.private_key }}",
           "spiderX": "{{ xray_reality.spiderX }}",
+          {% if xray_reality.mldsa65_seed is defined and xray_reality.mldsa65_seed %}
+          "mldsa65Seed": "{{ xray_reality.mldsa65_seed }}",
+          {% if xray_reality.mldsa65_verify is defined and xray_reality.mldsa65_verify %}
+          "mldsa65Verify": "{{ xray_reality.mldsa65_verify }}",
+          {% endif %}
+          {% endif %}
           "serverNames": [
             {% for name in xray_reality_server_names %}
             "{{ name }}"{{ "," if not loop.last }}

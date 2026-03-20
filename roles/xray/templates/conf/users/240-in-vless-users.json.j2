@@ -7,14 +7,13 @@
           {% for user in xray_users %}
           {
             "id": "{{ user.id }}",
-            "flow": "",
+            "flow": "{{ user.flow | default('xtls-rprx-vision') }}",
             "email": "{{ user.email | default('') }}",
             "level": 0
           }{{ "," if not loop.last }}
           {% endfor %}
         ],
-        "decryption": "none",
-        "security": "reality"
+        "decryption": "{{ xray_vless_decryption | default('none') }}"
       }
     }
   ]
