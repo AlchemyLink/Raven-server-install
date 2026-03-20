@@ -1,0 +1,26 @@
+# 3x-ui: Xray + SQLite + web panel (subscription links in UI).
+# Panel default path/port depend on image version — check container logs after start.
+#
+#   cd docker/test && docker compose -f docker-compose.3x-ui.yml up -d
+#   # Open http://127.0.0.1:2053/ (or see README), login admin/admin, change password,
+#   # add inbound, copy subscription URL for clients.
+
+services:
+  x-ui:
+    image: ghcr.io/mhsanaei/3x-ui:latest
+    container_name: raven-3x-ui
+    restart: unless-stopped
+    environment:
+      - XRAY_VMESS_AEAD_FORCED=false
+    volumes:
+      - xui_db:/etc/x-ui
+      - xui_cert:/root/cert
+    ports:
+      - "2053:2053"
+      # Map additional ports for Xray inbounds after you create them in the panel
+      # - "443:443"
+      # - "8443:8443"
+
+volumes:
+  xui_db:
+  xui_cert:
