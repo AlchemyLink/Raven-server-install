@@ -32,9 +32,11 @@
           "dest": "{{ xray_reality_dest }}",
           "privateKey": "{{ xray_reality.private_key }}",
           "spiderX": "{{ xray_reality.spiderX }}",
-          {% if xray_reality.mldsa65_seed is defined and xray_reality.mldsa65_seed %}
+          {% set _seed = xray_reality.mldsa65_seed | default('') %}
+          {% if _seed %}
           "mldsa65Seed": "{{ xray_reality.mldsa65_seed }}",
-          {% if xray_reality.mldsa65_verify is defined and xray_reality.mldsa65_verify %}
+          {% set _verify = xray_reality.mldsa65_verify | default('') %}
+          {% if _verify %}
           "mldsa65Verify": "{{ xray_reality.mldsa65_verify }}",
           {% endif %}
           {% endif %}

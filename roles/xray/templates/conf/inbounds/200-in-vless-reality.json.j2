@@ -31,9 +31,11 @@
             {% endfor %}
           ],
           "privateKey": "{{ xray_reality.private_key }}",
-          {% if xray_reality.mldsa65_seed is defined and xray_reality.mldsa65_seed %}
+          {% set _seed = xray_reality.mldsa65_seed | default('') %}
+          {% if _seed %}
           "mldsa65Seed": "{{ xray_reality.mldsa65_seed }}",
-          {% if xray_reality.mldsa65_verify is defined and xray_reality.mldsa65_verify %}
+          {% set _verify = xray_reality.mldsa65_verify | default('') %}
+          {% if _verify %}
           "mldsa65Verify": "{{ xray_reality.mldsa65_verify }}",
           {% endif %}
           {% endif %}
