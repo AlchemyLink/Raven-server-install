@@ -30,6 +30,10 @@ xray_reality_server_names:                    # List of domain names for SNI/Ser
 # All clients on the inbound must support the chosen cipher.
 xray_vless_decryption: "none"
 
+# Per-client encryption (outbound side, inbound enforcement).
+# Overridden automatically when xray_vless_decryption != "none".
+xray_vless_encryption: "none"
+
 # DNS for config
 xray_dns_servers:                             # List of DNS servers for Xray
   - "tcp+local://dns.adguard.com"             # AdGuard DNS via QUIC
