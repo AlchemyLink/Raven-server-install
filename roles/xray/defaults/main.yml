@@ -24,6 +24,15 @@ xray_reality_dest: "askubuntu.com:443"        # Destination for XTLS-Reality (us
 xray_reality_server_names:                    # List of domain names for SNI/ServerName (used in Reality)
   - "askubuntu.com"                             # Replace with your actual domain or leave empty for random
 
+# VLESS decryption mode for inbound settings.
+# "none"                       — classic VLESS, no payload encryption (default, all clients supported).
+# "mlkem768x25519plus.native.0rtt.<capability-bitmap>"
+#                              — postquantum VLESS encryption (Xray-core >= 25.x).
+#                                ALL clients connecting to this inbound MUST support the cipher.
+#                                Example: "mlkem768x25519plus.native.0rtt.100-111-1111-1111-1111-111"
+# Do NOT mix legacy and postquantum clients on the same inbound.
+xray_vless_decryption: "none"
+
 # DNS for config
 xray_dns_servers:                             # List of DNS servers for Xray
   - "tcp+local://dns.adguard.com"             # AdGuard DNS via QUIC
@@ -80,11 +89,18 @@ xray_xhttp:
 ##### Xray reality #####
 
 # xray_reality:
-#   private_key: "PrivateKeyHere"          # Replace with your actual reality private key
-#   spiderX: "spiderXHere"                 # Replace with your actual spiderX value
+#   private_key: "PrivateKeyHere"          # X25519 private key  (xray x25519)
+#   public_key:  "PublicKeyHere"           # X25519 public key   (xray x25519)
+#   spiderX: "spiderXHere"                 # spiderX path        (e.g. "/")
 #   short_id:
-#     - "shortId1Here"                     # Replace with your actual short ID (openssl rand -hex 8)
-#   public_key: "public keyHere"           # Replace with your actual reality public key.
+#     - "shortId1Here"                     # 8-byte hex short ID (openssl rand -hex 8)
+#
+#   # ML-DSA-65 postquantum signatures for REALITY (optional, Xray-core >= 25.x).
+#   # mldsa65_seed is the server secret — NEVER share it with clients.
+#   # mldsa65_verify is the public key clients use to verify the server — include in client configs.
+#   # Generate: xray mldsa65   (outputs seed and verify)
+#   mldsa65_seed:   "mldsa65SeedHere"      # Server secret — store only in encrypted secrets.yml
+#   mldsa65_verify: "mldsa65VerifyHere"    # Public key    — safe to share with clients
 
 # xray_users:
 #   - id: "UUID_1"                         # Replace with your actual UUID
