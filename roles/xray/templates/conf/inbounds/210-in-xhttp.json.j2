@@ -5,11 +5,12 @@
       "protocol": "vless",
       "tag": "{{ xray_common.inbound_tag.vless_xhttp_in }}", 
       "settings": {
-        "clients": [          
+        "clients": [
+          {% set _pq = xray_vless_decryption | default('none') != 'none' %}
           {% for user in xray_users %}
           {
             "id": "{{ user.id }}",
-            "flow": "",
+            "flow": "{{ 'xtls-rprx-vision' if _pq else '' }}",
             "email": "{{ user.email | default('') }}",
             "level": 0
           }{{ "," if not loop.last }}
