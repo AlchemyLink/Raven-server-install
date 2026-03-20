@@ -7,14 +7,10 @@
       "settings": {
         "clients": [
           {% set _pq = xray_vless_decryption | default('none') != 'none' %}
-          {% set _def_enc = xray_vless_encryption | default('none') %}
           {% for user in xray_users %}
-          {% set _u_enc = user.encryption | default(_def_enc) %}
-          {% set _enc = xray_vless_decryption if _pq else _u_enc %}
           {
             "id": "{{ user.id }}",
             "flow": "{{ 'xtls-rprx-vision' if _pq else user.flow }}",
-            "encryption": "{{ _enc }}",
             "email": "{{ user.email | default('') }}",
             "level": 0
           }{{ "," if not loop.last }}

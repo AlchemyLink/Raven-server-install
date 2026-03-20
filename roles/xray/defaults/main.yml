@@ -24,15 +24,11 @@ xray_reality_dest: "askubuntu.com:443"        # Destination for XTLS-Reality (us
 xray_reality_server_names:                    # List of domain names for SNI/ServerName (used in Reality)
   - "askubuntu.com"                             # Replace with your actual domain or leave empty for random
 
-# VLESS payload encryption mode.
+# VLESS payload encryption mode (server inbound setting).
 # "none" — standard VLESS, compatible with all clients.
 # For post-quantum set cipher string (Xray-core >= 25.x).
 # All clients on the inbound must support the chosen cipher.
 xray_vless_decryption: "none"
-
-# Per-client encryption (outbound side, inbound enforcement).
-# Overridden automatically when xray_vless_decryption != "none".
-xray_vless_encryption: "none"
 
 # DNS for config
 xray_dns_servers:                             # List of DNS servers for Xray
@@ -101,6 +97,9 @@ xray_xhttp:
 #   # mldsa65_verify: public key   — share with clients
 #   mldsa65_seed:   "..."
 #   mldsa65_verify: "..."
+#   xray_vless_encryption: "none"
+#   xray_vless_decryption: "none"
+
 
 # xray_users:
 #   - id: "UUID_1"                         # Replace with your actual UUID
