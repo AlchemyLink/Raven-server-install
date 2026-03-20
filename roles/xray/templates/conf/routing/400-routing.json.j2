@@ -4,15 +4,6 @@
     "rules": [
       {
         "type": "field",
-        "inboundTag": [
-          {% for key, value in xray_common.inbound_tag.items() %}
-            "{{ value }}"{{ "," if not loop.last }}
-          {% endfor %}
-        ],
-        "outboundTag": "freedom"
-        },
-      {
-        "type": "field",
         "domain": [
           {% for domain in xray_blocked_domains %}
           "{{ domain }}"{{ "," if not loop.last }}
@@ -28,6 +19,15 @@
         "outboundTag": "{{ xray_api.inbound.tag }}"
       }
       {% endif %}
+      ,
+      {
+        "type": "field",
+        "inboundTag": [
+          "{{ xray_common.inbound_tag.vless_reality_in }}",
+          "{{ xray_common.inbound_tag.vless_xhttp_in }}"
+        ],
+        "outboundTag": "freedom"
+      }
     ]
   }
 }    

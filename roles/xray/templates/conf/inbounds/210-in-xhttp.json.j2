@@ -18,12 +18,13 @@
          "decryption": "none"
       },
       "sniffing": {
+        "enabled": true,
         "destOverride": [
           "http",
           "tls",
           "quic"
         ],
-        "enabled": true
+        "routeOnly": true
       },
       "streamSettings": {
         "network": "{{ xray_xhttp.network }}",
