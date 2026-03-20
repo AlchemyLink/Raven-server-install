@@ -68,6 +68,7 @@ xray_vless_decryption: "mlkem768x25519plus.native.0rtt.100-111-1111-1111-1111-11
 | `xray_reality_server_names` | `[askubuntu.com]` | SNI server names |
 | `xray_api.inbound.port` | `10085` | Xray gRPC API port (localhost only) |
 | `xray_vless_decryption` | `none` | VLESS payload decryption mode (`none` or postquantum cipher string) |
+| `xray_vless_default_flow` | `xtls-rprx-vision` | `flow` для пользователя, если в `xray_users` не задан ([VLESS inbound](https://xtls.github.io/en/config/inbounds/vless.html)) |
 | `xray_reality.mldsa65_seed` | — | ML-DSA-65 server seed (secrets.yml only) |
 | `xray_reality.mldsa65_verify` | — | ML-DSA-65 public verification key (share with clients) |
 

@@ -3,13 +3,23 @@
   ansible.builtin.assert:
     that:
       - xray_vless_decryption | default('none') == 'none'
+        or (xray_vless_decryption | default('none')).startswith('mlkem768x25519plus.')
     fail_msg: >-
-      xray_vless_decryption is set to an unsupported value:
-      "{{ xray_vless_decryption }}".
-      Xray 26.x only accepts "none" for VLESS inbound decryption.
-      PQ protection is provided by MLDSA65 in the REALITY handshake.
-      Set xray_vless_decryption: "none" in your secrets.yml.
+      xray_vless_decryption must be "none" or a valid VLESS Encryption string
+      starting with "mlkem768x25519plus.".
+      Generate with: xray vlessenc
+      See https://xtls.github.io/config/inbounds/vless.html
     success_msg: "xray_vless_decryption is valid"
+
+- name: Xray | Validate xray_vless_client_encryption matches decryption mode
+  ansible.builtin.assert:
+    that:
+      - (xray_vless_decryption | default('none') == 'none') == (xray_vless_client_encryption | default('none') == 'none')
+    fail_msg: >-
+      xray_vless_decryption and xray_vless_client_encryption must be both "none"
+      or both set to VLESS Encryption strings (server and client keys differ).
+      Generate both with: xray vlessenc
+    success_msg: "xray_vless_client_encryption is consistent with decryption"
 
 - name: Xray | Validate xray_users is defined and non-empty
   ansible.builtin.assert:
