@@ -1,0 +1,67 @@
+---
+- name: Xray | Validate xray_vless_decryption value
+  ansible.builtin.assert:
+    that:
+      - xray_vless_decryption | default('none') == 'none'
+        or (xray_vless_decryption | default('none')).startswith('mlkem768x25519plus.')
+    fail_msg: >-
+      xray_vless_decryption must be "none" or a valid VLESS Encryption string
+      starting with "mlkem768x25519plus.".
+      Generate with: xray vlessenc
+      See https://xtls.github.io/config/inbounds/vless.html
+    success_msg: "xray_vless_decryption is valid"
+
+- name: Xray | Validate xray_vless_client_encryption matches decryption mode
+  ansible.builtin.assert:
+    that:
+      - (xray_vless_decryption | default('none') == 'none') == (xray_vless_client_encryption | default('none') == 'none')
+    fail_msg: >-
+      xray_vless_decryption and xray_vless_client_encryption must be both "none"
+      or both set to VLESS Encryption strings (server and client keys differ).
+      Generate both with: xray vlessenc
+    success_msg: "xray_vless_client_encryption is consistent with decryption"
+
+- name: Xray | Validate xray_users is defined and non-empty
+  ansible.builtin.assert:
+    that:
+      - xray_users is defined
+      - xray_users | length > 0
+    fail_msg: >-
+      xray_users is not defined or empty.
+      Define at least one user in secrets.yml.
+    success_msg: "xray_users is valid"
+
+- name: Xray | Validate each user has id and email
+  ansible.builtin.assert:
+    that:
+      - item.id is defined and item.id != ''
+      - item.email is defined and item.email != ''
+    fail_msg: >-
+      User entry is missing required fields.
+      Each user must have 'id' (UUID) and 'email'.
+      Offending entry: {{ item }}
+    success_msg: "User {{ item.email }} is valid"
+  loop: "{{ xray_users }}"
+
+- name: Xray | Warn if DoH servers are in xray_dns_servers
+  ansible.builtin.assert:
+    that:
+      - xray_dns_servers | select('match', '^https://') | list | length == 0
+    fail_msg: >-
+      xray_dns_servers contains DoH URL (https://).
+      DoH routes through the proxy chain and causes
+      "closed pipe" errors. Use tcp+local://8.8.8.8 instead.
+    success_msg: "DNS servers config is valid"
+
+- name: Xray | Validate xray_reality keys are defined
+  ansible.builtin.assert:
+    that:
+      - xray_reality is defined
+      - xray_reality.private_key is defined
+      - xray_reality.private_key != ''
+      - xray_reality.short_id is defined
+      - xray_reality.short_id | length > 0
+    fail_msg: >-
+      xray_reality is missing required keys.
+      Ensure private_key and short_id are set in secrets.yml.
+    success_msg: "xray_reality keys are valid"

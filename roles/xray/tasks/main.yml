@@ -1,4 +1,8 @@
 ---
+- name: Xray | Validate
+  ansible.builtin.import_tasks: validate.yml
+  tags: always
+
 - name: Xray | Install
   ansible.builtin.import_tasks: install.yml
   tags: xray_install
@@ -34,3 +38,7 @@
 - name: Xray | GRPCurl
   ansible.builtin.import_tasks: grpcurl.yml
   tags: grpcurl
+
+- name: Raven-subscribe | Deploy subscription server
+  ansible.builtin.import_tasks: raven_subscribe.yml
+  tags: raven_subscribe
