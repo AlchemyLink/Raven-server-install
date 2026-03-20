@@ -1,4 +1,8 @@
 ---
+- name: Xray | Validate
+  ansible.builtin.import_tasks: validate.yml
+  tags: always
+
 - name: Xray | Install
   ansible.builtin.import_tasks: install.yml
   tags: xray_install
