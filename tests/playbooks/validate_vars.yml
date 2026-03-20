@@ -1,0 +1,12 @@
+---
+# Импорт проверок из роли (те же assert, что перед деплоем).
+- name: Run role validate tasks
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars_files:
+    - ../../roles/xray/defaults/main.yml
+    - ../fixtures/test_secrets.yml
+  tasks:
+    - name: Import xray validate.yml
+      ansible.builtin.import_tasks: ../../roles/xray/tasks/validate.yml

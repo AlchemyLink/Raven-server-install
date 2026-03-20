@@ -1,0 +1,227 @@
+{
+  "log": {
+    "loglevel": "{{ xray_log_level }}",
+    "access": "{{ xray_access_log }}",
+    "error": "{{ xray_error_log }}",
+    "dnsLog": {{ xray_dns_log | to_json }}
+  },
+  "dns": {
+    "servers": [
+      {% for server in xray_dns_servers %}
+      "{{ server }}"{{ "," if not loop.last }}
+      {% endfor %}
+    ],
+    "disableFallback": {{ xray_dns_disable_fallback | to_json }},
+    "queryStrategy": "{{ xray_dns_query_strategy }}"
+  },
+  {% if xray_api.enable %}
+  "stats": {},
+  "api": {
+    "tag": "{{ xray_api.tag }}",
+    "listen": "{{ xray_api.inbound.address }}:{{ xray_api.inbound.port }}",
+    "tag": "{{ xray_api.tag }}",
+    "services": [
+      {% for service in xray_api.services %}
+      "{{ service }}"{{ "," if not loop.last }}
+      {% endfor %}
+    ]
+  },
+  "policy": {
+    "levels": {
+      "0": {
+        "statsUserUplink": true,
+        "statsUserDownlink": true
+      }
+    },
+    "system": {
+      "statsInboundUplink": true,
+      "statsInboundDownlink": true,
+      "statsOutboundUplink": true,
+      "statsOutboundDownlink": true
+    }
+  },
+  {% endif %}
+  "inbounds": [
+    {% if xray_api.enable %}
+    {
+      "listen": "{{ xray_api.inbound.address }}",
+      "port": {{ xray_api.inbound.port }},
+      "protocol": "{{ xray_api.inbound.protocol }}",
+      "settings": {
+        "address": "{{ xray_api.inbound.address }}"
+      },
+      "tag": "{{ xray_api.inbound.tag}}",
+      "sniffing": null
+    },
+    {% endif %}
+    {
+      "port": {{ xray_vless_port }},
+      "protocol": "vless",
+      "tag": "{{ xray_vless_tag }}",
+      "settings": {
+        "clients": [
+          {% for user in xray_users %}
+          {
+            "id": "{{ user.id }}",
+            "flow": "{{ user.flow }}",
+            "email": "{{ user.email | default('') }}",
+            "level": 0
+          }{{ "," if not loop.last }}
+          {% endfor %}
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "{{ xray_reality_dest }}",
+          "spiderX": "{{ xray_reality.spiderX }}",
+          "xver": 0,
+          "serverNames": [
+            {% for name in xray_reality_server_names %}
+            "{{ name }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "privateKey": "{{ xray_reality.private_key }}",
+          "shortIds": [
+            {% for short_id in xray_reality.short_id %}
+            "{{ short_id }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ]
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "routeOnly": true
+      }
+    },
+    {
+      "port": 2053,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {% for user in xray_users %}
+          {
+            "id": "{{ user.id }}",
+            "flow": "",
+            "email": "{{ user.email | default('') }}",
+            "level": 0
+          }{{ "," if not loop.last }}
+          {% endfor %}
+        ],
+        "decryption": "none"
+      },
+      "sniffing": {
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "enabled": true
+      },
+      "streamSettings": {
+        "network": "xhttp",
+        "realitySettings": {
+          "dest": "{{ xray_reality_dest }}",
+          "privateKey": "{{ xray_reality.private_key }}",
+          "serverNames": [
+            {% for name in xray_reality_server_names %}
+            "{{ name }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "shortIds": [
+            {% for short_id in xray_reality.short_id %}
+            "{{ short_id }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "show": false,
+          "xver": 0
+        },
+        "security": "reality",
+        "xhttpSettings": {
+          "mode": "{{ xray_xhttp.xhttpSettings.mode }}",
+          "path": "{{ xray_xhttp.xhttpSettings.path }}",
+          "scMaxPacketSize": "{{ xray_xhttp.xhttpSettings.scMaxPacketSize }}",
+          "xmux": {
+            "cids": [
+              1
+            ],
+            "maxConcurrency": 16
+          }
+        }
+      },
+      "tag": "vless-xhttp-in"
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "settings": {},
+      "tag": "freedom"
+    },
+    {
+      "protocol": "blackhole",
+      "settings": {},
+      "tag": "blocked"
+    }
+  ],
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      {% if xray_api.enable %}
+      {
+        "type": "field",
+        "inboundTag": [
+          "{{ xray_api.inbound.tag}}"
+        ],
+        "outboundTag": "{{ xray_api.tag }}"
+      },
+      {% endif %}
+      {
+        "type": "field",
+        "inboundTag": [
+          "{{ xray_vless_tag }}",
+          "{{ xray_xhttp.xray_xhttp_tag }}"
+        ],
+        "outboundTag": "freedom"
+      },
+      {
+        "type": "field",
+        "domain": [
+          "geosite:category-ads",
+          "geosite:category-public-tracker"
+        ],
+        "outboundTag": "blocked"
+      },
+      {
+        "type": "field",
+        "domain": [
+          {% for domain in xray_blocked_domains %}
+          "{{ domain }}"{{ "," if not loop.last }}
+          {% endfor %}
+        ],
+        "outboundTag": "blocked",
+        "settings": { 
+          "response": { 
+            "type": 
+              "http" 
+          }
+        }
+      },
+      {% if xray_api.enable %}
+      {
+        "type": "field",
+        "inboundTag": ["${xray_api.inbound.tag}"],
+        "outboundTag": "api"
+      }
+      {% endif %}
+    ]
+  }
+}
