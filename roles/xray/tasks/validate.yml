@@ -1,0 +1,47 @@
+---
+- name: Xray | Validate xray_vless_decryption value
+  ansible.builtin.assert:
+    that:
+      - xray_vless_decryption | default('none') == 'none'
+    fail_msg: >-
+      xray_vless_decryption is set to an unsupported value:
+      "{{ xray_vless_decryption }}".
+      Xray 26.x only accepts "none" for VLESS inbound decryption.
+      PQ protection is provided by MLDSA65 in the REALITY handshake.
+      Set xray_vless_decryption: "none" in your secrets.yml.
+    success_msg: "xray_vless_decryption is valid"
+
+- name: Xray | Validate xray_users is defined and non-empty
+  ansible.builtin.assert:
+    that:
+      - xray_users is defined
+      - xray_users | length > 0
+    fail_msg: >-
+      xray_users is not defined or empty.
+      Define at least one user in secrets.yml.
+    success_msg: "xray_users is valid"
+
+- name: Xray | Validate each user has id and email
+  ansible.builtin.assert:
+    that:
+      - item.id is defined and item.id != ''
+      - item.email is defined and item.email != ''
+    fail_msg: >-
+      User entry is missing required fields.
+      Each user must have 'id' (UUID) and 'email'.
+      Offending entry: {{ item }}
+    success_msg: "User {{ item.email }} is valid"
+  loop: "{{ xray_users }}"
+
+- name: Xray | Validate xray_reality keys are defined
+  ansible.builtin.assert:
+    that:
+      - xray_reality is defined
+      - xray_reality.private_key is defined
+      - xray_reality.private_key != ''
+      - xray_reality.short_id is defined
+      - xray_reality.short_id | length > 0
+    fail_msg: >-
+      xray_reality is missing required keys.
+      Ensure private_key and short_id are set in secrets.yml.
+    success_msg: "xray_reality keys are valid"
