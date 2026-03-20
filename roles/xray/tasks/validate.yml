@@ -33,6 +33,16 @@
     success_msg: "User {{ item.email }} is valid"
   loop: "{{ xray_users }}"
 
+- name: Xray | Warn if DoH servers are in xray_dns_servers
+  ansible.builtin.assert:
+    that:
+      - xray_dns_servers | select('match', '^https://') | list | length == 0
+    fail_msg: >-
+      xray_dns_servers contains DoH URL (https://).
+      DoH routes through the proxy chain and causes
+      "closed pipe" errors. Use tcp+local://8.8.8.8 instead.
+    success_msg: "DNS servers config is valid"
+
 - name: Xray | Validate xray_reality keys are defined
   ansible.builtin.assert:
     that:

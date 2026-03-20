@@ -32,9 +32,10 @@ xray_vless_decryption: "none"
 
 # DNS for config
 xray_dns_servers:                             # List of DNS servers for Xray
-  - "tcp+local://dns.adguard.com"             # AdGuard DNS via QUIC
-  - "8.8.8.8"                                 # Google DNS (plain)
-  - "1.1.1.1"                                 # Cloudflare DNS (plain)
+  - "tcp+local://8.8.8.8"                     # Google DNS, local (bypasses proxy)
+  - "tcp+local://1.1.1.1"                     # Cloudflare DNS, local (bypasses proxy)
+  # DoH servers (https://) are NOT recommended here — they route
+  # through the proxy chain and fail with "closed pipe" on reconnect.
 xray_dns_disable_fallback: false              # Set to true to disable fallback to system DNS
 xray_dns_query_strategy: "UseIP"              # DNS query strategy: "UseIP", "UseIPIfNonMatch", "UseIPv4", "UseIPv6"
 
