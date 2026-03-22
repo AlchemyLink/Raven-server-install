@@ -138,6 +138,17 @@ raven_subscribe_api_inbound_tag: "{{ xray_common.inbound_tag.vless_reality_in }}
 # Requires xray_api.enable = true. Value: "127.0.0.1:<xray_api.inbound.port>"
 raven_subscribe_xray_api_addr: "127.0.0.1:{{ xray_api.inbound.port }}"
 
+# Path to sing-box config file. When set, Raven additionally parses sing-box inbounds
+# (currently hysteria2) and syncs their users to DB. Leave empty to disable.
+# Example: "/etc/sing-box/config.json"
+raven_subscribe_singbox_config: ""
+
+# Enable/disable Xray and sing-box sync independently.
+# Set xray_enabled: false if Xray is not installed on this server.
+# singbox_enabled defaults to true when singbox_config is set.
+raven_subscribe_xray_enabled: true
+raven_subscribe_singbox_enabled: false
+
 ##### Set these in secrets.yml (ansible-vault encrypted) #####
 # raven_subscribe_server_host: "your-server.com"   # Public IP or domain
 # raven_subscribe_base_url: "http://your-server.com:8080"
