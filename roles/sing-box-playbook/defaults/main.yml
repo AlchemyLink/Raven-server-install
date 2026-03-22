@@ -12,16 +12,9 @@ singbox_config_dir: "/etc/sing-box"
 singbox_user: "nobody"
 
 # --- DNS Settings ---
-singbox_dns_servers:
-  - tag: "google"
-    address: "tls://8.8.8.8"
-    strategy: "prefer_ipv4"
-  - tag: "cloudflare"
-    address: "tls://1.1.1.1"
-    strategy: "prefer_ipv4"
-  - tag: "local"
-    address: "local"
-    detour: "direct"
+# sing-box 1.12+ format: type + server fields (address: prefix is legacy)
+singbox_dns_strategy: "prefer_ipv4"   # global: prefer_ipv4, prefer_ipv6, ipv4_only, ipv6_only
+singbox_dns_final: "local"            # default server tag when no rule matches
 
 # --- Log Settings ---
 singbox_log_disabled: false
