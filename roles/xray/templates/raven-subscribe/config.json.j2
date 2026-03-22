@@ -11,7 +11,7 @@
   "api_user_inbound_tag": "{{ raven_subscribe_api_inbound_tag }}",
   "xray_api_addr": "{{ raven_subscribe_xray_api_addr }}",
   "xray_enabled": {{ raven_subscribe_xray_enabled | lower }},
-  "singbox_enabled": {{ raven_subscribe_singbox_enabled | lower }}{% if xray_vless_client_encryption | default('none') != 'none' %},
+  "singbox_enabled": {{ raven_subscribe_singbox_enabled | lower }}{% if xray_vless_client_encryption | default('') | string | trim not in ('', 'none', 'false', 'False') %},
   "vless_client_encryption": {
     "{{ xray_common.inbound_tag.vless_reality_in }}": "{{ xray_vless_client_encryption }}",
     "{{ xray_common.inbound_tag.vless_xhttp_in }}": "{{ xray_vless_client_encryption }}"
