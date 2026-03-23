@@ -1,0 +1,56 @@
+---
+- name: sing-box | Validate singbox_hysteria2_users is defined and non-empty
+  ansible.builtin.assert:
+    that:
+      - singbox_hysteria2_users is defined
+      - singbox_hysteria2_users | length > 0
+    fail_msg: >-
+      singbox_hysteria2_users is not defined or empty.
+      Define at least one user in secrets.yml.
+    success_msg: "singbox_hysteria2_users is valid"
+
+- name: sing-box | Validate each user has name and password
+  ansible.builtin.assert:
+    that:
+      - item.name is defined and item.name != ''
+      - item.password is defined and item.password != ''
+    fail_msg: >-
+      User entry is missing required fields.
+      Each user must have 'name' and 'password'.
+      Offending entry: {{ item }}
+    success_msg: "User {{ item.name }} is valid"
+  loop: "{{ singbox_hysteria2_users }}"
+
+- name: sing-box | Validate TLS server_name is defined
+  ansible.builtin.assert:
+    that:
+      - singbox.tls_server_name is defined
+      - singbox.tls_server_name != ''
+    fail_msg: >-
+      singbox.tls_server_name is required.
+      Set it in secrets.yml (e.g. your-server.com).
+    success_msg: "singbox.tls_server_name is valid"
+
+- name: sing-box | Validate ACME domain and email are defined
+  ansible.builtin.assert:
+    that:
+      - singbox.tls_acme_domain is defined
+      - singbox.tls_acme_domain != ''
+      - singbox.tls_acme_email is defined
+      - singbox.tls_acme_email != ''
+    fail_msg: >-
+      singbox.tls_acme_domain and singbox.tls_acme_email are required for TLS/ACME.
+      Set them in secrets.yml.
+    success_msg: "ACME config is valid"
+  when: singbox.tls_enabled | default(true)
+
+- name: sing-box | Validate obfs password is defined when obfs is enabled
+  ansible.builtin.assert:
+    that:
+      - singbox_hysteria2_obfs_password is defined
+      - singbox_hysteria2_obfs_password != ''
+    fail_msg: >-
+      singbox_hysteria2_obfs_password is required when singbox_hysteria2_obfs_enabled is true.
+      Set it in secrets.yml.
+    success_msg: "Obfuscation password is valid"
+  when: singbox_hysteria2_obfs_enabled | default(false)
