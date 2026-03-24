@@ -8,7 +8,7 @@ server {
     return 301 https://$host$request_uri;
 }
 
-# ── zirgate.com — stub site ──────────────────────────────────────────────────
+# ── {{ relay_domain }} — stub site ──────────────────────────────────────────────────
 server {
     listen 443 ssl;
     http2 on;
@@ -27,7 +27,7 @@ server {
     }
 }
 
-# ── my.zirgate.com — Raven-subscribe relay ───────────────────────────────────
+# ── {{ relay_sub_my }} — Raven-subscribe relay ───────────────────────────────────
 server {
     listen 443 ssl;
     http2 on;
