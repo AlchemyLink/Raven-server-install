@@ -1,11 +1,14 @@
 ---
-# Relay role — nginx reverse proxy on RU VPS
-# Domain layout example:
-#   example.com        A → RU VPS IP  (static stub site)
-#   my.example.com     A → RU VPS IP  (relay → Raven subscriptions + API)
+# Relay role — nginx SNI routing + reverse proxy on RU VPS
 #
-# EU server (managed by nginx_frontend role, not this role):
-#   media.example.com  A → EU VPS IP  (nginx_frontend → Xray XHTTP)
+# Port 443 is handled by nginx stream with ssl_preread (SNI routing):
+#   my.example.com / example.com → local nginx HTTPS (:8443) for subscriptions + stub
+#   everything else (VPN SNIs)   → EU server :443 (SNI routing on EU side)
+#
+# Domain layout:
+#   example.com        A → RU VPS IP  (stub site, via SNI → local HTTPS)
+#   my.example.com     A → RU VPS IP  (Raven relay, via SNI → local HTTPS)
+#   media.example.com  A → EU VPS IP  (nginx_frontend, not this role)
 
 # ── Domain ───────────────────────────────────────────────────────────────────
 relay_domain: "example.com"           # Set to your RU VPS domain
@@ -15,16 +18,18 @@ relay_sub_my: "my.{{ relay_domain }}" # Raven-subscribe relay (RU VPS)
 # Set in secrets.yml
 # relay_upstream_host: "1.2.3.4"   # EU server IP address
 
-# Port where nginx_frontend listens on EU server (Raven-subscribe is behind it)
-# Must match nginx_frontend_listen_port (default: 8443, NOT 443 which is taken by Xray)
+# Port where nginx_frontend SNI stream listens on EU server (both protocols)
+relay_upstream_port: 443
+
+# Port where nginx_frontend HTTPS listens on EU server (Raven-subscribe behind it)
 relay_upstream_raven_port: 8443
 
-# ── TCP stream relay (VLESS Reality) ─────────────────────────────────────────
-# Proxies raw TCP on relay_stream_port → EU server:relay_upstream_xray_port
-# Clients connect to example.com:relay_stream_port instead of EU IP directly.
+# ── SNI stream routing on :443 ───────────────────────────────────────────────
+# nginx stream with ssl_preread reads SNI from TLS ClientHello and routes:
+#   relay_domain / relay_sub_my → local nginx HTTPS (relay_https_port)
+#   everything else             → EU server (relay_upstream_port)
 relay_stream_enabled: true
-relay_stream_port: 8444                # Listening port on RU server (must be free)
-relay_upstream_xray_port: 8445         # nginx_frontend Reality stream port on EU server
+relay_https_port: 8443                 # Local HTTPS port (behind stream, stub + Raven relay)
 
 # ── nginx ─────────────────────────────────────────────────────────────────────
 relay_nginx_user: "www-data"

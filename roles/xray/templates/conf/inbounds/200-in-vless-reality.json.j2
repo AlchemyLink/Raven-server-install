@@ -1,6 +1,7 @@
 {
   "inbounds": [
    {
+      "listen": "{{ xray_vless_listen | default('0.0.0.0') }}",
       "port": {{ xray_vless_port }},
       "protocol": "vless",
       "tag": "{{ xray_vless_tag }}",

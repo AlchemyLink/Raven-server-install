@@ -1,10 +1,11 @@
 ---
-# nginx_frontend role — TLS frontend for EU VPS
+# nginx_frontend role — TLS frontend + SNI stream routing for EU VPS
 #
 # Responsibilities:
 #   - Install nginx + certbot
 #   - Obtain Let's Encrypt certificate for nginx_frontend_domain
-#   - Proxy Xray XHTTP (nginx_frontend_xhttp_path) → 127.0.0.1:nginx_frontend_xhttp_port
+#   - SNI routing on :443 → Xray XHTTP, Xray Reality, or nginx HTTPS
+#   - Proxy Raven-subscribe (/sub/, /c/, /api/, /health) on :8443
 
 # ── Domain ────────────────────────────────────────────────────────────────────
 nginx_frontend_domain: "media.example.com"  # Set to your EU VPS domain
@@ -12,21 +13,20 @@ nginx_frontend_domain: "media.example.com"  # Set to your EU VPS domain
 # ── Certbot ───────────────────────────────────────────────────────────────────
 nginx_frontend_certbot_email: ""   # Set in secrets.yml
 
-# ── nginx listen port ─────────────────────────────────────────────────────────
-# IMPORTANT: Xray VLESS Reality already binds to 443 (TCP).
-# nginx_frontend must listen on a different port (e.g., 8443, 9443).
-# The relay role will proxy to this port over HTTPS with SNI.
-nginx_frontend_listen_port: 8443   # Must NOT conflict with xray_vless_port (443)
+# ── nginx HTTPS listen port ──────────────────────────────────────────────────
+# Serves Raven-subscribe (subscriptions + admin API) and acts as Reality dest
+# for XHTTP probe responses. NOT the main entry point — :443 stream is.
+nginx_frontend_listen_port: 8443
 
 # ── Raven-subscribe upstream ──────────────────────────────────────────────────
 nginx_frontend_raven_port: 8080    # Must match raven_subscribe_listen_addr port
 
-# ── Xray XHTTP upstream ───────────────────────────────────────────────────────
-nginx_frontend_xhttp_port: 2053    # Must match xray_xhttp.port
-nginx_frontend_xhttp_path: "/api/v3/data-sync"   # Must match xray_xhttp.xhttpSettings.path
-
-# ── TCP stream relay for Xray VLESS Reality ───────────────────────────────────
-# Stream proxy: nginx_frontend_reality_port → 127.0.0.1:443 (Xray)
-# Allows clients to reach Reality via media.example.com instead of direct EU IP.
-nginx_frontend_reality_stream_enabled: true
-nginx_frontend_reality_port: 8445   # External TCP port for Reality stream
+# ── SNI stream routing on :443 ───────────────────────────────────────────────
+# nginx stream with ssl_preread reads SNI from TLS ClientHello and routes:
+#   SNI = xhttp_sni (e.g. www.adobe.com)  → Xray XHTTP+Reality (xhttp_port)
+#   SNI = nginx_frontend_domain           → nginx HTTPS (listen_port) for Raven
+#   default (e.g. askubuntu.com)          → Xray Reality TCP (reality_port)
+nginx_frontend_stream_enabled: true
+nginx_frontend_stream_xhttp_sni: "www.adobe.com"   # Must match xray_xhttp.reality.server_names[0]
+nginx_frontend_stream_xhttp_port: 2053              # Must match xray_xhttp.port
+nginx_frontend_stream_reality_port: 4443            # Must match xray_vless_port
