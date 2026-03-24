@@ -13,7 +13,7 @@
 #   relay_stream    — deploy TCP stream relay for VLESS Reality
 
 - name: Configure relay server
-  hosts: relay
+  hosts: vm_my_ru
   become: true
 
   vars_files:

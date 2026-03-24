@@ -12,7 +12,7 @@
 #   nginx_frontend_stream   — deploy TCP stream relay for VLESS Reality
 
 - name: Configure nginx frontend
-  hosts: eu
+  hosts: vm_my_srv
   become: true
 
   vars_files:
