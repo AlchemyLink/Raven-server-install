@@ -1,0 +1,16 @@
+---
+- name: Relay | Create webroot directory
+  ansible.builtin.file:
+    path: "{{ relay_webroot }}"
+    state: directory
+    owner: "{{ relay_nginx_user }}"
+    group: "{{ relay_nginx_user }}"
+    mode: "0755"
+
+- name: Relay | Deploy stub site index.html
+  ansible.builtin.template:
+    src: stub/index.html.j2
+    dest: "{{ relay_webroot }}/index.html"
+    owner: "{{ relay_nginx_user }}"
+    group: "{{ relay_nginx_user }}"
+    mode: "0644"

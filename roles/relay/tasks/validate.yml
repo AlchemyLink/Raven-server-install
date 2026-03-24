@@ -1,0 +1,11 @@
+---
+- name: Relay | Validate required vars
+  ansible.builtin.assert:
+    that:
+      - relay_upstream_host is defined
+      - relay_upstream_host != ''
+      - relay_certbot_email is defined
+      - relay_certbot_email != ''
+    fail_msg: >-
+      relay_upstream_host and relay_certbot_email must be set in secrets.yml.
+    success_msg: "Relay vars are valid"
