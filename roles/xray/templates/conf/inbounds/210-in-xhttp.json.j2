@@ -8,7 +8,7 @@
         "clients": [
           {% set _pq = xray_vless_decryption | default('none') != 'none' %}
           {% for user in xray_users %}
-          {% set _flow = user.flow | default(xray_vless_default_flow) %}
+          {% set _flow = user.flow | default('') %}
           {
             "id": "{{ user.id }}",
             "flow": "{{ 'xtls-rprx-vision' if _pq else _flow }}",
