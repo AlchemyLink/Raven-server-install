@@ -1,0 +1,11 @@
+---
+# Full HTTPS config with proxy_pass — deployed after certbot
+
+- name: Relay | Deploy HTTPS nginx config
+  ansible.builtin.template:
+    src: nginx/https.conf.j2
+    dest: "/etc/nginx/conf.d/{{ relay_domain }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx

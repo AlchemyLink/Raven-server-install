@@ -1,6 +1,7 @@
 # Secrets — never commit real credentials
 vault_password.txt
 **/secrets.yml
+**/*_secrets.yml
 **/vault_password.txt
 **/*.secret
 **/*.vault

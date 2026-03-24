@@ -1,0 +1,23 @@
+[Unit]
+Description=Xray Subscription Server (Raven-subscribe)
+Documentation=https://github.com/AlchemyLink/Raven-subscribe
+After=network.target {{ raven_subscribe_xray_service_name }}.service
+
+[Service]
+Type=simple
+User={{ raven_subscribe_user }}
+Group={{ raven_subscribe_group }}
+ExecStart={{ raven_subscribe_install_dir }}/xray-subscription -config {{ raven_subscribe_config_dir }}/config.json
+Restart=on-failure
+RestartSec=5s
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths={{ raven_subscribe_db_dir }} {{ raven_subscribe_xray_config_dir }}
+ReadOnlyPaths={{ raven_subscribe_config_dir }}
+PrivateTmp=yes
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target

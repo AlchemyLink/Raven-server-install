@@ -39,6 +39,4 @@
   ansible.builtin.import_tasks: grpcurl.yml
   tags: grpcurl
 
-- name: Raven-subscribe | Deploy subscription server
-  ansible.builtin.import_tasks: raven_subscribe.yml
-  tags: raven_subscribe
+
