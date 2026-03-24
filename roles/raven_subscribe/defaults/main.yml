@@ -27,11 +27,13 @@ raven_subscribe_xray_api_addr: "127.0.0.1:10085"
 raven_subscribe_xray_config_dir: "/etc/xray/config.d"
 
 # Per-inbound host overrides. Falls back to raven_subscribe_server_host when tag not listed.
-# Set in secrets.yml. Empty = all inbounds use server_host.
+# Set in secrets.yml. With SNI routing both protocols are on :443 behind nginx stream.
+# Example: {"vless-reality-in": "zirgate.com", "vless-xhttp-in": "zirgate.com"}
 raven_subscribe_inbound_hosts: {}
 
 # Per-inbound port overrides. Falls back to inbound's own port when tag not listed.
-# Set in secrets.yml. Example: {"vless-reality-in": 8444} for TCP relay on RU.
+# Set in secrets.yml. With SNI routing both protocols share port 443.
+# Example: {"vless-reality-in": 443, "vless-xhttp-in": 443}
 raven_subscribe_inbound_ports: {}
 
 # Path to sing-box config file. Leave empty to disable sing-box sync.
