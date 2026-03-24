@@ -1,0 +1,20 @@
+# {{ nginx_frontend_domain }} — HTTP only (pre-certbot)
+# Managed by Ansible nginx_frontend role
+#
+# This config is temporary and is replaced by https.conf.j2 after certbot obtains the certificate.
+# It must allow certbot HTTP-01 validation for the Let's Encrypt certificate.
+
+server {
+    listen 80;
+    server_name {{ nginx_frontend_domain }};
+
+    # Allow certbot HTTP-01 challenge
+    location /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+    }
+
+    # Redirect all other traffic to HTTPS (when cert is available)
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
