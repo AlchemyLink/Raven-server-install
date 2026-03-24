@@ -1,7 +1,7 @@
 {
   "listen_addr": "{{ raven_subscribe_listen_addr }}",
   "server_host": "{{ raven_subscribe_server_host }}",
-  "config_dir": "{{ xray_config_dir }}config.d",
+  "config_dir": "{{ raven_subscribe_xray_config_dir }}",
   "db_path": "{{ raven_subscribe_db_dir }}/db.sqlite",
   "sync_interval_seconds": {{ raven_subscribe_sync_interval_seconds }},
   "base_url": "{{ raven_subscribe_base_url }}",
@@ -14,10 +14,9 @@
   "balancer_probe_url": "{{ raven_subscribe_balancer_probe_url }}",
   "balancer_probe_interval": "{{ raven_subscribe_balancer_probe_interval }}",
   "xray_enabled": {{ raven_subscribe_xray_enabled | lower }},
-  "singbox_enabled": {{ raven_subscribe_singbox_enabled | lower }}{% if xray_vless_client_encryption | default('') | string | trim not in ('', 'none', 'false', 'False') %},
-  "vless_client_encryption": {
-    "{{ xray_common.inbound_tag.vless_reality_in }}": "{{ xray_vless_client_encryption }}",
-    "{{ xray_common.inbound_tag.vless_xhttp_in }}": "{{ xray_vless_client_encryption }}"
-  }{% endif %}{% if raven_subscribe_singbox_config | default('') != '' %},
+  "singbox_enabled": {{ raven_subscribe_singbox_enabled | lower }}{% if raven_subscribe_inbound_hosts | default({}) | length > 0 %},
+  "inbound_hosts": {{ raven_subscribe_inbound_hosts | to_json }}{% endif %}{% if raven_subscribe_inbound_ports | default({}) | length > 0 %},
+  "inbound_ports": {{ raven_subscribe_inbound_ports | to_json }}{% endif %}{% if raven_subscribe_vless_client_encryption | default({}) | length > 0 %},
+  "vless_client_encryption": {{ raven_subscribe_vless_client_encryption | to_json }}{% endif %}{% if raven_subscribe_singbox_config | default('') != '' %},
   "singbox_config": "{{ raven_subscribe_singbox_config }}"{% endif %}
 }
