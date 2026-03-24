@@ -1,5 +1,5 @@
 ---
-# nginx frontend playbook — EU server (media.zirgate.com)
+# nginx frontend playbook — EU VPS
 # Usage:
 #   ansible-playbook roles/role_nginx_frontend.yml -i roles/nginx_frontend/inventory.ini \
 #     --vault-password-file vault_password.txt
@@ -9,9 +9,10 @@
 #   nginx_frontend_nginx    — deploy HTTP config
 #   nginx_frontend_certbot  — obtain TLS certificate
 #   nginx_frontend_ssl      — deploy HTTPS config with proxy_pass
+#   nginx_frontend_stream   — deploy TCP stream relay for VLESS Reality
 
-- name: Configure nginx frontend (vpn.zirgate.com)
-  hosts: vm_my_srv
+- name: Configure nginx frontend
+  hosts: eu
   become: true
 
   vars_files:
