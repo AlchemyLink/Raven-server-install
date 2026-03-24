@@ -1,5 +1,5 @@
 ---
-# Relay playbook — RU VPS (zirgate.com)
+# Relay playbook — RU VPS
 # Usage:
 #   ansible-playbook roles/role_relay.yml -i roles/relay/inventory.ini \
 #     --vault-password-file vault_password.txt
@@ -10,9 +10,10 @@
 #   relay_nginx     — deploy HTTP nginx config
 #   relay_certbot   — obtain TLS certificates
 #   relay_nginx_ssl — deploy HTTPS nginx config with proxy_pass
+#   relay_stream    — deploy TCP stream relay for VLESS Reality
 
-- name: Configure relay server (zirgate.com)
-  hosts: vm_my_ru
+- name: Configure relay server
+  hosts: relay
   become: true
 
   vars_files:
