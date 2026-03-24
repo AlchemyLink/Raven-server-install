@@ -1,5 +1,5 @@
 ---
-# nginx_frontend role — TLS frontend for EU server (media.zirgate.com)
+# nginx_frontend role — TLS frontend for EU VPS
 #
 # Responsibilities:
 #   - Install nginx + certbot
@@ -7,7 +7,7 @@
 #   - Proxy Xray XHTTP (nginx_frontend_xhttp_path) → 127.0.0.1:nginx_frontend_xhttp_port
 
 # ── Domain ────────────────────────────────────────────────────────────────────
-nginx_frontend_domain: "media.zirgate.com"
+nginx_frontend_domain: "media.example.com"  # Set to your EU VPS domain
 
 # ── Certbot ───────────────────────────────────────────────────────────────────
 nginx_frontend_certbot_email: ""   # Set in secrets.yml
@@ -27,6 +27,6 @@ nginx_frontend_xhttp_path: "/api/v3/data-sync"   # Must match xray_xhttp.xhttpSe
 
 # ── TCP stream relay for Xray VLESS Reality ───────────────────────────────────
 # Stream proxy: nginx_frontend_reality_port → 127.0.0.1:443 (Xray)
-# Allows clients to reach Reality via media.zirgate.com instead of direct EU IP.
+# Allows clients to reach Reality via media.example.com instead of direct EU IP.
 nginx_frontend_reality_stream_enabled: true
 nginx_frontend_reality_port: 8445   # External TCP port for Reality stream

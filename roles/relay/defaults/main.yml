@@ -1,14 +1,14 @@
 ---
 # Relay role — nginx reverse proxy on RU VPS
-# Domain: zirgate.com
-#   zirgate.com        A → RU VPS IP  (static stub site)
-#   my.zirgate.com     A → RU VPS IP  (relay → Raven subscriptions + API)
+# Domain layout example:
+#   example.com        A → RU VPS IP  (static stub site)
+#   my.example.com     A → RU VPS IP  (relay → Raven subscriptions + API)
 #
 # EU server (managed by nginx_frontend role, not this role):
-#   media.zirgate.com  A → EU VPS IP  (nginx_frontend → Xray XHTTP)
+#   media.example.com  A → EU VPS IP  (nginx_frontend → Xray XHTTP)
 
 # ── Domain ───────────────────────────────────────────────────────────────────
-relay_domain: "zirgate.com"
+relay_domain: "example.com"           # Set to your RU VPS domain
 relay_sub_my: "my.{{ relay_domain }}" # Raven-subscribe relay (RU VPS)
 
 # ── Upstream EU server ────────────────────────────────────────────────────────
@@ -21,7 +21,7 @@ relay_upstream_raven_port: 8443
 
 # ── TCP stream relay (VLESS Reality) ─────────────────────────────────────────
 # Proxies raw TCP on relay_stream_port → EU server:relay_upstream_xray_port
-# Clients connect to zirgate.com:relay_stream_port instead of EU IP directly.
+# Clients connect to example.com:relay_stream_port instead of EU IP directly.
 relay_stream_enabled: true
 relay_stream_port: 8444                # Listening port on RU server (must be free)
 relay_upstream_xray_port: 8445         # nginx_frontend Reality stream port on EU server
@@ -31,7 +31,7 @@ relay_nginx_user: "www-data"
 relay_webroot: "/var/www/{{ relay_domain }}"
 
 # ── Certbot ───────────────────────────────────────────────────────────────────
-relay_certbot_email: "" # Set in secrets.yml: relay_certbot_email: "admin@zirgate.com"
+relay_certbot_email: "" # Set in secrets.yml: relay_certbot_email: "admin@example.com"
 
 # ── Stub site ─────────────────────────────────────────────────────────────────
 relay_stub_title: "Welcome"
