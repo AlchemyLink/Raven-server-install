@@ -1,0 +1,8 @@
+---
+galaxy_info:
+  role_name: raven_subscribe
+  author: findias
+  description: Raven-subscribe subscription server for Xray
+  min_ansible_version: "2.9"
+
+dependencies: []

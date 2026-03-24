@@ -1,0 +1,11 @@
+---
+- name: Deploy Raven-subscribe
+  hosts: vm_my_srv
+  become: true
+  gather_facts: true
+
+  vars_files:
+    - "raven_subscribe/defaults/secrets.yml"
+
+  roles:
+    - role: raven_subscribe
