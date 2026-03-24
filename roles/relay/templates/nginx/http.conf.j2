@@ -1,0 +1,14 @@
+# {{ relay_domain }} — HTTP only (pre-certbot)
+# Managed by Ansible relay role
+
+server {
+    listen 80;
+    server_name {{ relay_domain }} {{ relay_sub_my }};
+
+    root {{ relay_webroot }};
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}

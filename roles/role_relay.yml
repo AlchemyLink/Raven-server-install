@@ -1,0 +1,23 @@
+---
+# Relay playbook — RU VPS (zirgate.com)
+# Usage:
+#   ansible-playbook roles/role_relay.yml -i roles/relay/inventory.ini \
+#     --vault-password-file vault_password.txt
+#
+# Tags:
+#   relay_install   — install nginx + certbot
+#   relay_stub      — deploy stub site
+#   relay_nginx     — deploy HTTP nginx config
+#   relay_certbot   — obtain TLS certificates
+#   relay_nginx_ssl — deploy HTTPS nginx config with proxy_pass
+
+- name: Configure relay server (zirgate.com)
+  hosts: vm_my_ru
+  become: true
+
+  vars_files:
+    - relay/defaults/main.yml
+    - relay/defaults/secrets.yml
+
+  roles:
+    - role: relay

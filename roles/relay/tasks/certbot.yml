@@ -1,0 +1,24 @@
+---
+- name: Relay | Check if certificate already exists
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ relay_domain }}/fullchain.pem"
+  register: relay_cert
+
+- name: Relay | Obtain Let's Encrypt certificate
+  ansible.builtin.command:
+    cmd: >
+      certbot certonly --webroot
+      --webroot-path {{ relay_webroot }}
+      --non-interactive
+      --agree-tos
+      --email {{ relay_certbot_email }}
+      -d {{ relay_domain }}
+      -d {{ relay_sub_my }}
+  when: not relay_cert.stat.exists
+  notify: Reload nginx
+
+- name: Relay | Ensure certbot renewal timer is enabled
+  ansible.builtin.service:
+    name: certbot.timer
+    enabled: true
+    state: started

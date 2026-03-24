@@ -10,7 +10,7 @@
           {% for user in xray_users %}
           {
             "id": "{{ user.id }}",
-            "flow": "{{ 'xtls-rprx-vision' if _pq else (user.flow | default(xray_vless_default_flow)) }}",
+            "flow": "{{ 'xtls-rprx-vision' if _pq else user.flow }}",
             "email": "{{ user.email | default('') }}",
             "level": 0
           }{{ "," if not loop.last }}
