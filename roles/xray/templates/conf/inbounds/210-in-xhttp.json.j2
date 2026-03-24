@@ -1,6 +1,7 @@
 {
   "inbounds": [
     {
+      "listen": "{{ xray_xhttp.listen | default('0.0.0.0') }}",
       "port": {{ xray_xhttp.port }},
       "protocol": "vless",
       "tag": "{{ xray_common.inbound_tag.vless_xhttp_in }}", 
@@ -31,7 +32,7 @@
       "streamSettings": {
         "network": "{{ xray_xhttp.network }}",
         "realitySettings": {
-          "dest": "{{ xray_reality_dest }}",
+          "dest": "{{ xray_xhttp.reality.dest | default(xray_reality_dest) }}",
           "privateKey": "{{ xray_reality.private_key }}",
           "spiderX": "{{ xray_reality.spiderX }}",
           {% set _seed = xray_reality.mldsa65_seed | default('') %}
@@ -42,8 +43,9 @@
           "mldsa65Verify": "{{ xray_reality.mldsa65_verify }}",
           {% endif %}
           {% endif %}
+          {% set _xhttp_sni = xray_xhttp.reality.server_names | default(xray_reality_server_names) %}
           "serverNames": [
-            {% for name in xray_reality_server_names %}
+            {% for name in _xhttp_sni %}
             "{{ name }}"{{ "," if not loop.last }}
             {% endfor %}
           ],
@@ -59,7 +61,10 @@
         "xhttpSettings": {
           "mode": "{{ xray_xhttp.xhttpSettings.mode }}",
           "path": "{{ xray_xhttp.xhttpSettings.path }}",
-          "scMaxPacketSize": {{ xray_xhttp.xhttpSettings.scMaxPacketSize }}
+          "scMaxPacketSize": {{ xray_xhttp.xhttpSettings.scMaxPacketSize }},
+          "extra": {
+            "xPaddingBytes": "100-1000"
+          }
         }
       }
     }

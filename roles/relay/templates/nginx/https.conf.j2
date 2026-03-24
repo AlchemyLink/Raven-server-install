@@ -1,16 +1,12 @@
-# {{ relay_domain }} — HTTPS relay config
+# {{ relay_domain }} — HTTPS config (behind stream SNI routing)
 # Managed by Ansible relay role
-
-# ── Redirect HTTP → HTTPS ────────────────────────────────────────────────────
-server {
-    listen 80;
-    server_name {{ relay_domain }} {{ relay_sub_my }};
-    return 301 https://$host$request_uri;
-}
+#
+# Listens on {{ relay_https_port }} (NOT 443 — port 443 is used by nginx stream SNI routing).
+# Stream routes {{ relay_domain }} and {{ relay_sub_my }} SNI here.
 
 # ── {{ relay_domain }} — stub site ──────────────────────────────────────────────────
 server {
-    listen 443 ssl;
+    listen {{ relay_https_port }} ssl;
     http2 on;
     server_name {{ relay_domain }};
 
@@ -29,7 +25,7 @@ server {
 
 # ── {{ relay_sub_my }} — Raven-subscribe relay ───────────────────────────────────
 server {
-    listen 443 ssl;
+    listen {{ relay_https_port }} ssl;
     http2 on;
     server_name {{ relay_sub_my }};
 
@@ -49,4 +45,3 @@ server {
         proxy_connect_timeout 10s;
     }
 }
-
