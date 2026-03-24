@@ -26,7 +26,7 @@ singbox_log_timestamp: true
 singbox_hysteria2_enabled: true
 singbox_hysteria2_tag: "hysteria-in"
 singbox_hysteria2_listen: "::" # Replace with your server's public IP or "
-singbox_hysteria2_listen_port: 8443
+singbox_hysteria2_listen_port: 8444
 singbox_hysteria2_up_mbps: 100
 singbox_hysteria2_down_mbps: 100
 

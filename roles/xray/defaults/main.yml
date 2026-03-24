@@ -48,7 +48,7 @@ xray_dns_servers:                             # List of DNS servers for Xray
   # DoH servers (https://) are NOT recommended here — they route
   # through the proxy chain and fail with "closed pipe" on reconnect.
 xray_dns_disable_fallback: false              # Set to true to disable fallback to system DNS
-xray_dns_query_strategy: "UseIP"              # DNS query strategy: "UseIP", "UseIPIfNonMatch", "UseIPv4", "UseIPv6"
+xray_dns_query_strategy: "UseIPv4"            # DNS query strategy: "UseIP", "UseIPIfNonMatch", "UseIPv4", "UseIPv6"
 
 # Log vars
 xray_log_config:
@@ -115,41 +115,3 @@ xray_xhttp:
 #   - id: UUID_3"
 #     flow: "xtls-rprx-vision"
 #     email: "someEmailForIdentyfy"
-
-# ---------------------------------------------------------------------------
-# Raven-subscribe (subscription server)
-# ---------------------------------------------------------------------------
-
-raven_subscribe_github_repo: "alchemylink/raven-subscribe"
-raven_subscribe_install_dir: "/usr/local/bin"
-raven_subscribe_config_dir: "/etc/xray-subscription"
-raven_subscribe_db_dir: "/var/lib/xray-subscription"
-raven_subscribe_service_name: "xray-subscription"
-
-raven_subscribe_listen_addr: ":8080"
-raven_subscribe_sync_interval_seconds: 60
-raven_subscribe_rate_limit_sub_per_min: 60
-raven_subscribe_rate_limit_admin_per_min: 30
-
-# The inbound tag Raven manages users in (must match an inbound in config.d)
-raven_subscribe_api_inbound_tag: "{{ xray_common.inbound_tag.vless_reality_in }}"
-
-# Use Xray gRPC API for user sync instead of file writes.
-# Requires xray_api.enable = true. Value: "127.0.0.1:<xray_api.inbound.port>"
-raven_subscribe_xray_api_addr: "127.0.0.1:{{ xray_api.inbound.port }}"
-
-# Path to sing-box config file. When set, Raven additionally parses sing-box inbounds
-# (currently hysteria2) and syncs their users to DB. Leave empty to disable.
-# Example: "/etc/sing-box/config.json"
-raven_subscribe_singbox_config: ""
-
-# Enable/disable Xray and sing-box sync independently.
-# Set xray_enabled: false if Xray is not installed on this server.
-# singbox_enabled defaults to true when singbox_config is set.
-raven_subscribe_xray_enabled: true
-raven_subscribe_singbox_enabled: false
-
-##### Set these in secrets.yml (ansible-vault encrypted) #####
-# raven_subscribe_server_host: "your-server.com"   # Public IP or domain
-# raven_subscribe_base_url: "http://your-server.com:8080"
-# raven_subscribe_admin_token: ""                  # Strong random secret (required)

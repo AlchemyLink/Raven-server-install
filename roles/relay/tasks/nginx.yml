@@ -1,0 +1,14 @@
+---
+# Initial HTTP-only config — needed for certbot HTTP-01 challenge
+
+- name: Relay | Deploy HTTP nginx config (pre-certbot)
+  ansible.builtin.template:
+    src: nginx/http.conf.j2
+    dest: "/etc/nginx/conf.d/{{ relay_domain }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+
+- name: Relay | Reload nginx before certbot
+  ansible.builtin.meta: flush_handlers
