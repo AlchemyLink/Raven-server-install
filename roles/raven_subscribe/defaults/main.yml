@@ -6,7 +6,7 @@ raven_subscribe_config_dir: "/etc/xray-subscription"
 raven_subscribe_db_dir: "/var/lib/xray-subscription"
 raven_subscribe_service_name: "xray-subscription"
 
-raven_subscribe_listen_addr: ":8080"
+raven_subscribe_listen_addr: "127.0.0.1:8080"
 raven_subscribe_sync_interval_seconds: 60
 raven_subscribe_rate_limit_sub_per_min: 60
 raven_subscribe_rate_limit_admin_per_min: 30
