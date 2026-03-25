@@ -24,11 +24,6 @@ relay_upstream_port: 443
 # Port where nginx_frontend HTTPS listens on EU server (Raven-subscribe behind it)
 relay_upstream_raven_port: 8443
 
-# Extra domains to route directly to EU HTTPS (relay_upstream_raven_port) via SNI.
-# Use for domains that have TLS certs on EU (e.g. media.example.com moved to RU DNS).
-relay_extra_eu_https_domains: []
-# relay_extra_eu_https_domains:
-#   - "media.example.com"
 
 # ── SNI stream routing on :443 ───────────────────────────────────────────────
 # nginx stream with ssl_preread reads SNI from TLS ClientHello and routes:
