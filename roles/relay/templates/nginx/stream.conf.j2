@@ -12,18 +12,11 @@
 map $ssl_preread_server_name $relay_backend {
     {{ relay_domain }}     local_https;
     {{ relay_sub_my }}     local_https;
-{% for domain in relay_extra_eu_https_domains | default([]) %}
-    {{ domain }}           eu_https;
-{% endfor %}
     default                eu_vpn;
 }
 
 upstream local_https {
     server 127.0.0.1:{{ relay_https_port }};
-}
-
-upstream eu_https {
-    server {{ relay_upstream_host }}:{{ relay_upstream_raven_port }};
 }
 
 upstream eu_vpn {
