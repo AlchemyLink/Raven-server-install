@@ -11,8 +11,10 @@ AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
 NoNewPrivileges=true
 ExecStart={{ xray_install_dir }}/xray run -confdir {{ xray_config_dir }}config.d
 Restart=on-failure
+RestartSec=3s
 RestartPreventExitStatus=23
-LimitNPROC=10000
+TimeoutStopSec=30s
+LimitNPROC=2000
 LimitNOFILE=1000000
 
 [Install]
