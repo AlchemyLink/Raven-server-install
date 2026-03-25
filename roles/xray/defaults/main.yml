@@ -95,7 +95,7 @@ xray_xhttp:
   xhttpSettings:
     mode: "auto"
     path: "/api/v3/data-sync"
-    scMaxPacketSize: 50000
+    scMaxPacketSize: 1048576
   reality:                                     # XHTTP-specific Reality settings (separate from TCP Reality)
     dest: "www.adobe.com:443"                  # Camouflage domain (TLS 1.3, H2, OCSP, Akamai CDN)
     server_names:
