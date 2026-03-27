@@ -88,59 +88,53 @@
       "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
       "fieldConfig": {
         "defaults": {
-          "custom": {"align": "auto", "inspect": false},
-          "unit": "bytes"
+          "color": {"mode": "palette-classic"},
+          "unit": "bytes",
+          "min": 0
         },
         "overrides": []
       },
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20},
+      "gridPos": {"h": 10, "w": 12, "x": 0, "y": 20},
       "id": 3,
-      "options": {"showHeader": true, "sortBy": [{"displayName": "Value", "desc": true}]},
+      "options": {"orientation": "horizontal", "displayMode": "gradient", "reduceOptions": {"calcs": ["lastNotNull"]}, "valueMode": "color", "showUnfilled": true},
       "targets": [
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "xray_user_uplink_bytes_total",
-          "format": "table",
+          "expr": "increase(xray_user_downlink_bytes_total[$__range])",
           "instant": true,
           "legendFormat": "{% raw %}{{email}}{% endraw %}",
           "refId": "A"
         }
       ],
-      "transformations": [
-        {"id": "filterFieldsByName", "options": {"include": {"names": ["email", "Value"]}}}
-      ],
-      "title": "Cumulative upload by user (counter, since Xray start)",
-      "type": "table"
+      "title": "Download за период",
+      "type": "bargauge"
     },
     {
       "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
       "fieldConfig": {
         "defaults": {
-          "custom": {"align": "auto", "inspect": false},
-          "unit": "bytes"
+          "color": {"mode": "palette-classic"},
+          "unit": "bytes",
+          "min": 0
         },
         "overrides": []
       },
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20},
+      "gridPos": {"h": 10, "w": 12, "x": 12, "y": 20},
       "id": 4,
-      "options": {"showHeader": true, "sortBy": [{"displayName": "Value", "desc": true}]},
+      "options": {"orientation": "horizontal", "displayMode": "gradient", "reduceOptions": {"calcs": ["lastNotNull"]}, "valueMode": "color", "showUnfilled": true},
       "targets": [
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "xray_user_downlink_bytes_total",
-          "format": "table",
+          "expr": "increase(xray_user_uplink_bytes_total[$__range])",
           "instant": true,
           "legendFormat": "{% raw %}{{email}}{% endraw %}",
           "refId": "A"
         }
       ],
-      "transformations": [
-        {"id": "filterFieldsByName", "options": {"include": {"names": ["email", "Value"]}}}
-      ],
-      "title": "Cumulative download by user (counter, since Xray start)",
-      "type": "table"
+      "title": "Upload за период",
+      "type": "bargauge"
     }
   ],
   "refresh": "30s",
