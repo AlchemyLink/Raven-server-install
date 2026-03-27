@@ -13,7 +13,7 @@
           {
             "id": "{{ user.id }}",
             "flow": "{{ 'xtls-rprx-vision' if _pq else _flow }}",
-            "email": "{{ user.email | default('') }}",
+            "email": "{{ (user.email | default('') | trim) or user.id }}",
             "level": 0
           }{{ "," if not loop.last }}
           {% endfor %}
