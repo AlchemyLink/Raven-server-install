@@ -117,7 +117,7 @@ xray_xhttp:
 # xray_users:
 #   - id: "UUID_1"                         # Replace with your actual UUID
 #     flow: "xtls-rprx-vision"
-#     email: "someEmailForIdentyfy"
+#     email: "someEmailForIdentyfy"         # Non-empty recommended; if omitted, id is used (needed for per-user traffic stats)
 #   - id: "UUID_2"
 #     flow: "xtls-rprx-vision"
 #     email: "someEmailForIdentyfy"
