@@ -1,0 +1,13 @@
+---
+wg_interface: wg0
+wg_port: 51820                    # UDP port on EU
+wg_eu_ip: "10.10.0.1"            # EU WireGuard IP
+wg_ru_ip: "10.10.0.2"            # RU WireGuard IP
+wg_network: "10.10.0.0/24"
+wg_config_dir: "/etc/wireguard"
+wg_config_path: "/etc/wireguard/{{ wg_interface }}.conf"
+
+# wg_eu_private_key: set in secrets.yml (ansible-vault)
+# wg_eu_public_key:  set in secrets.yml (ansible-vault)
+# wg_ru_private_key: set in secrets.yml (ansible-vault)
+# wg_ru_public_key:  set in secrets.yml (ansible-vault)
