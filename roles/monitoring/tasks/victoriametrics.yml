@@ -1,0 +1,121 @@
+---
+- name: Create victoriametrics system group
+  ansible.builtin.group:
+    name: "{{ victoriametrics_group }}"
+    state: present
+    system: true
+
+- name: Create victoriametrics system user
+  ansible.builtin.user:
+    name: "{{ victoriametrics_user }}"
+    group: "{{ victoriametrics_group }}"
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+
+- name: Ensure VictoriaMetrics data directory exists
+  ansible.builtin.file:
+    path: "{{ victoriametrics_data_dir }}"
+    state: directory
+    owner: "{{ victoriametrics_user }}"
+    group: "{{ victoriametrics_group }}"
+    mode: "0750"
+
+- name: Ensure VictoriaMetrics config directory exists
+  ansible.builtin.file:
+    path: /etc/victoriametrics
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Get latest VictoriaMetrics release version
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/{{ victoriametrics_github_repo }}/releases/latest"
+    method: GET
+    return_content: true
+    headers:
+      Accept: "application/vnd.github.v3+json"
+    status_code: 200
+  register: vm_release_info
+  run_once: true
+  retries: 3
+  delay: 3
+  until: vm_release_info.status == 200
+  when: victoriametrics_version == "latest"
+
+- name: Set VictoriaMetrics version fact
+  ansible.builtin.set_fact:
+    vm_resolved_version: >-
+      {{
+        vm_release_info.json.tag_name
+        if victoriametrics_version == "latest"
+        else victoriametrics_version
+      }}
+
+- name: Detect architecture for VictoriaMetrics
+  ansible.builtin.set_fact:
+    vm_arch: >-
+      {{
+        'amd64' if ansible_architecture in ['x86_64', 'amd64']
+        else 'arm64' if ansible_architecture in ['aarch64', 'arm64']
+        else ansible_architecture
+      }}
+
+- name: Download VictoriaMetrics binary
+  ansible.builtin.get_url:
+    url: "https://github.com/{{ victoriametrics_github_repo }}/releases/download/{{ vm_resolved_version }}/victoria-metrics-linux-{{ vm_arch }}-{{ vm_resolved_version }}.tar.gz"
+    dest: "/tmp/victoria-metrics-{{ vm_resolved_version }}.tar.gz"
+    mode: "0644"
+  register: vm_download
+
+- name: Extract VictoriaMetrics binary
+  ansible.builtin.unarchive:
+    src: "/tmp/victoria-metrics-{{ vm_resolved_version }}.tar.gz"
+    dest: /tmp/
+    remote_src: true
+  when: vm_download.changed
+
+- name: Install VictoriaMetrics binary
+  ansible.builtin.copy:
+    src: /tmp/victoria-metrics-prod
+    dest: "{{ victoriametrics_bin_dir }}/victoria-metrics"
+    owner: root
+    group: root
+    mode: "0755"
+    remote_src: true
+  when: vm_download.changed
+  notify: Restart victoriametrics
+
+- name: Remove VictoriaMetrics temp files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/tmp/victoria-metrics-{{ vm_resolved_version }}.tar.gz"
+    - "/tmp/victoria-metrics-prod"
+
+- name: Deploy scrape config
+  ansible.builtin.template:
+    src: scrape.yml.j2
+    dest: "{{ victoriametrics_scrape_config }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart victoriametrics
+
+- name: Deploy VictoriaMetrics systemd unit
+  ansible.builtin.template:
+    src: victoriametrics.service.j2
+    dest: "/etc/systemd/system/victoriametrics.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart victoriametrics
+
+- name: Enable and start VictoriaMetrics
+  ansible.builtin.systemd:
+    name: "{{ victoriametrics_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true

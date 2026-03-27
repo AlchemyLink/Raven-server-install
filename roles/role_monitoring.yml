@@ -1,0 +1,15 @@
+---
+# Deploy monitoring stack
+# EU (vm_my_srv): node_exporter + xray-exporter + xray-stats-exporter + VictoriaMetrics + Grafana
+# RU (vm_my_ru):  node_exporter only (scraped by VictoriaMetrics via WireGuard 10.10.0.2:9100)
+#
+# Access Grafana: ssh -L 13000:127.0.0.1:13000 user@eu-server
+# then open http://localhost:13000
+
+- name: Deploy monitoring stack
+  hosts:
+    - vm_my_srv
+    - vm_my_ru
+  become: true
+  roles:
+    - role: monitoring
