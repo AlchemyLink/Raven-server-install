@@ -1,0 +1,35 @@
+---
+- name: Restart xray-exporter
+  ansible.builtin.systemd:
+    name: "{{ xray_exporter_service_name }}"
+    state: restarted
+    daemon_reload: true
+  when: ansible_facts['service_mgr'] == "systemd"
+
+- name: Restart node_exporter
+  ansible.builtin.systemd:
+    name: "{{ node_exporter_service_name }}"
+    state: restarted
+    daemon_reload: true
+  when: ansible_facts['service_mgr'] == "systemd"
+
+- name: Restart xray-stats-exporter
+  ansible.builtin.systemd:
+    name: "{{ xray_stats_exporter_service_name }}"
+    state: restarted
+    daemon_reload: true
+  when: ansible_facts['service_mgr'] == "systemd"
+
+- name: Restart victoriametrics
+  ansible.builtin.systemd:
+    name: "{{ victoriametrics_service_name }}"
+    state: restarted
+    daemon_reload: true
+  when: ansible_facts['service_mgr'] == "systemd"
+
+- name: Restart grafana
+  ansible.builtin.systemd:
+    name: "{{ grafana_service_name }}"
+    state: restarted
+    daemon_reload: true
+  when: ansible_facts['service_mgr'] == "systemd"
