@@ -1,0 +1,15 @@
+---
+- name: Load wireguard secrets
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/defaults/secrets.yml"
+  tags: always
+
+- name: Configure WireGuard on EU
+  ansible.builtin.import_tasks: eu.yml
+  when: inventory_hostname == 'vm_my_srv'
+  tags: wireguard_eu
+
+- name: Configure WireGuard on RU
+  ansible.builtin.import_tasks: ru.yml
+  when: inventory_hostname == 'vm_my_ru'
+  tags: wireguard_ru

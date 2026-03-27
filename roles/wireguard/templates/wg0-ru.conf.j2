@@ -1,0 +1,10 @@
+[Interface]
+Address = {{ wg_ru_ip }}/24
+PrivateKey = {{ wg_ru_private_key }}
+
+[Peer]
+# EU server
+PublicKey = {{ wg_eu_public_key }}
+Endpoint = {{ hostvars['vm_my_srv']['ansible_host'] }}:{{ wg_port }}
+AllowedIPs = {{ wg_eu_ip }}/32
+PersistentKeepalive = 25
