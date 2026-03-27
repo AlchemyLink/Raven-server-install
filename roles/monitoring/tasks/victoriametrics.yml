@@ -29,30 +29,6 @@
     group: root
     mode: "0755"
 
-- name: Get latest VictoriaMetrics release version
-  ansible.builtin.uri:
-    url: "https://api.github.com/repos/{{ victoriametrics_github_repo }}/releases/latest"
-    method: GET
-    return_content: true
-    headers:
-      Accept: "application/vnd.github.v3+json"
-    status_code: 200
-  register: vm_release_info
-  run_once: true
-  retries: 3
-  delay: 3
-  until: vm_release_info.status == 200
-  when: victoriametrics_version == "latest"
-
-- name: Set VictoriaMetrics version fact
-  ansible.builtin.set_fact:
-    vm_resolved_version: >-
-      {{
-        vm_release_info.json.tag_name
-        if victoriametrics_version == "latest"
-        else victoriametrics_version
-      }}
-
 - name: Detect architecture for VictoriaMetrics
   ansible.builtin.set_fact:
     vm_arch: >-
@@ -61,6 +37,41 @@
         else 'arm64' if ansible_architecture in ['aarch64', 'arm64']
         else ansible_architecture
       }}
+
+- name: Get VictoriaMetrics releases list
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/{{ victoriametrics_github_repo }}/releases?per_page=10"
+    method: GET
+    return_content: true
+    headers:
+      Accept: "application/vnd.github.v3+json"
+    status_code: 200
+  register: vm_release_list
+  run_once: true
+  retries: 3
+  delay: 3
+  until: vm_release_list.status == 200
+  when: victoriametrics_version == "latest"
+
+- name: Set VictoriaMetrics version fact
+  ansible.builtin.set_fact:
+    vm_resolved_version: >-
+      {%- if victoriametrics_version != "latest" -%}
+        {{ victoriametrics_version }}
+      {%- else -%}
+        {%- set asset_pattern = 'victoria-metrics-linux-' + vm_arch + '-' -%}
+        {%- set ns = namespace(version='') -%}
+        {%- for release in vm_release_list.json -%}
+          {%- if ns.version == '' -%}
+            {%- for asset in release.assets -%}
+              {%- if asset.name.startswith(asset_pattern) and asset.name.endswith('.tar.gz') and 'enterprise' not in asset.name and 'cluster' not in asset.name -%}
+                {%- set ns.version = release.tag_name -%}
+              {%- endif -%}
+            {%- endfor -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {{ ns.version }}
+      {%- endif -%}
 
 - name: Download VictoriaMetrics binary
   ansible.builtin.get_url:
