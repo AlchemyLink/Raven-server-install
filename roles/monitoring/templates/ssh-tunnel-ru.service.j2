@@ -1,0 +1,24 @@
+[Unit]
+Description=SSH tunnel to RU node_exporter ({{ node_exporter_tunnel_listen }} -> RU:9100)
+After=network.target
+Wants=network-online.target
+
+[Service]
+User=root
+ExecStart=/usr/bin/ssh \
+  -i {{ ssh_tunnel_ru_key }} \
+  -o StrictHostKeyChecking=yes \
+  -o UserKnownHostsFile={{ ssh_tunnel_ru_known_hosts }} \
+  -o ServerAliveInterval=30 \
+  -o ServerAliveCountMax=3 \
+  -o ExitOnForwardFailure=yes \
+  -o BatchMode=yes \
+  -p {{ hostvars['vm_my_ru']['ansible_port'] }} \
+  {{ ssh_tunnel_ru_user }}@{{ hostvars['vm_my_ru']['ansible_host'] }} \
+  -L {{ node_exporter_tunnel_listen }}:127.0.0.1:9100 -N
+Restart=on-failure
+RestartSec=10s
+TimeoutStopSec=5s
+
+[Install]
+WantedBy=multi-user.target
