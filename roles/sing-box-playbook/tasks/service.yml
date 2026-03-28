@@ -1,0 +1,55 @@
+---
+- name: sing-box | Deploy systemd service file
+  ansible.builtin.template:
+    src: sing-box.service.j2
+    dest: /etc/systemd/system/sing-box.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd and restart sing-box
+
+- name: sing-box | Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: sing-box | Enable and start service
+  ansible.builtin.systemd:
+    name: sing-box
+    enabled: true
+    state: started
+
+- name: sing-box | Wait for service to start
+  ansible.builtin.wait_for:
+    timeout: 10
+
+- name: sing-box | Check service status
+  ansible.builtin.systemd:
+    name: sing-box
+  register: singbox_service_status
+
+- name: sing-box | Display service status
+  ansible.builtin.debug:
+    msg: "sing-box service is {{ singbox_service_status.status.ActiveState }}"
+
+- name: sing-box | Display connection information
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      Sing-box Hysteria2 Server Configuration
+      ========================================
+      Server: {{ singbox.tls_server_name }}
+      Port: {{ singbox_hysteria2_listen_port }}
+      Protocol: Hysteria2
+      TLS: Enabled (ACME)
+      Obfuscation: {{ singbox_hysteria2_obfs_type if singbox_hysteria2_obfs_enabled else 'Disabled' }}
+
+      Client Configuration:
+      - Server: {{ singbox.tls_server_name }}:{{ singbox_hysteria2_listen_port }}
+      - Password: (check your secrets.yml)
+      - SNI: {{ singbox.tls_server_name }}
+      - ALPN: h3
+      - Obfs Type: {{ singbox_hysteria2_obfs_type if singbox_hysteria2_obfs_enabled else 'none' }}
+
+      Logs: {{ singbox_log_output }}
+      Config: {{ singbox_config_dir }}/config.json
+      ========================================

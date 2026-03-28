@@ -1,0 +1,32 @@
+---
+- name: Install wireguard-tools
+  ansible.builtin.apt:
+    name: wireguard-tools
+    state: present
+    update_cache: false
+
+- name: Ensure wireguard config directory exists
+  ansible.builtin.file:
+    path: "{{ wg_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Deploy wg0 config on EU
+  ansible.builtin.template:
+    src: wg0-eu.conf.j2
+    dest: "{{ wg_config_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart wg0
+
+- name: Enable and start wg-quick@wg0 on EU
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ wg_interface }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+
+# No firewall configured on EU (iptables policy ACCEPT) — UDP {{ wg_port }} is open by default

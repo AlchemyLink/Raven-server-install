@@ -1,0 +1,24 @@
+---
+- name: Nginx frontend | Validate
+  ansible.builtin.import_tasks: validate.yml
+  tags: always
+
+- name: Nginx frontend | Install packages
+  ansible.builtin.import_tasks: install.yml
+  tags: nginx_frontend_install
+
+- name: Nginx frontend | Configure HTTP (pre-certbot)
+  ansible.builtin.import_tasks: nginx.yml
+  tags: nginx_frontend_nginx
+
+- name: Nginx frontend | Obtain TLS certificate
+  ansible.builtin.import_tasks: certbot.yml
+  tags: nginx_frontend_certbot
+
+- name: Nginx frontend | Deploy HTTPS config
+  ansible.builtin.import_tasks: nginx_ssl.yml
+  tags: nginx_frontend_ssl
+
+- name: Nginx frontend | Configure TCP stream relay
+  ansible.builtin.import_tasks: stream.yml
+  tags: nginx_frontend_stream

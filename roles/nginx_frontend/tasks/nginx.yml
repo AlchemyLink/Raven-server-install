@@ -1,0 +1,20 @@
+---
+- name: Nginx frontend | Create letsencrypt webroot
+  ansible.builtin.file:
+    path: /var/www/letsencrypt
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Nginx frontend | Deploy HTTP config (pre-certbot)
+  ansible.builtin.template:
+    src: nginx/http.conf.j2
+    dest: "/etc/nginx/conf.d/{{ nginx_frontend_domain }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+
+- name: Nginx frontend | Reload nginx before certbot
+  ansible.builtin.meta: flush_handlers
