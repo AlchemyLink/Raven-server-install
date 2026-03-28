@@ -45,8 +45,11 @@ xray_stats_exporter_metrics_path: "/metrics"
 xray_stats_exporter_xray_endpoint: "127.0.0.1:10085"
 xray_stats_exporter_bin_dir: "/usr/local/bin"
 xray_stats_exporter_service_name: "xray-stats-exporter"
-xray_stats_exporter_user: "xrayuser"    # needs read access to Xray gRPC API (no filesystem access required)
+xray_stats_exporter_user: "xrayuser"    # needs read access to Xray gRPC API and access.log
 xray_stats_exporter_group: "xrayuser"
+xray_stats_exporter_log_path: "/var/log/Xray/access.log"
+xray_stats_exporter_geo_city_db: "/var/lib/xray-exporter/GeoLite2-City.mmdb"
+xray_stats_exporter_geo_asn_db: "/var/lib/xray-exporter/GeoLite2-ASN.mmdb"
 
 # raven-subscribe health probe (VictoriaMetrics scrapes /health → up metric)
 raven_subscribe_scrape_addr: "127.0.0.1:8080"
