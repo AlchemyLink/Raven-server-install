@@ -1,0 +1,23 @@
+---
+# nginx frontend playbook — EU VPS
+# Usage:
+#   ansible-playbook roles/role_nginx_frontend.yml -i roles/nginx_frontend/inventory.ini \
+#     --vault-password-file vault_password.txt
+#
+# Tags:
+#   nginx_frontend_install  — install nginx + certbot
+#   nginx_frontend_nginx    — deploy HTTP config
+#   nginx_frontend_certbot  — obtain TLS certificate
+#   nginx_frontend_ssl      — deploy HTTPS config with proxy_pass
+#   nginx_frontend_stream   — deploy TCP stream relay for VLESS Reality
+
+- name: Configure nginx frontend
+  hosts: vm_my_srv
+  become: true
+
+  vars_files:
+    - nginx_frontend/defaults/main.yml
+    - nginx_frontend/defaults/secrets.yml
+
+  roles:
+    - role: nginx_frontend

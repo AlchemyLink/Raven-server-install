@@ -1,0 +1,71 @@
+---
+
+# xray-exporter
+xray_exporter_version: "latest"               # "latest" or pinned e.g. "v0.2.0"
+xray_exporter_github_repo: "compassvpn/xray-exporter"
+xray_exporter_listen: "127.0.0.1:9550"
+xray_exporter_metrics_path: "/scrape"
+xray_exporter_xray_endpoint: "127.0.0.1:10085"
+xray_exporter_log_path: "/var/log/Xray/access.log"
+xray_exporter_log_time_window: 5             # minutes, sliding window for user activity metrics
+xray_exporter_bin_dir: "/usr/local/bin"
+xray_exporter_data_dir: "/var/lib/xray-exporter"   # GeoLite2 *.mmdb download cwd (xrayuser must be writable)
+xray_exporter_service_name: "xray-exporter"
+xray_exporter_user: "xrayuser"               # same user as Xray — needs read access to access.log
+xray_exporter_group: "xrayuser"
+
+# VictoriaMetrics
+victoriametrics_version: "latest"            # "latest" or pinned e.g. "v1.101.0"
+victoriametrics_github_repo: "VictoriaMetrics/VictoriaMetrics"
+victoriametrics_listen: "127.0.0.1:8428"
+victoriametrics_retention_months: 1          # 1 month retention
+victoriametrics_data_dir: "/var/lib/victoriametrics"
+victoriametrics_bin_dir: "/usr/local/bin"
+victoriametrics_service_name: "victoriametrics"
+victoriametrics_scrape_interval: "15s"
+victoriametrics_scrape_timeout: "5s"
+victoriametrics_scrape_config: "/etc/victoriametrics/scrape.yml"
+victoriametrics_user: "victoriametrics"
+victoriametrics_group: "victoriametrics"
+
+# WireGuard network (for ufw rules on RU)
+wg_network: "10.10.0.0/24"
+
+# node_exporter (system metrics: CPU, RAM, disk, network)
+node_exporter_version: "latest"
+node_exporter_listen: "127.0.0.1:9100"         # EU: localhost only
+node_exporter_ru_listen: "10.10.0.2:9100"      # RU: WireGuard interface only
+node_exporter_ru_scrape: "10.10.0.2:9100"      # EU scrapes RU via WireGuard
+node_exporter_bin_dir: "/usr/local/bin"
+node_exporter_service_name: "node_exporter"
+
+# xray-stats-exporter (per-user traffic via StatsService gRPC)
+xray_stats_exporter_listen: "127.0.0.1:9551"
+xray_stats_exporter_metrics_path: "/metrics"
+xray_stats_exporter_xray_endpoint: "127.0.0.1:10085"
+xray_stats_exporter_bin_dir: "/usr/local/bin"
+xray_stats_exporter_service_name: "xray-stats-exporter"
+xray_stats_exporter_user: "xrayuser"    # needs read access to Xray gRPC API and access.log
+xray_stats_exporter_group: "xrayuser"
+xray_stats_exporter_log_path: "/var/log/Xray/access.log"
+xray_stats_exporter_geo_city_db: "/var/lib/xray-exporter/GeoLite2-City.mmdb"
+xray_stats_exporter_geo_asn_db: "/var/lib/xray-exporter/GeoLite2-ASN.mmdb"
+
+# raven-subscribe health probe (VictoriaMetrics scrapes /health → up metric)
+raven_subscribe_scrape_addr: "127.0.0.1:8080"
+
+# Grafana
+grafana_listen: "127.0.0.1:13000"
+grafana_service_name: "grafana-server"
+grafana_data_dir: "/var/lib/grafana"
+grafana_log_dir: "/var/log/grafana"
+grafana_provisioning_dir: "/etc/grafana/provisioning"
+grafana_dashboard_id: 23181                  # compassvpn dashboard on grafana.com (file: xray-compassvpn.json)
+# Extra: xray-users-traffic.json — upload/download per user (xray-exporter + policy statsUser*)
+# Dashboard 23181 embeds ${DS_GRAFANACLOUD-COMPASSVPN-PROM}; file provisioning often has no such variable — replaced in JSON after download
+grafana_dashboard_datasource_placeholder: "${DS_GRAFANACLOUD-COMPASSVPN-PROM}"
+grafana_prometheus_datasource_name: "grafanacloud-compassvpn-prom"
+grafana_prometheus_datasource_uid: "grafanacloud-compassvpn-prom"
+# grafana_admin_password: set in secrets.yml (ansible-vault)
+# victoriametrics_auth_username: set in secrets.yml (ansible-vault)
+# victoriametrics_auth_password: set in secrets.yml (ansible-vault)
