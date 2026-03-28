@@ -152,6 +152,96 @@
     {
       "collapsed": false,
       "gridPos": {"h": 1, "w": 24, "x": 0, "y": 31},
+      "id": 30,
+      "title": "Геолокация пользователей",
+      "type": "row"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 10, "w": 12, "x": 0, "y": 32},
+      "id": 31,
+      "options": {"orientation": "horizontal", "displayMode": "gradient", "reduceOptions": {"calcs": ["lastNotNull"]}, "valueMode": "color", "showUnfilled": true},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+          "editorMode": "code",
+          "expr": "sort_desc(sum by (country) (xray_user_connections_total))",
+          "instant": true,
+          "legendFormat": "{% raw %}{{country}}{% endraw %}",
+          "refId": "A"
+        }
+      ],
+      "title": "Соединения по странам",
+      "type": "bargauge"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 10, "w": 12, "x": 12, "y": 32},
+      "id": 32,
+      "options": {"orientation": "horizontal", "displayMode": "gradient", "reduceOptions": {"calcs": ["lastNotNull"]}, "valueMode": "color", "showUnfilled": true},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+          "editorMode": "code",
+          "expr": "sort_desc(sum by (city) (xray_user_connections_total))",
+          "instant": true,
+          "legendFormat": "{% raw %}{{city}}{% endraw %}",
+          "refId": "A"
+        }
+      ],
+      "title": "Соединения по городам",
+      "type": "bargauge"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisBorderShow": false, "drawStyle": "line", "fillOpacity": 10, "showPoints": "never"},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 42},
+      "id": 33,
+      "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["lastNotNull", "max"]}},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+          "editorMode": "code",
+          "expr": "sum by (email, country, city) (xray_user_last_country)",
+          "instant": false,
+          "legendFormat": "{% raw %}{{email}} ({{city}}, {{country}}){% endraw %}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Последнее местоположение пользователей",
+      "type": "timeseries"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 52},
       "id": 20,
       "title": "Inbound — трафик по протоколам",
       "type": "row"
@@ -172,7 +262,7 @@
         },
         "overrides": []
       },
-      "gridPos": {"h": 10, "w": 12, "x": 0, "y": 32},
+      "gridPos": {"h": 10, "w": 12, "x": 0, "y": 53},
       "id": 21,
       "options": {
         "legend": {"displayMode": "table", "placement": "bottom", "showLegend": true, "calcs": ["lastNotNull", "max"]}
@@ -209,7 +299,7 @@
         },
         "overrides": []
       },
-      "gridPos": {"h": 10, "w": 12, "x": 12, "y": 32},
+      "gridPos": {"h": 10, "w": 12, "x": 12, "y": 53},
       "id": 22,
       "options": {"orientation": "horizontal", "displayMode": "gradient", "reduceOptions": {"calcs": ["lastNotNull"]}, "valueMode": "color", "showUnfilled": true},
       "targets": [
