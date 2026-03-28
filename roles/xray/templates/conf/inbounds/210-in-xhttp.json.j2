@@ -1,18 +1,19 @@
 {
   "inbounds": [
     {
+      "listen": "{{ xray_xhttp.listen | default('0.0.0.0') }}",
       "port": {{ xray_xhttp.port }},
       "protocol": "vless",
-      "tag": "{{ xray_common.inbound_tag.vless_xhttp_in }}", 
+      "tag": "{{ xray_common.inbound_tag.vless_xhttp_in }}",
       "settings": {
         "clients": [
           {% set _pq = xray_vless_decryption | default('none') != 'none' %}
           {% for user in xray_users %}
-          {% set _flow = user.flow | default(xray_vless_default_flow) %}
+          {% set _flow = user.flow | default('') %}
           {
             "id": "{{ user.id }}",
             "flow": "{{ 'xtls-rprx-vision' if _pq else _flow }}",
-            "email": "{{ user.email | default('') }}",
+            "email": "{{ (user.email | default('') | trim) or user.id }}",
             "level": 0
           }{{ "," if not loop.last }}
           {% endfor %}
@@ -31,7 +32,7 @@
       "streamSettings": {
         "network": "{{ xray_xhttp.network }}",
         "realitySettings": {
-          "dest": "{{ xray_reality_dest }}",
+          "dest": "{{ xray_xhttp.reality.dest | default(xray_reality_dest) }}",
           "privateKey": "{{ xray_reality.private_key }}",
           "spiderX": "{{ xray_reality.spiderX }}",
           {% set _seed = xray_reality.mldsa65_seed | default('') %}
@@ -43,7 +44,8 @@
           {% endif %}
           {% endif %}
           "serverNames": [
-            {% for name in xray_reality_server_names %}
+            {% set _xhttp_sni = xray_xhttp.reality.server_names | default(xray_reality_server_names) %}
+            {% for name in _xhttp_sni %}
             "{{ name }}"{{ "," if not loop.last }}
             {% endfor %}
           ],
@@ -53,13 +55,16 @@
             {% endfor %}
           ],
           "show": false,
-          "xver": 0
+          "xver": 2
         },
         "security": "reality",
         "xhttpSettings": {
           "mode": "{{ xray_xhttp.xhttpSettings.mode }}",
           "path": "{{ xray_xhttp.xhttpSettings.path }}",
-          "scMaxPacketSize": {{ xray_xhttp.xhttpSettings.scMaxPacketSize }}
+          "scMaxPacketSize": {{ xray_xhttp.xhttpSettings.scMaxPacketSize }},
+          "extra": {
+            "xPaddingBytes": "100-1000"
+          }
         }
       }
     }

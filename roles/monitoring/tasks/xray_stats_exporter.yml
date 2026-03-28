@@ -1,0 +1,26 @@
+---
+- name: Copy xray-stats-exporter binary
+  ansible.builtin.copy:
+    src: "{{ xray_stats_exporter_local_binary }}"
+    dest: "{{ xray_stats_exporter_bin_dir }}/xray-stats-exporter"
+    owner: root
+    group: root
+    mode: "0755"
+  when: xray_stats_exporter_local_binary is defined
+  notify: Restart xray-stats-exporter
+
+- name: Deploy xray-stats-exporter systemd unit
+  ansible.builtin.template:
+    src: xray-stats-exporter.service.j2
+    dest: "/etc/systemd/system/xray-stats-exporter.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart xray-stats-exporter
+
+- name: Enable and start xray-stats-exporter
+  ansible.builtin.systemd:
+    name: "{{ xray_stats_exporter_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true

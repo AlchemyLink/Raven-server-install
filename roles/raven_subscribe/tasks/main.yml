@@ -50,29 +50,29 @@
     path: "{{ raven_subscribe_config_dir }}"
     state: directory
     owner: root
-    group: "{{ xray_group }}"
+    group: "{{ raven_subscribe_group }}"
     mode: "0750"
 
 - name: Raven-subscribe | Ensure data directory exists
   ansible.builtin.file:
     path: "{{ raven_subscribe_db_dir }}"
     state: directory
-    owner: "{{ xray_user }}"
-    group: "{{ xray_group }}"
+    owner: "{{ raven_subscribe_user }}"
+    group: "{{ raven_subscribe_group }}"
     mode: "0750"
 
 - name: Raven-subscribe | Deploy config
   ansible.builtin.template:
-    src: raven-subscribe/config.json.j2
+    src: config.json.j2
     dest: "{{ raven_subscribe_config_dir }}/config.json"
     owner: root
-    group: "{{ xray_group }}"
+    group: "{{ raven_subscribe_group }}"
     mode: "0640"
   notify: Restart raven-subscribe
 
 - name: Raven-subscribe | Deploy systemd service
   ansible.builtin.template:
-    src: raven-subscribe/xray-subscription.service.j2
+    src: xray-subscription.service.j2
     dest: "/etc/systemd/system/{{ raven_subscribe_service_name }}.service"
     owner: root
     group: root

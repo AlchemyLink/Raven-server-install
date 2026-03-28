@@ -1,0 +1,30 @@
+---
+- name: Install wireguard-tools
+  ansible.builtin.apt:
+    name: wireguard-tools
+    state: present
+    update_cache: false
+
+- name: Ensure wireguard config directory exists
+  ansible.builtin.file:
+    path: "{{ wg_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Deploy wg0 config on RU
+  ansible.builtin.template:
+    src: wg0-ru.conf.j2
+    dest: "{{ wg_config_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart wg0
+
+- name: Enable and start wg-quick@wg0 on RU
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ wg_interface }}"
+    enabled: true
+    state: started
+    daemon_reload: true
