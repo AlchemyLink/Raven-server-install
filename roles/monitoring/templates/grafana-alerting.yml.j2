@@ -1,0 +1,193 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: raven-critical
+    folder: Raven
+    interval: 1m
+    rules:
+
+      - uid: xray-down
+        title: "Xray API недоступен"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "xray_up{job=\"xray-stats\"}"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          summary: "Xray API не отвечает на gRPC запросы"
+          description: "xray_up == 0 уже более 2 минут. Сервис Xray может быть упавшим."
+        labels:
+          severity: critical
+
+      - uid: raven-subscribe-down
+        title: "Raven-subscribe недоступен"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "up{job=\"raven-subscribe\"}"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          summary: "Raven-subscribe не отвечает на /health"
+          description: "Сервис raven-subscribe недоступен более 2 минут. Подписки не работают."
+        labels:
+          severity: critical
+
+      - uid: eu-server-down
+        title: "EU сервер недоступен"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "up{job=\"node\", server=\"eu\"}"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 3m
+        annotations:
+          summary: "EU сервер (64.226.79.239) недоступен"
+          description: "node_exporter на EU сервере не отвечает более 3 минут."
+        labels:
+          severity: critical
+
+      - uid: ru-server-down
+        title: "RU сервер недоступен"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "up{job=\"node\", server=\"ru\"}"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 3m
+        annotations:
+          summary: "RU сервер (195.19.92.182) недоступен"
+          description: "node_exporter на RU сервере не отвечает более 3 минут."
+        labels:
+          severity: warning
+
+      - uid: eu-disk-high
+        title: "EU диск заполнен >85%"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "1 - node_filesystem_avail_bytes{server=\"eu\", mountpoint=\"/\"} / node_filesystem_size_bytes{server=\"eu\", mountpoint=\"/\"}"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              conditions:
+                - evaluator:
+                    params: [0.85]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "EU диск заполнен более чем на 85%"
+          description: "Дисковое пространство на EU сервере критически мало. Могут перестать писаться логи."
+        labels:
+          severity: warning

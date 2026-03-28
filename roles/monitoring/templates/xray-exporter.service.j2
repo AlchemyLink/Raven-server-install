@@ -1,0 +1,22 @@
+[Unit]
+Description=Xray Prometheus Exporter
+Documentation=https://github.com/compassvpn/xray-exporter
+After=network.target xray.service
+
+[Service]
+User={{ xray_exporter_user }}
+Group={{ xray_exporter_group }}
+WorkingDirectory={{ xray_exporter_data_dir }}
+NoNewPrivileges=true
+ExecStart={{ xray_exporter_bin_dir }}/xray-exporter \
+  --listen={{ xray_exporter_listen }} \
+  --metrics-path={{ xray_exporter_metrics_path }} \
+  --xray-endpoint={{ xray_exporter_xray_endpoint }} \
+  --log-path={{ xray_exporter_log_path }} \
+  --log-time-window={{ xray_exporter_log_time_window }}
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=10s
+
+[Install]
+WantedBy=multi-user.target

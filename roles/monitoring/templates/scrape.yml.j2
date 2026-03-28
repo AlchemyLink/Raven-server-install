@@ -1,0 +1,38 @@
+global:
+  scrape_interval: {{ victoriametrics_scrape_interval }}
+  scrape_timeout: {{ victoriametrics_scrape_timeout }}
+
+scrape_configs:
+  - job_name: xray
+    metrics_path: {{ xray_exporter_metrics_path }}
+    static_configs:
+      - targets:
+          - {{ xray_exporter_listen }}
+
+  - job_name: xray-stats
+    metrics_path: {{ xray_stats_exporter_metrics_path }}
+    static_configs:
+      - targets:
+          - {{ xray_stats_exporter_listen }}
+
+  - job_name: node
+    static_configs:
+      - targets:
+          - {{ node_exporter_listen }}
+        labels:
+          server: eu
+          instance: "{{ hostvars['vm_my_srv']['ansible_host'] }}"
+      - targets:
+          - {{ node_exporter_ru_scrape }}        # WireGuard → RU:9100
+        labels:
+          server: ru
+          instance: "{{ hostvars['vm_my_ru']['ansible_host'] }}"
+
+  # Raven-subscribe health probe — up=1 if service responds to /health
+  # VictoriaMetrics records the scrape as up=0 when the endpoint is unreachable,
+  # regardless of whether the response body is valid Prometheus format.
+  - job_name: raven-subscribe
+    metrics_path: /health
+    static_configs:
+      - targets:
+          - {{ raven_subscribe_scrape_addr }}

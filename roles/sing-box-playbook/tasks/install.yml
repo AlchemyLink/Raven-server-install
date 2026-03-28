@@ -1,0 +1,64 @@
+---
+- name: sing-box | Get latest release from GitHub
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/{{ singbox_repo }}/releases/latest"
+    return_content: true
+    headers:
+      Accept: "application/vnd.github.v3+json"
+  register: singbox_latest_release
+  when: singbox_auto_update
+  ignore_errors: true
+
+- name: sing-box | Set version from latest release
+  ansible.builtin.set_fact:
+    singbox_version: "{{ singbox_latest_release.json.tag_name | default(singbox_version) | regex_replace('^v', '') }}"
+  when: singbox_auto_update and singbox_latest_release is succeeded
+
+- name: sing-box | Display version to be installed
+  ansible.builtin.debug:
+    msg: "Installing sing-box version: {{ singbox_version }}"
+
+- name: sing-box | Create installation directory
+  ansible.builtin.file:
+    path: "{{ singbox_install_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: sing-box | Download archive
+  ansible.builtin.get_url:
+    url: "{{ singbox_url }}/v{{ singbox_version }}/sing-box-{{ singbox_version }}-linux-{{ singbox_architecture }}.tar.gz"
+    dest: "/tmp/sing-box-{{ singbox_version }}.tar.gz"
+    mode: "0644"
+    timeout: 300
+
+- name: sing-box | Extract archive
+  ansible.builtin.unarchive:
+    src: "/tmp/sing-box-{{ singbox_version }}.tar.gz"
+    dest: "/tmp"
+    remote_src: true
+
+- name: sing-box | Install binary
+  ansible.builtin.copy:
+    src: "/tmp/sing-box-{{ singbox_version }}-linux-{{ singbox_architecture }}/sing-box"
+    dest: "{{ singbox_install_dir }}/sing-box"
+    remote_src: true
+    mode: "0755"
+    owner: root
+    group: root
+
+- name: sing-box | Clean up downloaded files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/tmp/sing-box-{{ singbox_version }}.tar.gz"
+    - "/tmp/sing-box-{{ singbox_version }}-linux-{{ singbox_architecture }}"
+
+- name: sing-box | Verify installation
+  ansible.builtin.command: "{{ singbox_install_dir }}/sing-box version"
+  register: singbox_version_output
+  changed_when: false
+
+- name: sing-box | Display installed version
+  ansible.builtin.debug:
+    msg: "{{ singbox_version_output.stdout }}"

@@ -9,9 +9,15 @@
   "rate_limit_sub_per_min": {{ raven_subscribe_rate_limit_sub_per_min }},
   "rate_limit_admin_per_min": {{ raven_subscribe_rate_limit_admin_per_min }},
   "api_user_inbound_tag": "{{ raven_subscribe_api_inbound_tag }}",
-  "xray_api_addr": "{{ raven_subscribe_xray_api_addr }}"{% if xray_vless_client_encryption | default('none') != 'none' %},
+  "xray_api_addr": "{{ raven_subscribe_xray_api_addr }}",
+  "balancer_strategy": "{{ raven_subscribe_balancer_strategy }}",
+  "balancer_probe_url": "{{ raven_subscribe_balancer_probe_url }}",
+  "balancer_probe_interval": "{{ raven_subscribe_balancer_probe_interval }}",
+  "xray_enabled": {{ raven_subscribe_xray_enabled | lower }},
+  "singbox_enabled": {{ raven_subscribe_singbox_enabled | lower }}{% if xray_vless_client_encryption | default('') | string | trim not in ('', 'none', 'false', 'False') %},
   "vless_client_encryption": {
     "{{ xray_common.inbound_tag.vless_reality_in }}": "{{ xray_vless_client_encryption }}",
     "{{ xray_common.inbound_tag.vless_xhttp_in }}": "{{ xray_vless_client_encryption }}"
-  }{% endif %}
+  }{% endif %}{% if raven_subscribe_singbox_config | default('') != '' %},
+  "singbox_config": "{{ raven_subscribe_singbox_config }}"{% endif %}
 }
