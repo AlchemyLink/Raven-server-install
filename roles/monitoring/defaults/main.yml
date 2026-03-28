@@ -46,6 +46,9 @@ xray_stats_exporter_xray_endpoint: "127.0.0.1:10085"
 xray_stats_exporter_bin_dir: "/usr/local/bin"
 xray_stats_exporter_service_name: "xray-stats-exporter"
 
+# raven-subscribe health probe (VictoriaMetrics scrapes /health → up metric)
+raven_subscribe_scrape_addr: "127.0.0.1:8080"
+
 # Grafana
 grafana_listen: "127.0.0.1:13000"
 grafana_service_name: "grafana-server"
