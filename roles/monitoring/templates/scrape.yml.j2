@@ -27,3 +27,12 @@ scrape_configs:
         labels:
           server: ru
           instance: "{{ hostvars['vm_my_ru']['ansible_host'] }}"
+
+  # Raven-subscribe health probe — up=1 if service responds to /health
+  # VictoriaMetrics records the scrape as up=0 when the endpoint is unreachable,
+  # regardless of whether the response body is valid Prometheus format.
+  - job_name: raven-subscribe
+    metrics_path: /health
+    static_configs:
+      - targets:
+          - {{ raven_subscribe_scrape_addr }}
