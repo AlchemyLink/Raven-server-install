@@ -5,18 +5,20 @@ Languages: **English** | [Русский](README.ru.md)
 [![CI](https://github.com/AlchemyLink/Raven-server-install/actions/workflows/xray-config-test.yml/badge.svg)](https://github.com/AlchemyLink/Raven-server-install/actions/workflows/xray-config-test.yml)
 [![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)](LICENSE)
 
-Ansible playbooks for deploying a self-hosted VPN server stack based on [Xray-core](https://github.com/XTLS/Xray-core) and [Raven-subscribe](https://github.com/AlchemyLink/Raven-subscribe).
+Ansible playbooks for deploying a production-ready self-hosted VPN server stack based on [Xray-core](https://github.com/XTLS/Xray-core) and [Raven-subscribe](https://github.com/AlchemyLink/Raven-subscribe). Designed for censorship circumvention with traffic indistinguishable from regular HTTPS.
 
 **What you get:**
 
-- Xray-core with VLESS + XTLS-Reality and VLESS + XHTTP inbounds
-- Optional post-quantum VLESS Encryption (mlkem768x25519plus)
+- Xray-core with VLESS + XTLS-Reality (TCP) and VLESS + XHTTP (HTTP/2) inbounds
+- nginx SNI routing on port 443 — all VPN traffic goes through standard HTTPS port
+- Optional post-quantum VLESS Encryption (mlkem768x25519plus, Xray-core ≥ 26.x)
 - Optional Hysteria2 via [sing-box](https://github.com/SagerNet/sing-box)
 - [Raven-subscribe](https://github.com/AlchemyLink/Raven-subscribe) — subscription server: auto-discovers users, serves client configs via personal URLs
-- nginx TLS frontend on EU VPS (`nginx_frontend` role)
-- nginx relay + TCP stream proxy on RU VPS for routing through a second server (`relay` role)
+- [xray-stats-exporter](https://github.com/AlchemyLink/xray-stats-exporter) + VictoriaMetrics + Grafana — monitoring with per-user and per-inbound traffic dashboards
+- nginx TLS frontend on EU VPS (`nginx_frontend` role) with PROXY protocol for real client IPs
+- nginx SNI relay on RU VPS — hides EU server IP from clients (`relay` role)
 - Systemd services with config validation before every reload
-- Ad and tracker blocking via geosite routing rules
+- Ad and tracker blocking via geosite routing rules (`geosite:category-ads-all`)
 - BBR congestion control and sysctl tuning (`srv_prepare` role)
 
 ---
@@ -44,48 +46,50 @@ This repo supports two deployment topologies:
 
 ### Single-server (minimal)
 
-One VPS running Xray + Raven-subscribe + nginx frontend.
+One VPS running Xray + Raven-subscribe + nginx frontend. All traffic enters on port 443 — nginx routes by SNI.
 
 ```
-Client  ──VLESS+Reality──►  VPS:443  (Xray)
-Client  ──VLESS+XHTTP────►  VPS:443  (nginx) ──► VPS:2053 (Xray)
-Client  ──subscription───►  VPS:443  (nginx) ──► VPS:8080 (Raven)
+Client  ──VLESS+Reality──►  VPS:443 (nginx SNI) ──► VPS:4443 (Xray)
+Client  ──VLESS+XHTTP────►  VPS:443 (nginx SNI) ──► VPS:2053 (Xray)
+Client  ──subscription───►  VPS:443 (nginx SNI) ──► VPS:8443 (nginx HTTPS) ──► Raven:8080
 ```
 
 ### Dual-server with RU relay (recommended for CIS users)
 
 EU VPS runs Xray + nginx_frontend + Raven-subscribe.
-RU VPS runs a relay that hides the EU IP from clients.
+RU VPS runs an SNI relay that hides the EU IP from clients and passes traffic through.
 
 ```
-EU VPS (media.example.com)         RU VPS (example.com)
-┌───────────────────────────┐      ┌─────────────────────────────┐
-│ Xray        :443 TCP      │      │ nginx relay                 │
-│ nginx XHTTP :443 HTTPS    │◄─────│   my.example.com → EU:8443  │
-│ nginx stream:8445 TCP     │◄─────│   :8444 TCP → EU:8445 TCP   │
-│ Raven       :8080 local   │      └─────────────────────────────┘
-│ nginx front :8443 HTTPS   │                 ▲
-└───────────────────────────┘                 │
-                                           clients
+EU VPS                               RU VPS (example.com)
+┌────────────────────────────────┐   ┌─────────────────────────────────────┐
+│ nginx stream :443 (SNI routing)│   │ nginx stream :443 (SNI routing)     │
+│   SNI dest.com  → Xray :4443   │◄──│   SNI dest.com  → EU:443            │
+│   SNI adobe.com → Xray :2053   │◄──│   SNI adobe.com → EU:443            │
+│   SNI my.domain → nginx :8443  │   │   SNI my.domain → local nginx :8443 │
+│                                │   │     → EU:8443 → Raven :8080         │
+│ Raven-subscribe :8080 (local)  │   └─────────────────────────────────────┘
+└────────────────────────────────┘                   ▲
+                                                  clients
 ```
 
 **Client connection flow:**
 ```
-VLESS Reality:  client → RU:8444 (TCP relay) → EU:8445 (nginx stream) → Xray:443
-VLESS XHTTP:    client → EU:443 (nginx HTTPS) → Xray:2053
-Subscription:   client → my.example.com (RU relay) → EU:8443 → Raven:8080
+VLESS Reality:  client → RU:443 (SNI relay) → EU:443 (nginx SNI) → Xray:4443
+VLESS XHTTP:    client → RU:443 (SNI relay) → EU:443 (nginx SNI) → Xray:2053
+Subscription:   client → my.example.com:443 → RU nginx → EU:8443 → Raven:8080
 ```
 
 ### Role map
 
 | Role | VPS | Playbook | What it does |
 |------|-----|----------|--------------|
-| `srv_prepare` | EU | `role_xray.yml` | BBR, sysctl, system user |
+| `srv_prepare` | EU | `role_xray.yml` | BBR, sysctl tuning, system user `xrayuser` |
 | `xray` | EU | `role_xray.yml` | Xray binary + split config in `/etc/xray/config.d/` |
 | `raven_subscribe` | EU | `role_raven_subscribe.yml` | Subscription server, gRPC sync with Xray |
-| `nginx_frontend` | EU | `role_nginx_frontend.yml` | nginx TLS proxy + TCP stream relay (port 8443/8445) |
+| `nginx_frontend` | EU | `role_nginx_frontend.yml` | nginx SNI routing on :443, HTTPS proxy on :8443, PROXY protocol |
+| `monitoring` | EU | `role_monitoring.yml` | xray-stats-exporter + VictoriaMetrics + Grafana |
 | `sing-box-playbook` | EU | `role_sing-box.yml` | sing-box + Hysteria2 (optional) |
-| `relay` | RU | `role_relay.yml` | nginx reverse proxy + TCP stream relay (port 8444) |
+| `relay` | RU | `role_relay.yml` | nginx SNI relay on :443 — forwards all VPN traffic to EU |
 
 ---
 
@@ -253,24 +257,37 @@ Listens on `127.0.0.1:8080`, proxied by nginx_frontend.
 
 ### `nginx_frontend` role
 
-Deploys nginx on the EU VPS as a TLS reverse proxy. Responsibilities:
+Deploys nginx on the EU VPS as a TLS frontend and SNI router. Port 443 handles all traffic.
 
+- **Stream SNI routing on :443** — reads SNI from TLS ClientHello, routes by hostname:
+  - SNI `xhttp-dest.com` → Xray XHTTP `:2053`
+  - SNI `your-domain.com` → nginx HTTPS `:8443` (Raven-subscribe)
+  - Default (any other SNI) → Xray VLESS Reality `:4443`
+- **PROXY protocol** — passes real client IP to all upstreams (Xray uses `xver: 2`)
+- **HTTPS on :8443** — proxies `/sub/`, `/c/`, `/api/` → Raven-subscribe `:8080`
 - Obtains Let's Encrypt certificate for `nginx_frontend_domain`
-- Listens on port **8443** (port 443 is taken by Xray VLESS Reality)
-- Proxies XHTTP path → Xray `:2053`
-- Proxies subscription/API paths → Raven-subscribe `:8080`
-- **TCP stream relay**: port 8445 → `127.0.0.1:443` (passes VLESS Reality through nginx)
+
+**Important:** When deploying nginx_frontend and Xray inbounds together, always deploy **Xray first** (`--tags xray_inbounds`), then nginx. nginx sends PROXY protocol headers immediately — Xray must be ready to accept them.
 
 ---
 
 ### `relay` role
 
-Deploys nginx on the RU VPS as a relay. Responsibilities:
+Deploys nginx on the RU VPS as an SNI relay. Responsibilities:
 
-- Obtains Let's Encrypt certificates for `relay_domain` and `relay_sub_my`
-- Serves a static stub site on `relay_domain` (camouflage)
+- **Stream SNI routing on :443** — forwards all VPN traffic to EU VPS:443 by default
+- Serves a static stub site on `relay_domain` (camouflage, Let's Encrypt cert)
 - Proxies `my.relay_domain` → EU VPS nginx_frontend `:8443` (Raven-subscribe)
-- **TCP stream relay**: port 8444 → EU VPS `:8445` (VLESS Reality passthrough)
+
+---
+
+### `monitoring` role
+
+Deploys the full monitoring stack on the EU VPS:
+
+- **[xray-stats-exporter](https://github.com/AlchemyLink/xray-stats-exporter)** — Prometheus exporter for per-user and per-inbound traffic metrics
+- **VictoriaMetrics** — Prometheus-compatible time series database
+- **Grafana** — dashboards for traffic, server health, Raven-subscribe status, and alerting rules
 
 ---
 
@@ -384,20 +401,21 @@ singbox:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `nginx_frontend_domain` | `media.example.com` | EU VPS domain — set to your domain |
-| `nginx_frontend_listen_port` | `8443` | nginx HTTPS listen port (not 443 — taken by Xray) |
-| `nginx_frontend_xhttp_port` | `2053` | Xray XHTTP upstream port |
-| `nginx_frontend_xhttp_path` | `/api/v3/data-sync` | XHTTP path (must match xray config) |
-| `nginx_frontend_reality_port` | `8445` | TCP stream relay port for Reality |
+| `nginx_frontend_domain` | `media.example.com` | EU VPS domain — used for TLS cert and SNI routing |
+| `nginx_frontend_listen_port` | `8443` | nginx HTTPS internal port (proxied from :443 stream) |
+| `nginx_frontend_raven_port` | `8080` | Raven-subscribe upstream port |
+| `nginx_frontend_stream_xhttp_sni` | `www.adobe.com` | SNI that routes to Xray XHTTP inbound |
+| `nginx_frontend_stream_xhttp_port` | `2053` | Xray XHTTP inbound port |
+| `nginx_frontend_stream_reality_port` | `4443` | Xray VLESS Reality inbound port (default SNI target) |
 
 ### relay (`roles/relay/defaults/main.yml`)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `relay_domain` | `example.com` | RU VPS domain — set to your domain |
-| `relay_upstream_raven_port` | `8443` | EU nginx_frontend port (must match `nginx_frontend_listen_port`) |
-| `relay_stream_port` | `8444` | RU relay TCP port for Reality (exposed to clients) |
-| `relay_upstream_xray_port` | `8445` | EU nginx stream port (must match `nginx_frontend_reality_port`) |
+| `relay_domain` | `example.com` | RU VPS domain — stub site + SNI routing |
+| `relay_sub_my` | `my.example.com` | Subdomain proxied to EU Raven-subscribe |
+| `relay_upstream_host` | `EU_VPS_IP` | EU server IP (set in secrets.yml) |
+| `relay_upstream_raven_port` | `8443` | EU nginx HTTPS port for Raven-subscribe |
 | `relay_stub_title` | `Welcome` | Stub site page title |
 | `relay_stub_description` | `Personal website` | Stub site meta description |
 
@@ -409,11 +427,39 @@ Point the following DNS A records to the correct servers:
 
 | Domain | → | Server | Purpose |
 |--------|---|--------|---------|
-| `media.example.com` | → | EU VPS IP | nginx_frontend (XHTTP, Raven) |
-| `example.com` | → | RU VPS IP | Relay stub site |
-| `my.example.com` | → | RU VPS IP | Relay → Raven-subscribe |
+| `media.example.com` | → | EU VPS IP | nginx_frontend (SNI routing, TLS cert) |
+| `example.com` | → | RU VPS IP | Relay stub site (camouflage) |
+| `my.example.com` | → | RU VPS IP | Relay → Raven-subscribe (subscription links) |
 
-The RU VPS TCP relay for Reality (port 8444) works by IP — no DNS record needed.
+Clients connect to the RU VPS on port 443 for all protocols — no additional DNS records needed for VPN traffic.
+
+---
+
+## Monitoring (optional)
+
+The `monitoring` role deploys a full observability stack on the EU VPS:
+
+```bash
+ansible-playbook roles/role_monitoring.yml -i roles/hosts.yml --vault-password-file vault_password.txt
+```
+
+**Grafana dashboards included:**
+- **Xray — per-user traffic** — upload/download timeseries, top users, per-inbound breakdown (Reality vs XHTTP)
+- **Servers EU/RU — status** — CPU, RAM, network, disk, Xray health, Raven-subscribe latency
+
+**Alerting rules** (Grafana alerts via VictoriaMetrics):
+- Xray down
+- Raven-subscribe down
+- EU/RU server unreachable
+- Disk usage > 85%
+
+To deploy only the binary for [xray-stats-exporter](https://github.com/AlchemyLink/xray-stats-exporter):
+
+```bash
+ansible-playbook roles/role_monitoring.yml -i roles/hosts.yml --vault-password-file vault_password.txt \
+  --tags xray_stats_exporter \
+  -e "xray_stats_exporter_local_binary=/path/to/xray-stats-exporter"
+```
 
 ---
 
@@ -497,6 +543,7 @@ ansible-playbook tests/playbooks/render_conf.yml
 ## Related Projects
 
 - [Raven-subscribe](https://github.com/AlchemyLink/Raven-subscribe) — subscription server (Go): auto-discovers users from Xray config, syncs via gRPC API, serves personal subscription URLs in Xray JSON / sing-box JSON / share link formats
+- [xray-stats-exporter](https://github.com/AlchemyLink/xray-stats-exporter) — Prometheus exporter for per-user and per-inbound Xray traffic metrics
 - [Xray-core](https://github.com/XTLS/Xray-core) — the VPN core
 - [sing-box](https://github.com/SagerNet/sing-box) — alternative VPN core (Hysteria2)
 
