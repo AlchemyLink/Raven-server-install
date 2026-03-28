@@ -1,0 +1,137 @@
+---
+- name: Install Grafana apt dependencies
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - software-properties-common
+      - wget
+    state: present
+    update_cache: true
+
+- name: Ensure /etc/apt/keyrings exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Remove stale Grafana GPG key if present
+  ansible.builtin.file:
+    path: /etc/apt/keyrings/grafana.gpg
+    state: absent
+
+- name: Download and dearmor Grafana GPG key
+  ansible.builtin.shell:
+    cmd: "curl -fsSL https://apt.grafana.com/gpg.key | gpg --dearmor -o /etc/apt/keyrings/grafana.gpg"
+  changed_when: true
+
+- name: Set permissions on Grafana GPG key
+  ansible.builtin.file:
+    path: /etc/apt/keyrings/grafana.gpg
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Add Grafana apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main"
+    filename: grafana
+    state: present
+    update_cache: true
+
+- name: Install Grafana
+  ansible.builtin.apt:
+    name: grafana
+    state: present
+
+- name: Ensure Grafana provisioning directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: grafana
+    group: grafana
+    mode: "0755"
+  loop:
+    - "{{ grafana_provisioning_dir }}/datasources"
+    - "{{ grafana_provisioning_dir }}/dashboards"
+    - "{{ grafana_provisioning_dir }}/alerting"
+    - "{{ grafana_data_dir }}/dashboards"
+
+- name: Deploy grafana.ini
+  ansible.builtin.template:
+    src: grafana.ini.j2
+    dest: /etc/grafana/grafana.ini
+    owner: root
+    group: grafana
+    mode: "0640"
+  notify: Restart grafana
+
+- name: Deploy Grafana datasource (VictoriaMetrics)
+  ansible.builtin.template:
+    src: grafana-datasource.yml.j2
+    dest: "{{ grafana_provisioning_dir }}/datasources/victoriametrics.yml"
+    owner: grafana
+    group: grafana
+    mode: "0640"
+  notify: Restart grafana
+
+- name: Deploy Grafana dashboard provisioner config
+  ansible.builtin.template:
+    src: grafana-dashboards.yml.j2
+    dest: "{{ grafana_provisioning_dir }}/dashboards/xray.yml"
+    owner: grafana
+    group: grafana
+    mode: "0640"
+  notify: Restart grafana
+
+- name: Download compassvpn Grafana dashboard JSON
+  ansible.builtin.get_url:
+    url: "https://grafana.com/api/dashboards/{{ grafana_dashboard_id }}/revisions/latest/download"
+    dest: "{{ grafana_data_dir }}/dashboards/xray-compassvpn.json"
+    owner: grafana
+    group: grafana
+    mode: "0640"
+  retries: 3
+  delay: 3
+
+- name: Replace DS_* datasource placeholders with provisioned UID (file provisioning has no variable)
+  ansible.builtin.replace:
+    path: "{{ grafana_data_dir }}/dashboards/xray-compassvpn.json"
+    regexp: "{{ grafana_dashboard_datasource_placeholder | regex_escape }}"
+    replace: "{{ grafana_prometheus_datasource_uid }}"
+  notify: Restart grafana
+
+- name: Deploy Grafana Xray per-user traffic dashboard
+  ansible.builtin.template:
+    src: dashboards/xray-users-traffic.json.j2
+    dest: "{{ grafana_data_dir }}/dashboards/xray-users-traffic.json"
+    owner: grafana
+    group: grafana
+    mode: "0640"
+  notify: Restart grafana
+
+- name: Deploy Grafana server status dashboard
+  ansible.builtin.template:
+    src: dashboards/server-status.json.j2
+    dest: "{{ grafana_data_dir }}/dashboards/server-status.json"
+    owner: grafana
+    group: grafana
+    mode: "0640"
+  notify: Restart grafana
+
+- name: Deploy Grafana alerting rules
+  ansible.builtin.template:
+    src: grafana-alerting.yml.j2
+    dest: "{{ grafana_provisioning_dir }}/alerting/raven-alerts.yml"
+    owner: grafana
+    group: grafana
+    mode: "0640"
+  notify: Restart grafana
+
+- name: Enable and start Grafana
+  ansible.builtin.systemd:
+    name: "{{ grafana_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true

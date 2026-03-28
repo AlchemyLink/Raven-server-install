@@ -1,0 +1,27 @@
+[Unit]
+Description=Prometheus Node Exporter
+After=network.target
+
+[Service]
+User=nobody
+Group=nogroup
+NoNewPrivileges=true
+ExecStart={{ node_exporter_bin_dir }}/node_exporter \
+  --web.listen-address={{ node_exporter_listen }} \
+  --collector.disable-defaults \
+  --collector.cpu \
+  --collector.meminfo \
+  --collector.filesystem \
+  --collector.netdev \
+  --collector.loadavg \
+  --collector.time \
+  --collector.uname \
+  --collector.stat \
+  --collector.diskstats \
+  --collector.conntrack
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=10s
+
+[Install]
+WantedBy=multi-user.target

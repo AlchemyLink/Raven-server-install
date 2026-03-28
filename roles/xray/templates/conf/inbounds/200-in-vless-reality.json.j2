@@ -1,6 +1,7 @@
 {
   "inbounds": [
    {
+      "listen": "{{ xray_vless_listen | default('0.0.0.0') }}",
       "port": {{ xray_vless_port }},
       "protocol": "vless",
       "tag": "{{ xray_vless_tag }}",
@@ -10,8 +11,8 @@
           {% for user in xray_users %}
           {
             "id": "{{ user.id }}",
-            "flow": "{{ 'xtls-rprx-vision' if _pq else (user.flow | default(xray_vless_default_flow)) }}",
-            "email": "{{ user.email | default('') }}",
+            "flow": "{{ 'xtls-rprx-vision' if _pq else user.flow }}",
+            "email": "{{ (user.email | default('') | trim) or user.id }}",
             "level": 0
           }{{ "," if not loop.last }}
           {% endfor %}
@@ -44,7 +45,8 @@
             {% for short_id in xray_reality.short_id %}
             "{{ short_id }}"{{ "," if not loop.last }}
             {% endfor %}
-          ]
+          ],
+          "xver": 2
         }
       },
       "sniffing": {

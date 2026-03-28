@@ -1,0 +1,28 @@
+---
+- name: Relay | Validate
+  ansible.builtin.import_tasks: validate.yml
+  tags: always
+
+- name: Relay | Install packages
+  ansible.builtin.import_tasks: install.yml
+  tags: relay_install
+
+- name: Relay | Configure stub site
+  ansible.builtin.import_tasks: stub.yml
+  tags: relay_stub
+
+- name: Relay | Configure nginx
+  ansible.builtin.import_tasks: nginx.yml
+  tags: relay_nginx
+
+- name: Relay | Obtain TLS certificates
+  ansible.builtin.import_tasks: certbot.yml
+  tags: relay_certbot
+
+- name: Relay | Deploy nginx HTTPS config
+  ansible.builtin.import_tasks: nginx_ssl.yml
+  tags: relay_nginx_ssl
+
+- name: Relay | Configure TCP stream relay
+  ansible.builtin.import_tasks: stream.yml
+  tags: relay_stream

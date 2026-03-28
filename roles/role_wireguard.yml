@@ -1,0 +1,21 @@
+---
+# Deploy WireGuard mesh between EU and RU servers
+# Usage:
+#   ansible-playbook roles/role_wireguard.yml -i roles/hosts.yml --vault-password-file vault_password.txt
+#
+# Tags:
+#   wireguard_eu  — configure wg0 on EU (install, config)
+#   wireguard_ru  — configure wg0 on RU (install, config)
+
+- name: Deploy WireGuard
+  hosts:
+    - vm_my_srv
+    - vm_my_ru
+  become: true
+
+  vars_files:
+    - wireguard/defaults/main.yml
+    - wireguard/defaults/secrets.yml
+
+  roles:
+    - role: wireguard

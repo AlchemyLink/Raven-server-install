@@ -1,0 +1,33 @@
+# {{ relay_domain }} — nginx stream SNI routing
+# Managed by Ansible relay role
+#
+# Reads SNI from TLS ClientHello (ssl_preread) and routes TCP:
+#   {{ relay_domain }}     → local nginx HTTPS (127.0.0.1:{{ relay_https_port }}) for stub site
+#   {{ relay_sub_my }}     → local nginx HTTPS (127.0.0.1:{{ relay_https_port }}) for Raven relay
+#   everything else (VPN)  → EU server ({{ relay_upstream_host }}:{{ relay_upstream_port }})
+#
+# This file is included inside stream {} block in nginx.conf
+
+{% if relay_stream_enabled %}
+map $ssl_preread_server_name $relay_backend {
+    {{ relay_domain }}     local_https;
+    {{ relay_sub_my }}     local_https;
+    default                eu_vpn;
+}
+
+upstream local_https {
+    server 127.0.0.1:{{ relay_https_port }};
+}
+
+upstream eu_vpn {
+    server {{ relay_upstream_host }}:{{ relay_upstream_port }};
+}
+
+server {
+    listen 443 reuseport;
+    proxy_pass $relay_backend;
+    ssl_preread on;
+    proxy_connect_timeout 10s;
+    proxy_timeout 600s;
+}
+{% endif %}
