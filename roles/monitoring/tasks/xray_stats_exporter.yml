@@ -6,6 +6,7 @@
     owner: root
     group: root
     mode: "0755"
+  when: xray_stats_exporter_local_binary is defined
   notify: Restart xray-stats-exporter
 
 - name: Deploy xray-stats-exporter systemd unit
