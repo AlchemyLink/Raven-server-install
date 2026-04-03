@@ -12,27 +12,19 @@
 
 # ── HTTPS ─────────────────────────────────────────────────────────────────────
 server {
-    # proxy_protocol: accepts PROXY protocol v2 header sent by nginx stream on :443
-    # This is required because stream block sends proxy_protocol on to all upstreams.
-    listen {{ nginx_frontend_listen_port }} ssl proxy_protocol;
+    listen {{ nginx_frontend_listen_port }} ssl;
     http2 on;
     server_name {{ nginx_frontend_domain }};
 
-    # Use real client IP from PROXY protocol header (set by nginx stream)
-    real_ip_header proxy_protocol;
-    set_real_ip_from 127.0.0.1;
-
-    ssl_certificate     /etc/letsencrypt/live/{{ nginx_frontend_domain }}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/{{ nginx_frontend_domain }}/privkey.pem;
-    include             /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
+    ssl_certificate     {{ nginx_frontend_ssl_cert }};
+    ssl_certificate_key {{ nginx_frontend_ssl_key }};
 
     # ── Raven-subscribe: subscriptions ──────────────────────────────────────
     location ~ ^/(sub|c)/ {
         proxy_pass          http://127.0.0.1:{{ nginx_frontend_raven_port }};
         proxy_set_header    Host              $host;
-        proxy_set_header    X-Real-IP         $proxy_protocol_addr;
-        proxy_set_header    X-Forwarded-For   $proxy_protocol_addr;
+        proxy_set_header    X-Real-IP         $remote_addr;
+        proxy_set_header    X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header    X-Forwarded-Proto $scheme;
         proxy_read_timeout  30s;
         proxy_connect_timeout 5s;
@@ -42,8 +34,8 @@ server {
     location /api/ {
         proxy_pass          http://127.0.0.1:{{ nginx_frontend_raven_port }};
         proxy_set_header    Host              $host;
-        proxy_set_header    X-Real-IP         $proxy_protocol_addr;
-        proxy_set_header    X-Forwarded-For   $proxy_protocol_addr;
+        proxy_set_header    X-Real-IP         $remote_addr;
+        proxy_set_header    X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header    X-Forwarded-Proto $scheme;
         proxy_read_timeout  30s;
         proxy_connect_timeout 5s;

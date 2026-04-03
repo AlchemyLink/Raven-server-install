@@ -1,12 +1,28 @@
 ---
-- name: Nginx frontend | Install nginx and certbot
+- name: Nginx frontend | Install nginx
   ansible.builtin.apt:
     name:
       - nginx
-      - certbot
-      - python3-certbot-nginx
     state: present
     update_cache: true
+
+- name: Nginx frontend | Ensure SSL directory
+  ansible.builtin.file:
+    path: /etc/nginx/ssl
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Nginx frontend | Generate self-signed certificate
+  ansible.builtin.command:
+    cmd: >
+      openssl req -x509 -nodes -days 3650
+      -newkey rsa:2048
+      -keyout {{ nginx_frontend_ssl_key }}
+      -out {{ nginx_frontend_ssl_cert }}
+      -subj "/CN=localhost"
+    creates: "{{ nginx_frontend_ssl_cert }}"
 
 - name: Nginx frontend | Ensure nginx is enabled and started
   ansible.builtin.service:
