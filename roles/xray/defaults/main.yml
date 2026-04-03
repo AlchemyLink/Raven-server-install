@@ -106,7 +106,7 @@ xray_xhttp:
 # Parallel inbounds for clients that support v26.3.27 features.
 # Legacy inbounds (4443/2053) remain untouched for older clients (v2box, etc.).
 # Enable when ready to serve both legacy and v2 configs simultaneously.
-xray_v2_inbounds_enabled: true   # Set to true to enable v2 inbounds (requires xray-core v26.3.27+)
+xray_v2_inbounds_enabled: false
 
 # V2 VLESS + Reality (TCP) — separate port, Reality dest, optional testseed
 xray_v2_vless:
