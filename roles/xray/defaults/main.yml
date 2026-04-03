@@ -4,6 +4,8 @@ xray_common:
   inbound_tag:                           # Common tag for all Xray inbounds
     vless_reality_in: "vless-reality-in"        # Tag for VLESS + XTLS-Reality inbound
     vless_xhttp_in: "vless-xhttp-in"            # Tag for VLESS + XHTTP inbound
+    vless_reality_v2_in: "vless-reality-v2-in"  # Tag for V2 VLESS + Reality (v26.3.27+)
+    vless_xhttp_v2_in: "vless-xhttp-v2-in"     # Tag for V2 VLESS + XHTTP (v26.3.27+)
     api_in: "api-inbound"                       # Tag for Xray API inbound
 
 xray_install_dir: /opt/xray                   # Xray installation directory
@@ -17,12 +19,14 @@ xray_log_dir: "/var/log/Xray"                 # Directory for Xray logs
 xray_bin_dir: "/usr/local/bin"                # Directory for Xray binaries
 xray_nologin_shell: "/usr/sbin/nologin"       # Shell for the Xray user (to prevent login)
 
-# VLESS + XTLS-Reality Configuration
+# VLESS + XTLS-Reality Configuration (TCP)
+# Listens on localhost — nginx stream SNI routing on :443 forwards traffic here.
 xray_vless_tag: vless-reality-in              # Tag for VLESS inbound
-xray_vless_port: 443                          # Port for incoming VLESS connections
-xray_reality_dest: "askubuntu.com:443"        # Destination for XTLS-Reality (usually a TLS website)
-xray_reality_server_names:                    # List of domain names for SNI/ServerName (used in Reality)
-  - "askubuntu.com"                             # Replace with your actual domain or leave empty for random
+xray_vless_port: 4443                         # Local port (behind nginx stream SNI routing on :443)
+xray_vless_listen: "127.0.0.1"               # Bind to localhost only (nginx stream fronts :443)
+xray_reality_dest: "askubuntu.com:443"        # Destination for XTLS-Reality (camouflage domain)
+xray_reality_server_names:                    # SNI names for Reality TCP (must match dest)
+  - "askubuntu.com"
 
 # VLESS Encryption — server inbound decryption string (Xray-core >= 25.x, PR #5067).
 # "none" — standard VLESS, no extra encryption layer, compatible with all clients.
@@ -48,7 +52,7 @@ xray_dns_servers:                             # List of DNS servers for Xray
   # DoH servers (https://) are NOT recommended here — they route
   # through the proxy chain and fail with "closed pipe" on reconnect.
 xray_dns_disable_fallback: false              # Set to true to disable fallback to system DNS
-xray_dns_query_strategy: "UseIP"              # DNS query strategy: "UseIP", "UseIPIfNonMatch", "UseIPv4", "UseIPv6"
+xray_dns_query_strategy: "UseIPv4"            # DNS query strategy: "UseIP", "UseIPIfNonMatch", "UseIPv4", "UseIPv6"
 
 # Log vars
 xray_log_config:
@@ -65,8 +69,6 @@ xray_blocked_domains:                         # List of domains to block
   - "geosite:category-ads-all"
   - "geosite:category-ads"
   - "geosite:category-public-tracker"
-  - "geosite:google-ads"
-  - "geosite:spotify-ads"
 
 # Xray Reality api configuration
 xray_api:
@@ -82,15 +84,73 @@ xray_api:
     protocol: "dokodemo-door"                 # Protocol for API (dokodemo-door)"
     tag: "api-inbound"
 
-# Xray XHTTP configuration
+# Xray XHTTP + Reality configuration
+# Listens on localhost — nginx stream SNI routing on :443 forwards traffic here.
+# Uses separate Reality dest/serverNames from TCP Reality (different SNI for SNI-based routing).
 xray_xhttp:
   tag: "vless-xhttp-in"                       # Tag for XHTTP inbound
-  port: 2053                                  # Port for XHTTP inbound
-  network: "xhttp"                             # Network type for XHTTP (http or ws)
+  port: 2053                                  # Local port (behind nginx stream SNI routing on :443)
+  listen: "127.0.0.1"                         # Bind to localhost only (nginx stream fronts :443)
+  network: "xhttp"                             # Network type
   xhttpSettings:
     mode: "auto"
     path: "/api/v3/data-sync"
-    scMaxPacketSize: 50000
+    scMaxPacketSize: 1048576
+  reality:                                     # XHTTP-specific Reality settings (separate from TCP Reality)
+    dest: "www.adobe.com:443"                  # Camouflage domain (TLS 1.3, H2, OCSP, Akamai CDN)
+    server_names:
+      - "www.adobe.com"
+
+
+# ── V2 parallel inbounds (Xray-core >= v26.3.27) ────────────────────────────
+# Parallel inbounds for clients that support v26.3.27 features.
+# Legacy inbounds (4443/2053) remain untouched for older clients (v2box, etc.).
+# Enable when ready to serve both legacy and v2 configs simultaneously.
+xray_v2_inbounds_enabled: false
+
+# V2 VLESS + Reality (TCP) — separate port, Reality dest, optional testseed
+xray_v2_vless:
+  tag: "vless-reality-v2-in"
+  port: 4444                                  # Separate port for v2 Reality TCP
+  listen: "127.0.0.1"                        # Behind nginx stream SNI routing
+  reality:
+    dest: "dl.google.com:443"                 # TLS 1.3, H2, stable — good Reality target
+    server_names:
+      - "dl.google.com"
+  # Vision testseed — custom TLS padding (v25.12.8+, anti-TSPU Dec 2025 wave).
+  # Leave empty {} to use Xray defaults. Set values to fine-tune padding behavior.
+  # See: https://github.com/XTLS/Xray-core/discussions/4196
+  testseed: {}
+  # Example with custom testseed:
+  # testseed:
+  #   longMin: 900
+  #   longMax: 1400
+  #   shortMin: 1
+  #   shortMax: 200
+
+# V2 VLESS + XHTTP — separate port, Reality dest, XHTTP settings
+xray_v2_xhttp:
+  tag: "vless-xhttp-v2-in"
+  port: 2054                                  # Separate port for v2 XHTTP
+  listen: "127.0.0.1"                        # Behind nginx stream SNI routing
+  network: "xhttp"
+  xhttpSettings:
+    mode: "auto"
+    path: "/api/v4/sync"
+    scMaxPacketSize: 1048576
+  reality:
+    dest: "addons.mozilla.org:443"            # TLS 1.3, H2, Fastly CDN — good target
+    server_names:
+      - "addons.mozilla.org"
+
+# V2 Reality keys — defaults to main xray_reality keys.
+# Override in secrets.yml for key isolation between legacy and v2 inbounds.
+# xray_v2_reality:
+#   private_key: "V2PrivateKeyHere"
+#   public_key: "V2PublicKeyHere"
+#   spiderX: "/"
+#   short_id:
+#     - "shortIdHere"
 
 
 ##### !!!!! This is a secret, do not share it publicly !!!!!####
@@ -108,37 +168,10 @@ xray_xhttp:
 # xray_users:
 #   - id: "UUID_1"                         # Replace with your actual UUID
 #     flow: "xtls-rprx-vision"
-#     email: "someEmailForIdentyfy"
+#     email: "someEmailForIdentyfy"         # Non-empty recommended; if omitted, id is used (needed for per-user traffic stats)
 #   - id: "UUID_2"
 #     flow: "xtls-rprx-vision"
 #     email: "someEmailForIdentyfy"
 #   - id: UUID_3"
 #     flow: "xtls-rprx-vision"
 #     email: "someEmailForIdentyfy"
-
-# ---------------------------------------------------------------------------
-# Raven-subscribe (subscription server)
-# ---------------------------------------------------------------------------
-
-raven_subscribe_github_repo: "alchemylink/raven-subscribe"
-raven_subscribe_install_dir: "/usr/local/bin"
-raven_subscribe_config_dir: "/etc/xray-subscription"
-raven_subscribe_db_dir: "/var/lib/xray-subscription"
-raven_subscribe_service_name: "xray-subscription"
-
-raven_subscribe_listen_addr: ":8080"
-raven_subscribe_sync_interval_seconds: 60
-raven_subscribe_rate_limit_sub_per_min: 60
-raven_subscribe_rate_limit_admin_per_min: 30
-
-# The inbound tag Raven manages users in (must match an inbound in config.d)
-raven_subscribe_api_inbound_tag: "{{ xray_common.inbound_tag.vless_reality_in }}"
-
-# Use Xray gRPC API for user sync instead of file writes.
-# Requires xray_api.enable = true. Value: "127.0.0.1:<xray_api.inbound.port>"
-raven_subscribe_xray_api_addr: "127.0.0.1:{{ xray_api.inbound.port }}"
-
-##### Set these in secrets.yml (ansible-vault encrypted) #####
-# raven_subscribe_server_host: "your-server.com"   # Public IP or domain
-# raven_subscribe_base_url: "http://your-server.com:8080"
-# raven_subscribe_admin_token: ""                  # Strong random secret (required)
