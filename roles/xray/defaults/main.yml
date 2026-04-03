@@ -67,8 +67,6 @@ xray_blocked_domains:                         # List of domains to block
   - "geosite:category-ads-all"
   - "geosite:category-ads"
   - "geosite:category-public-tracker"
-  - "geosite:google-ads"
-  - "geosite:spotify-ads"
 
 # Xray Reality api configuration
 xray_api:
