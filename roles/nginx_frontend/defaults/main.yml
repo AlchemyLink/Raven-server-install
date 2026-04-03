@@ -34,7 +34,7 @@ nginx_frontend_stream_reality_port: 4443            # Must match xray_vless_port
 # ── V2 parallel inbounds (disabled by default) ──────────────────────────────
 # When xray_v2_inbounds_enabled is true, nginx routes additional SNIs
 # to v2 Xray inbounds on separate ports.
-nginx_frontend_stream_v2_enabled: false              # Set to true when v2 inbounds are active
+nginx_frontend_stream_v2_enabled: true             # Set to true when v2 inbounds are active
 nginx_frontend_stream_v2_xhttp_sni: "addons.mozilla.org"   # Must match xray_v2_xhttp.reality.server_names[0]
 nginx_frontend_stream_v2_xhttp_port: 2054                   # Must match xray_v2_xhttp.port
 nginx_frontend_stream_v2_reality_sni: "dl.google.com"       # Must match xray_v2_vless.reality.server_names[0]
