@@ -2,10 +2,8 @@
 - name: Nginx frontend | Validate required vars
   ansible.builtin.assert:
     that:
-      - nginx_frontend_domain is defined
-      - nginx_frontend_domain != ''
-      - nginx_frontend_certbot_email is defined
-      - nginx_frontend_certbot_email != ''
-    fail_msg: >-
-      nginx_frontend_domain and nginx_frontend_certbot_email must be set in secrets.yml.
+      - nginx_frontend_ssl_cert is defined
+      - nginx_frontend_ssl_key is defined
+      - nginx_frontend_listen_port is defined
+    fail_msg: "nginx_frontend_ssl_cert, nginx_frontend_ssl_key, and nginx_frontend_listen_port must be set."
     success_msg: "Nginx frontend vars are valid"
