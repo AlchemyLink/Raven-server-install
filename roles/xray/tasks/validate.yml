@@ -65,3 +65,37 @@
       xray_reality is missing required keys.
       Ensure private_key and short_id are set in secrets.yml.
     success_msg: "xray_reality keys are valid"
+
+- name: Xray | Validate v2 inbound config when enabled
+  when: xray_v2_inbounds_enabled | default(false)
+  block:
+    - name: Xray | Validate v2 VLESS port differs from legacy
+      ansible.builtin.assert:
+        that:
+          - xray_v2_vless.port != xray_vless_port
+        fail_msg: >-
+          xray_v2_vless.port ({{ xray_v2_vless.port }}) must differ from
+          xray_vless_port ({{ xray_vless_port }}).
+        success_msg: "v2 VLESS port is unique"
+
+    - name: Xray | Validate v2 XHTTP port differs from legacy
+      ansible.builtin.assert:
+        that:
+          - xray_v2_xhttp.port != xray_xhttp.port
+        fail_msg: >-
+          xray_v2_xhttp.port ({{ xray_v2_xhttp.port }}) must differ from
+          xray_xhttp.port ({{ xray_xhttp.port }}).
+        success_msg: "v2 XHTTP port is unique"
+
+    - name: Xray | Validate v2 Reality keys (when overridden)
+      when: xray_v2_reality is defined
+      ansible.builtin.assert:
+        that:
+          - xray_v2_reality.private_key is defined
+          - xray_v2_reality.private_key != ''
+          - xray_v2_reality.short_id is defined
+          - xray_v2_reality.short_id | length > 0
+        fail_msg: >-
+          xray_v2_reality is defined but missing required keys.
+          Ensure private_key and short_id are set.
+        success_msg: "v2 Reality keys are valid"

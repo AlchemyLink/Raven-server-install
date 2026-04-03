@@ -26,7 +26,6 @@
           "show": false,
           "dest": "{{ xray_reality_dest }}",
           "spiderX": "{{ xray_reality.spiderX }}",
-          "xver": 0,
           "serverNames": [
             {% for name in xray_reality_server_names %}
             "{{ name }}"{{ "," if not loop.last }}
