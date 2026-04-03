@@ -1,0 +1,76 @@
+{
+  "inbounds": [
+{% if xray_v2_inbounds_enabled | default(false) %}
+{% set _v2r = xray_v2_reality | default(xray_reality) %}
+{% set _pq = xray_vless_decryption | default('none') != 'none' %}
+   {
+      "listen": "{{ xray_v2_vless.listen | default('127.0.0.1') }}",
+      "port": {{ xray_v2_vless.port }},
+      "protocol": "vless",
+      "tag": "{{ xray_v2_vless.tag }}",
+      "settings": {
+        "clients": [
+          {% for user in xray_users %}
+          {
+            "id": "{{ user.id }}",
+            "flow": "{{ 'xtls-rprx-vision' if _pq else user.flow }}",
+            "email": "{{ (user.email | default('') | trim) or user.id }}",
+            "level": 0
+          }{{ "," if not loop.last }}
+          {% endfor %}
+        ],
+        "decryption": "{{ xray_vless_decryption | default('none') }}"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "{{ xray_v2_vless.reality.dest }}",
+          "spiderX": "{{ _v2r.spiderX | default('/') }}",
+          "serverNames": [
+            {% for name in xray_v2_vless.reality.server_names %}
+            "{{ name }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "privateKey": "{{ _v2r.private_key }}",
+          {% set _seed = _v2r.mldsa65_seed | default('') %}
+          {% if _seed %}
+          "mldsa65Seed": "{{ _v2r.mldsa65_seed }}",
+          {% set _verify = _v2r.mldsa65_verify | default('') %}
+          {% if _verify %}
+          "mldsa65Verify": "{{ _v2r.mldsa65_verify }}",
+          {% endif %}
+          {% endif %}
+          "shortIds": [
+            {% for short_id in _v2r.short_id %}
+            "{{ short_id }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "xver": 2
+        }
+      },
+      {% set _ts = xray_v2_vless.testseed | default({}) %}
+      {% if _ts.longMin is defined or _ts.longMax is defined or _ts.shortMin is defined or _ts.shortMax is defined %}
+      "testseed": {
+        {% set _ts_items = [] %}
+        {% if _ts.longMin is defined %}{% set _ = _ts_items.append('"longMin": ' ~ _ts.longMin) %}{% endif %}
+        {% if _ts.longMax is defined %}{% set _ = _ts_items.append('"longMax": ' ~ _ts.longMax) %}{% endif %}
+        {% if _ts.shortMin is defined %}{% set _ = _ts_items.append('"shortMin": ' ~ _ts.shortMin) %}{% endif %}
+        {% if _ts.shortMax is defined %}{% set _ = _ts_items.append('"shortMax": ' ~ _ts.shortMax) %}{% endif %}
+        {{ _ts_items | join(',\n        ') }}
+      },
+      {% endif %}
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "routeOnly": true
+      }
+    }
+{% endif %}
+  ]
+}
