@@ -13,11 +13,15 @@
           {
             "id": "{{ user.id }}",
             "flow": "{{ 'xtls-rprx-vision' if _pq else _flow }}",
-            "email": "{{ (user.email | default('') | trim) or user.id }}",
+            "email": "{{ user.email | default('') }}",
             "level": 0
           }{{ "," if not loop.last }}
           {% endfor %}
         ],
+        {% set _ts = xray_testseed | default([]) %}
+        {% if _ts | length == 4 %}
+        "testseed": {{ _ts | to_json }},
+        {% endif %}
         "decryption": "{{ xray_vless_decryption | default('none') }}"
       },
       "sniffing": {
@@ -55,7 +59,7 @@
             {% endfor %}
           ],
           "show": false,
-          "xver": 2
+          "xver": 0
         },
         "security": "reality",
         "xhttpSettings": {

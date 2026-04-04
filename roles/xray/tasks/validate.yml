@@ -66,6 +66,28 @@
       Ensure private_key and short_id are set in secrets.yml.
     success_msg: "xray_reality keys are valid"
 
+- name: Xray | Validate xray_testseed format
+  when: xray_testseed | default([]) | length > 0
+  ansible.builtin.assert:
+    that:
+      - xray_testseed | length == 4
+      - xray_testseed | map('int') | list | length == 4
+    fail_msg: >-
+      xray_testseed must be a list of exactly 4 integers, e.g. [900, 500, 900, 256].
+      Got: {{ xray_testseed }}
+    success_msg: "xray_testseed is valid: {{ xray_testseed }}"
+
+- name: Xray | Validate xray_v2_testseed format
+  when: xray_v2_testseed | default([]) | length > 0
+  ansible.builtin.assert:
+    that:
+      - xray_v2_testseed | length == 4
+      - xray_v2_testseed | map('int') | list | length == 4
+    fail_msg: >-
+      xray_v2_testseed must be a list of exactly 4 integers, e.g. [900, 500, 900, 256].
+      Got: {{ xray_v2_testseed }}
+    success_msg: "xray_v2_testseed is valid: {{ xray_v2_testseed }}"
+
 - name: Xray | Validate v2 inbound config when enabled
   when: xray_v2_inbounds_enabled | default(false)
   block:
