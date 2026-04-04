@@ -2,7 +2,37 @@
   "outbounds": [
     {
       "protocol": "freedom",
-      "settings": {},
+      "settings": {
+        {% set _frag = xray_freedom_fragment | default({}) %}
+        {% set _noises = xray_freedom_noises | default([]) %}
+        {% if _frag.packets is defined %}
+        "finalmask": {
+          "tcpmasks": [
+            {
+              "fragment": {
+                "packets": "{{ _frag.packets }}",
+                "length": "{{ _frag.length | default('100-200') }}",
+                "interval": "{{ _frag.interval | default('10-20') }}"
+              }
+            }
+          ]
+        },
+        {% endif %}
+        {% if _noises | length > 0 %}
+        "noises": [
+          {% for noise in _noises %}
+          {
+            "type": "{{ noise.type }}",
+            "packet": "{{ noise.packet | default('') }}"{{ "," if noise.delay is defined }}
+            {% if noise.delay is defined %}
+            "delay": "{{ noise.delay }}"
+            {% endif %}
+          }{{ "," if not loop.last }}
+          {% endfor %}
+        ],
+        {% endif %}
+        "domainStrategy": "AsIs"
+      },
       "tag": "freedom"
     },
     {

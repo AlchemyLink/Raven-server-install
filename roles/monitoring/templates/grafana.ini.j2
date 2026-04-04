@@ -1,0 +1,35 @@
+[server]
+http_addr = {{ grafana_listen.split(':')[0] }}
+http_port = {{ grafana_listen.split(':')[1] }}
+# SSH tunnel: ssh -L 13000:127.0.0.1:13000 ... then open http://localhost:13000
+
+[security]
+admin_user = admin
+admin_password = {{ grafana_admin_password }}
+disable_initial_admin_creation = false
+cookie_secure = false        # SSH tunnel is localhost, no HTTPS needed here
+cookie_samesite = lax
+secret_key = {{ grafana_admin_password | hash('sha256') }}
+
+[auth.anonymous]
+enabled = false
+
+[auth]
+disable_login_form = false
+
+[users]
+allow_sign_up = false
+allow_org_create = false
+
+[log]
+mode = file
+level = warn
+
+[paths]
+data = {{ grafana_data_dir }}
+logs = {{ grafana_log_dir }}
+provisioning = {{ grafana_provisioning_dir }}
+
+[analytics]
+reporting_enabled = false
+check_for_updates = false

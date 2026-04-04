@@ -65,3 +65,59 @@
       xray_reality is missing required keys.
       Ensure private_key and short_id are set in secrets.yml.
     success_msg: "xray_reality keys are valid"
+
+- name: Xray | Validate xray_testseed format
+  when: xray_testseed | default([]) | length > 0
+  ansible.builtin.assert:
+    that:
+      - xray_testseed | length == 4
+      - xray_testseed | map('int') | list | length == 4
+    fail_msg: >-
+      xray_testseed must be a list of exactly 4 integers, e.g. [900, 500, 900, 256].
+      Got: {{ xray_testseed }}
+    success_msg: "xray_testseed is valid: {{ xray_testseed }}"
+
+- name: Xray | Validate xray_v2_testseed format
+  when: xray_v2_testseed | default([]) | length > 0
+  ansible.builtin.assert:
+    that:
+      - xray_v2_testseed | length == 4
+      - xray_v2_testseed | map('int') | list | length == 4
+    fail_msg: >-
+      xray_v2_testseed must be a list of exactly 4 integers, e.g. [900, 500, 900, 256].
+      Got: {{ xray_v2_testseed }}
+    success_msg: "xray_v2_testseed is valid: {{ xray_v2_testseed }}"
+
+- name: Xray | Validate v2 inbound config when enabled
+  when: xray_v2_inbounds_enabled | default(false)
+  block:
+    - name: Xray | Validate v2 VLESS port differs from legacy
+      ansible.builtin.assert:
+        that:
+          - xray_v2_vless.port != xray_vless_port
+        fail_msg: >-
+          xray_v2_vless.port ({{ xray_v2_vless.port }}) must differ from
+          xray_vless_port ({{ xray_vless_port }}).
+        success_msg: "v2 VLESS port is unique"
+
+    - name: Xray | Validate v2 XHTTP port differs from legacy
+      ansible.builtin.assert:
+        that:
+          - xray_v2_xhttp.port != xray_xhttp.port
+        fail_msg: >-
+          xray_v2_xhttp.port ({{ xray_v2_xhttp.port }}) must differ from
+          xray_xhttp.port ({{ xray_xhttp.port }}).
+        success_msg: "v2 XHTTP port is unique"
+
+    - name: Xray | Validate v2 Reality keys (when overridden)
+      when: xray_v2_reality is defined
+      ansible.builtin.assert:
+        that:
+          - xray_v2_reality.private_key is defined
+          - xray_v2_reality.private_key != ''
+          - xray_v2_reality.short_id is defined
+          - xray_v2_reality.short_id | length > 0
+        fail_msg: >-
+          xray_v2_reality is defined but missing required keys.
+          Ensure private_key and short_id are set.
+        success_msg: "v2 Reality keys are valid"

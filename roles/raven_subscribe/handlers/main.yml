@@ -1,0 +1,9 @@
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart raven-subscribe
+  ansible.builtin.service:
+    name: "{{ raven_subscribe_service_name }}"
+    state: restarted

@@ -1,0 +1,36 @@
+---
+- name: Relay | Ensure stream.d directory exists
+  ansible.builtin.file:
+    path: /etc/nginx/stream.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Relay | Ensure stream block include in nginx.conf
+  ansible.builtin.blockinfile:
+    path: /etc/nginx/nginx.conf
+    marker: "# {mark} ANSIBLE MANAGED stream block"
+    block: |
+      stream {
+          include /etc/nginx/stream.d/*.conf;
+      }
+    insertafter: EOF
+  notify: Reload nginx
+
+- name: Relay | Deploy nginx stream config
+  ansible.builtin.template:
+    src: nginx/stream.conf.j2
+    dest: "/etc/nginx/stream.d/{{ relay_domain }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+  when: relay_stream_enabled
+
+- name: Relay | Remove nginx stream config (disabled)
+  ansible.builtin.file:
+    path: "/etc/nginx/stream.d/{{ relay_domain }}.conf"
+    state: absent
+  notify: Reload nginx
+  when: not relay_stream_enabled

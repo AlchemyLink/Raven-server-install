@@ -1,0 +1,9 @@
+---
+- name: Nginx frontend | Deploy HTTPS config
+  ansible.builtin.template:
+    src: nginx/https.conf.j2
+    dest: "/etc/nginx/conf.d/{{ nginx_frontend_domain }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx

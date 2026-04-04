@@ -1,0 +1,29 @@
+---
+- name: Load monitoring secrets
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/defaults/secrets.yml"
+  tags: always
+
+- name: Deploy node_exporter
+  ansible.builtin.import_tasks: node_exporter.yml
+  tags: node_exporter
+
+- name: Deploy xray-exporter
+  ansible.builtin.import_tasks: xray_exporter.yml
+  when: inventory_hostname == 'vm_my_srv'
+  tags: xray_exporter
+
+- name: Deploy VictoriaMetrics
+  ansible.builtin.import_tasks: victoriametrics.yml
+  when: inventory_hostname == 'vm_my_srv'
+  tags: victoriametrics
+
+- name: Deploy xray-stats-exporter
+  ansible.builtin.import_tasks: xray_stats_exporter.yml
+  when: inventory_hostname == 'vm_my_srv'
+  tags: xray_stats_exporter
+
+- name: Deploy Grafana
+  ansible.builtin.import_tasks: grafana.yml
+  when: inventory_hostname == 'vm_my_srv'
+  tags: grafana

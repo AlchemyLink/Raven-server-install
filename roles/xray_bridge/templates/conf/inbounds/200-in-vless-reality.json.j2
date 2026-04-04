@@ -1,0 +1,53 @@
+{
+  "inbounds": [
+    {
+      "listen": "{{ xray_bridge_listen }}",
+      "port": {{ xray_bridge_port }},
+      "protocol": "vless",
+      "tag": "{{ xray_bridge_tag_in }}",
+      "settings": {
+        "clients": [
+          {% for user in xray_bridge_users %}
+          {
+            "id": "{{ user.id }}",
+            "flow": "{{ user.flow | default(xray_bridge_vless_default_flow) }}",
+            "email": "{{ user.email | default(user.id) }}",
+            "level": 0
+          }{{ "," if not loop.last }}
+          {% endfor %}
+        ],
+        {% set _ts = xray_bridge_testseed | default([]) %}
+        {% if _ts | length == 4 %}
+        "testseed": {{ _ts | to_json }},
+        {% endif %}
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "{{ xray_bridge_reality_dest }}",
+          "spiderX": "{{ xray_bridge_reality.spiderX | default('/') }}",
+          "xver": 0,
+          "serverNames": [
+            {% for name in xray_bridge_reality_server_names %}
+            "{{ name }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "privateKey": "{{ xray_bridge_reality.private_key }}",
+          "shortIds": [
+            {% for sid in xray_bridge_reality.short_id %}
+            "{{ sid }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ]
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls", "quic"],
+        "routeOnly": true
+      }
+    }
+  ]
+}
