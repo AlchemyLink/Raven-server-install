@@ -16,8 +16,10 @@ server {
     http2 on;
     server_name {{ nginx_frontend_domain }};
 
-    ssl_certificate     {{ nginx_frontend_ssl_cert }};
-    ssl_certificate_key {{ nginx_frontend_ssl_key }};
+    ssl_certificate     /etc/letsencrypt/live/{{ nginx_frontend_domain }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ nginx_frontend_domain }}/privkey.pem;
+    include             /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
 
     # ── Raven-subscribe: subscriptions ──────────────────────────────────────
     location ~ ^/(sub|c)/ {
