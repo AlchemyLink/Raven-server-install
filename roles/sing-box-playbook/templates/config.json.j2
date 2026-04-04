@@ -27,9 +27,8 @@
         "detour": "direct"
       }
     ],
-    "strategy": "prefer_ipv4",
-    "disable_cache": false,
-    "disable_expire": false
+    "strategy": "{{ singbox_dns_strategy }}",
+    "final": "{{ singbox_dns_final }}"
   },
 
   "inbounds": [
@@ -51,10 +50,12 @@
         {% endfor %}
       ],
       {% endif %}
+      {% if singbox_hysteria2_obfs_enabled | default(false) and singbox_hysteria2_obfs_password | default('') != '' %}
       "obfs": {
         "type": "{{ singbox_hysteria2_obfs_type }}",
         "password": "{{ singbox_hysteria2_obfs_password }}"
       },
+      {% endif %}
       "masquerade": "{{ singbox_hysteria2_masquerade }}",
       "tls": {
         "enabled": {{ singbox.tls_enabled | lower }},

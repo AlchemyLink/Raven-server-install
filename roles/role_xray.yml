@@ -6,7 +6,7 @@
   gather_facts: true
 
   vars_files:
-    - "xray/defaults/secrets.yml"  # secrets для Xray (UUID, email и т.п.)
+    - "xray/defaults/secrets.yml"                    # Xray secrets (UUID, reality keys и т.п.)
 
   roles:
     - role: srv_prepare

@@ -33,9 +33,3 @@
   changed_when: false
   when: ansible_facts['service_mgr'] == "openrc"
 
-- name: Restart raven-subscribe
-  ansible.builtin.systemd:
-    name: "{{ raven_subscribe_service_name }}"
-    state: restarted
-    daemon_reload: true
-  when: ansible_facts['service_mgr'] == "systemd"
