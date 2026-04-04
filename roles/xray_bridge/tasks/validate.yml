@@ -1,0 +1,38 @@
+---
+- name: Xray Bridge | Validate required secrets
+  ansible.builtin.assert:
+    that:
+      - xray_bridge_reality is defined
+      - xray_bridge_reality.private_key is defined
+      - xray_bridge_reality.private_key != ''
+      - xray_bridge_reality.public_key is defined
+      - xray_bridge_reality.public_key != ''
+      - xray_bridge_reality.short_id is defined
+      - xray_bridge_reality.short_id | length > 0
+      - xray_bridge_users is defined
+      - xray_bridge_users | length > 0
+      - xray_bridge_eu_host is defined
+      - xray_bridge_eu_host != ''
+      - xray_bridge_eu_reality_public_key is defined
+      - xray_bridge_eu_reality_public_key != ''
+      - xray_bridge_eu_reality_short_id is defined
+      - xray_bridge_eu_reality_short_id != ''
+      - xray_bridge_eu_user_id is defined
+      - xray_bridge_eu_user_id != ''
+    fail_msg: >-
+      xray_bridge secrets must be set in secrets.yml.
+      Required: xray_bridge_reality (private_key, public_key, short_id),
+      xray_bridge_users, xray_bridge_eu_host, xray_bridge_eu_reality_public_key,
+      xray_bridge_eu_reality_short_id, xray_bridge_eu_user_id.
+    success_msg: "xray_bridge vars are valid"
+
+- name: Xray Bridge | Validate each bridge user has id and email
+  ansible.builtin.assert:
+    that:
+      - item.id is defined
+      - item.id != ''
+      - item.email is defined
+      - item.email != ''
+    fail_msg: "Bridge user {{ item | to_json }} is missing id or email"
+    success_msg: "Bridge user {{ item.email }} is valid"
+  loop: "{{ xray_bridge_users }}"

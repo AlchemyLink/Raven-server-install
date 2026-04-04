@@ -1,0 +1,12 @@
+---
+- name: Xray Bridge | Deploy outbound configs
+  ansible.builtin.template:
+    src: "{{ item }}"
+    dest: "{{ xray_bridge_config_dir }}config.d/{{ item | basename | regex_replace('\\.j2$', '') }}"
+    owner: "{{ xray_bridge_user }}"
+    group: "{{ xray_bridge_group }}"
+    mode: "0644"
+  loop: "{{ query('fileglob', role_path + '/templates/conf/outbounds/*.j2') }}"
+  notify:
+    - Validate xray-bridge
+    - Restart xray-bridge
