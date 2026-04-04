@@ -21,6 +21,19 @@
     group: "{{ xray_bridge_group }}"
     mode: "0755"
 
+- name: Xray Bridge | Ensure log files exist with correct ownership
+  ansible.builtin.file:
+    path: "{{ xray_bridge_log_dir }}/{{ item }}"
+    state: touch
+    owner: "{{ xray_bridge_user }}"
+    group: "{{ xray_bridge_group }}"
+    mode: "0640"
+    modification_time: preserve
+    access_time: preserve
+  loop:
+    - access.log
+    - error.log
+
 - name: Xray Bridge | Ensure install directory exists
   ansible.builtin.file:
     path: "{{ xray_bridge_install_dir }}"
@@ -49,6 +62,11 @@
 - name: Xray Bridge | Install Xray binary (if absent)
   when: not xray_bin_stat.stat.exists
   block:
+    - name: Xray Bridge | Ensure unzip is installed
+      ansible.builtin.package:
+        name: unzip
+        state: present
+
     - name: Xray Bridge | Get latest Xray release
       ansible.builtin.uri:
         url: "https://api.github.com/repos/{{ xray_github_repo }}/releases/latest"
@@ -91,3 +109,18 @@
         dest: "{{ xray_bridge_bin_dir }}/xray"
         state: link
         force: true
+
+# ── Geo data (always ensure latest community build) ───────────────────────────
+- name: Xray Bridge | Download community geosite.dat (contains geosite:ru)
+  ansible.builtin.get_url:
+    url: "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
+    dest: "{{ xray_bridge_install_dir }}/geosite.dat"
+    mode: "0644"
+  tags: xray_bridge_install
+
+- name: Xray Bridge | Download community geoip.dat
+  ansible.builtin.get_url:
+    url: "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat"
+    dest: "{{ xray_bridge_install_dir }}/geoip.dat"
+    mode: "0644"
+  tags: xray_bridge_install
