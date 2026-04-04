@@ -102,14 +102,15 @@ xray_xhttp:
       - "www.adobe.com"
 
 
-# ── Freedom outbound: fragment + noises (anti-DPI) ──────────────────────────
-# Optional TLS fragmentation on the freedom outbound (EU → internet).
-# Splits ClientHello into small packets so DPI cannot reassemble SNI.
+# ── Freedom outbound: Finalmask (anti-DPI, v26.3.27+) ───────────────────────
+# Rendered as freedom.settings.finalmask.tcpmasks (Xray v26.3.27 API).
+# Supports stacking: add more tcpmasks entries (e.g. sudoku) when needed.
 # See: https://xtls.github.io/en/config/outbounds/freedom.html
 #
-# When empty {} — fragment/noises are omitted, freedom outbound is plain.
+# When empty {} — finalmask block is omitted, freedom outbound is plain.
 
-# Fragment — TLS ClientHello fragmentation
+# Fragment (tcpmask) — TLS ClientHello fragmentation via Finalmask
+# Splits ClientHello into small packets so DPI cannot reassemble SNI.
 xray_freedom_fragment:
   packets: "tlshello"          # "tlshello" or "1-3" (TCP stream slice range)
   length: "100-200"            # fragment size in bytes (string, supports range)

@@ -4,14 +4,20 @@
       "protocol": "freedom",
       "settings": {
         {% set _frag = xray_freedom_fragment | default({}) %}
+        {% set _noises = xray_freedom_noises | default([]) %}
         {% if _frag.packets is defined %}
-        "fragment": {
-          "packets": "{{ _frag.packets }}",
-          "length": "{{ _frag.length | default('100-200') }}",
-          "interval": "{{ _frag.interval | default('10-20') }}"
+        "finalmask": {
+          "tcpmasks": [
+            {
+              "fragment": {
+                "packets": "{{ _frag.packets }}",
+                "length": "{{ _frag.length | default('100-200') }}",
+                "interval": "{{ _frag.interval | default('10-20') }}"
+              }
+            }
+          ]
         },
         {% endif %}
-        {% set _noises = xray_freedom_noises | default([]) %}
         {% if _noises | length > 0 %}
         "noises": [
           {% for noise in _noises %}
