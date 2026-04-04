@@ -1,0 +1,79 @@
+{
+  "inbounds": [
+{% if xray_v2_inbounds_enabled | default(false) %}
+{% set _v2r = xray_v2_reality | default(xray_reality) %}
+{% set _pq = xray_vless_decryption | default('none') != 'none' %}
+    {
+      "listen": "{{ xray_v2_xhttp.listen | default('127.0.0.1') }}",
+      "port": {{ xray_v2_xhttp.port }},
+      "protocol": "vless",
+      "tag": "{{ xray_v2_xhttp.tag }}",
+      "settings": {
+        "clients": [
+          {% for user in xray_users %}
+          {% set _flow = user.flow | default('') %}
+          {
+            "id": "{{ user.id }}",
+            "flow": "{{ 'xtls-rprx-vision' if _pq else _flow }}",
+            "email": "{{ (user.email | default('') | trim) or user.id }}",
+            "level": 0
+          }{{ "," if not loop.last }}
+          {% endfor %}
+        ],
+        {% set _ts = xray_v2_testseed | default(xray_testseed | default([])) %}
+        {% if _ts | length == 4 %}
+        "testseed": {{ _ts | to_json }},
+        {% endif %}
+        "decryption": "{{ xray_vless_decryption | default('none') }}"
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "routeOnly": true
+      },
+      "streamSettings": {
+        "network": "{{ xray_v2_xhttp.network }}",
+        "realitySettings": {
+          "dest": "{{ xray_v2_xhttp.reality.dest }}",
+          "privateKey": "{{ _v2r.private_key }}",
+          "spiderX": "{{ _v2r.spiderX | default('/') }}",
+          {% set _seed = _v2r.mldsa65_seed | default('') %}
+          {% if _seed %}
+          "mldsa65Seed": "{{ _v2r.mldsa65_seed }}",
+          {% set _verify = _v2r.mldsa65_verify | default('') %}
+          {% if _verify %}
+          "mldsa65Verify": "{{ _v2r.mldsa65_verify }}",
+          {% endif %}
+          {% endif %}
+          "serverNames": [
+            {% set _v2_xhttp_sni = xray_v2_xhttp.reality.server_names %}
+            {% for name in _v2_xhttp_sni %}
+            "{{ name }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "shortIds": [
+            {% for short_id in _v2r.short_id %}
+            "{{ short_id }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "show": false,
+          "xver": 2
+        },
+        "security": "reality",
+        "xhttpSettings": {
+          "mode": "{{ xray_v2_xhttp.xhttpSettings.mode }}",
+          "path": "{{ xray_v2_xhttp.xhttpSettings.path }}",
+          "scMaxPacketSize": {{ xray_v2_xhttp.xhttpSettings.scMaxPacketSize }},
+          "extra": {
+            "xPaddingBytes": "100-1000"
+          }
+        }
+      }
+    }
+{% endif %}
+  ]
+}

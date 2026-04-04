@@ -1,0 +1,7 @@
+{
+  "log": {
+    "loglevel": "{{ xray_bridge_log_level | default('warning') }}",
+    "access": "{{ xray_bridge_log_dir }}/access.log",
+    "error": "{{ xray_bridge_log_dir }}/error.log"
+  }
+}

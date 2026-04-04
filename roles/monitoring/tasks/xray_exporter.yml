@@ -1,0 +1,67 @@
+---
+- name: Get latest xray-exporter release version
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/{{ xray_exporter_github_repo }}/releases/latest"
+    method: GET
+    return_content: true
+    headers:
+      Accept: "application/vnd.github.v3+json"
+    status_code: 200
+  register: xray_exporter_release_info
+  run_once: true
+  retries: 3
+  delay: 3
+  until: xray_exporter_release_info.status == 200
+  when: xray_exporter_version == "latest"
+
+- name: Set xray-exporter version fact
+  ansible.builtin.set_fact:
+    xray_exporter_resolved_version: >-
+      {{
+        xray_exporter_release_info.json.tag_name
+        if xray_exporter_version == "latest"
+        else xray_exporter_version
+      }}
+
+- name: Detect architecture for xray-exporter
+  ansible.builtin.set_fact:
+    xray_exporter_arch: >-
+      {{
+        'amd64' if ansible_architecture in ['x86_64', 'amd64']
+        else 'arm64' if ansible_architecture in ['aarch64', 'arm64']
+        else 'arm' if ansible_architecture.startswith('arm')
+        else ansible_architecture
+      }}
+
+- name: Ensure xray-exporter data directory exists (GeoLite DBs)
+  ansible.builtin.file:
+    path: "{{ xray_exporter_data_dir }}"
+    state: directory
+    owner: "{{ xray_exporter_user }}"
+    group: "{{ xray_exporter_group }}"
+    mode: "0750"
+
+- name: Download xray-exporter binary
+  ansible.builtin.get_url:
+    url: "https://github.com/{{ xray_exporter_github_repo }}/releases/download/{{ xray_exporter_resolved_version }}/xray-exporter-linux-{{ xray_exporter_arch }}"
+    dest: "{{ xray_exporter_bin_dir }}/xray-exporter"
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart xray-exporter
+
+- name: Deploy xray-exporter systemd unit
+  ansible.builtin.template:
+    src: xray-exporter.service.j2
+    dest: "/etc/systemd/system/xray-exporter.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart xray-exporter
+
+- name: Enable and start xray-exporter
+  ansible.builtin.systemd:
+    name: "{{ xray_exporter_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true

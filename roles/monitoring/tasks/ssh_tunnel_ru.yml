@@ -1,0 +1,38 @@
+---
+# Sets up a persistent SSH tunnel on EU: 127.0.0.1:19100 → RU:9100
+# Requires:
+#   - /etc/ssh/tunnel_ru (private key, generated once manually or via keygen task)
+#   - /etc/ssh/tunnel_ru_known_hosts (RU host key, populated by ssh-keyscan)
+#   - 'tunnel' user on RU with authorized_keys: restrict,port-forwarding,permitopen="127.0.0.1:9100",from="EU_IP"
+
+- name: Scan RU host key into tunnel known_hosts
+  ansible.builtin.shell:
+    cmd: >
+      ssh-keyscan -p {{ hostvars['vm_my_ru']['ansible_port'] }}
+      -t ed25519 {{ hostvars['vm_my_ru']['ansible_host'] }}
+      > {{ ssh_tunnel_ru_known_hosts }}
+    creates: "{{ ssh_tunnel_ru_known_hosts }}"
+  changed_when: false
+
+- name: Set tunnel known_hosts permissions
+  ansible.builtin.file:
+    path: "{{ ssh_tunnel_ru_known_hosts }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy ssh-tunnel-ru systemd unit
+  ansible.builtin.template:
+    src: ssh-tunnel-ru.service.j2
+    dest: "/etc/systemd/system/{{ ssh_tunnel_ru_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart ssh-tunnel-ru
+
+- name: Enable and start ssh-tunnel-ru
+  ansible.builtin.systemd:
+    name: "{{ ssh_tunnel_ru_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true

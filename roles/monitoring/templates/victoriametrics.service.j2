@@ -1,0 +1,23 @@
+[Unit]
+Description=VictoriaMetrics time series database
+Documentation=https://docs.victoriametrics.com
+After=network.target
+
+[Service]
+User={{ victoriametrics_user }}
+Group={{ victoriametrics_group }}
+NoNewPrivileges=true
+ExecStart={{ victoriametrics_bin_dir }}/victoria-metrics \
+  -httpListenAddr={{ victoriametrics_listen }} \
+  -storageDataPath={{ victoriametrics_data_dir }} \
+  -retentionPeriod={{ victoriametrics_retention_months }}M \
+  -promscrape.config={{ victoriametrics_scrape_config }} \
+  -httpAuth.username={{ victoriametrics_auth_username }} \
+  -httpAuth.password={{ victoriametrics_auth_password }}
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+LimitNOFILE=262144
+
+[Install]
+WantedBy=multi-user.target

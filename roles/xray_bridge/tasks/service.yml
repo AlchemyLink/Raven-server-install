@@ -1,0 +1,15 @@
+---
+- name: Xray Bridge | Deploy systemd unit
+  ansible.builtin.template:
+    src: xray-bridge.service.j2
+    dest: "/etc/systemd/system/{{ xray_bridge_service_name }}.service"
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart xray-bridge
+
+- name: Xray Bridge | Enable and start service
+  ansible.builtin.service:
+    name: "{{ xray_bridge_service_name }}"
+    enabled: true
+    state: started

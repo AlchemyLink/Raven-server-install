@@ -1,0 +1,61 @@
+---
+
+raven_subscribe_github_repo: "alchemylink/raven-subscribe"
+raven_subscribe_install_dir: "/usr/local/bin"
+raven_subscribe_config_dir: "/etc/xray-subscription"
+raven_subscribe_db_dir: "/var/lib/xray-subscription"
+raven_subscribe_service_name: "xray-subscription"
+
+raven_subscribe_listen_addr: "127.0.0.1:8080"
+raven_subscribe_sync_interval_seconds: 60
+raven_subscribe_rate_limit_sub_per_min: 60
+raven_subscribe_rate_limit_admin_per_min: 30
+
+# Balancer settings (used in generated client subscription configs)
+# Strategy: random, roundRobin, leastPing, leastLoad
+raven_subscribe_balancer_strategy: "leastPing"
+raven_subscribe_balancer_probe_url: "https://www.gstatic.com/generate_204"
+raven_subscribe_balancer_probe_interval: "30s"
+
+# The inbound tag Raven manages users in (must match an inbound in config.d)
+raven_subscribe_api_inbound_tag: "vless-reality-in"
+
+# Xray API address for user sync via gRPC. Requires xray_api enabled.
+raven_subscribe_xray_api_addr: "127.0.0.1:10085"
+
+# Xray config.d directory (must match xray role)
+raven_subscribe_xray_config_dir: "/etc/xray/config.d"
+
+# Per-inbound host overrides. Falls back to raven_subscribe_server_host when tag not listed.
+# Set in secrets.yml. With SNI routing both protocols are on :443 behind nginx stream.
+# Example: {"vless-reality-in": "zirgate.com", "vless-xhttp-in": "zirgate.com"}
+raven_subscribe_inbound_hosts: {}
+
+# Per-inbound port overrides. Falls back to inbound's own port when tag not listed.
+# Set in secrets.yml. With SNI routing both protocols share port 443.
+# Example: {"vless-reality-in": 443, "vless-xhttp-in": 443}
+raven_subscribe_inbound_ports:
+    vless-reality-in: 443
+    vless-xhttp-in: 443
+    vless-reality-v2-in: 443
+    vless-xhttp-v2-in: 443
+
+# Path to sing-box config file. Leave empty to disable sing-box sync.
+# Example: "/etc/sing-box/config.json"
+raven_subscribe_singbox_config: ""
+
+# Enable/disable Xray and sing-box sync independently.
+raven_subscribe_xray_enabled: true
+raven_subscribe_singbox_enabled: false
+
+# System user/group (shared with xray role — do NOT change)
+raven_subscribe_user: "xrayuser"
+raven_subscribe_group: "xrayuser"
+
+# Xray service name (for systemd After= dependency)
+raven_subscribe_xray_service_name: "xray"
+
+##### Set these in secrets.yml (ansible-vault encrypted) #####
+# raven_subscribe_server_host: ""     # EU VPS public IP or domain
+# raven_subscribe_base_url: ""        # Public URL — must be relay domain, NOT direct EU IP
+# raven_subscribe_admin_token: ""     # Generate: openssl rand -hex 32

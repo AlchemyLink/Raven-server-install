@@ -1,0 +1,37 @@
+---
+# xray_bridge playbook — installs and configures Xray chain proxy on RU VPS
+#
+# Prerequisites:
+#   1. relay role already deployed (nginx running on :443 with SNI routing)
+#   2. EU Xray has xray_bridge_eu_user_id UUID registered in its XHTTP inbound
+#      (add it to xray_users in EU secrets.yml, then redeploy EU role_xray.yml)
+#   3. secrets.yml filled and encrypted with ansible-vault
+#
+# Deployment:
+#   ansible-playbook roles/role_xray_bridge.yml \
+#     -i roles/relay/inventory.ini \
+#     --vault-password-file vault_password.txt
+#
+# After deploying the bridge, update relay role to route bridge SNI:
+#   Set relay_bridge_enabled=true and relay_bridge_sni in relay secrets.yml
+#   ansible-playbook roles/role_relay.yml -i roles/relay/inventory.ini \
+#     --vault-password-file vault_password.txt --tags relay_stream
+#
+# Tags:
+#   xray_bridge_install   — install Xray binary, create user/dirs
+#   xray_bridge_base      — deploy log config
+#   xray_bridge_inbounds  — deploy inbound config (VLESS+Reality)
+#   xray_bridge_outbounds — deploy outbound config (chain to EU + direct)
+#   xray_bridge_routing   — deploy routing config (split RU/global)
+#   xray_bridge_service   — deploy systemd unit, enable service
+
+- name: Configure Xray bridge (RU chain proxy)
+  hosts: vm_my_ru
+  become: true
+
+  vars_files:
+    - xray_bridge/defaults/main.yml
+    - xray_bridge/defaults/secrets.yml
+
+  roles:
+    - role: xray_bridge
