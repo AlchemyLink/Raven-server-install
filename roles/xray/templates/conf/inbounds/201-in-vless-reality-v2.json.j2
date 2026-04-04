@@ -19,6 +19,10 @@
           }{{ "," if not loop.last }}
           {% endfor %}
         ],
+        {% set _ts = xray_v2_testseed | default(xray_testseed | default([])) %}
+        {% if _ts | length == 4 %}
+        "testseed": {{ _ts | to_json }},
+        {% endif %}
         "decryption": "{{ xray_vless_decryption | default('none') }}"
       },
       "streamSettings": {
@@ -50,17 +54,6 @@
           "xver": 2
         }
       },
-      {% set _ts = xray_v2_vless.testseed | default({}) %}
-      {% if _ts.longMin is defined or _ts.longMax is defined or _ts.shortMin is defined or _ts.shortMax is defined %}
-      "testseed": {
-        {% set _ts_items = [] %}
-        {% if _ts.longMin is defined %}{% set _ = _ts_items.append('"longMin": ' ~ _ts.longMin) %}{% endif %}
-        {% if _ts.longMax is defined %}{% set _ = _ts_items.append('"longMax": ' ~ _ts.longMax) %}{% endif %}
-        {% if _ts.shortMin is defined %}{% set _ = _ts_items.append('"shortMin": ' ~ _ts.shortMin) %}{% endif %}
-        {% if _ts.shortMax is defined %}{% set _ = _ts_items.append('"shortMax": ' ~ _ts.shortMax) %}{% endif %}
-        {{ _ts_items | join(',\n        ') }}
-      },
-      {% endif %}
       "sniffing": {
         "enabled": true,
         "destOverride": [

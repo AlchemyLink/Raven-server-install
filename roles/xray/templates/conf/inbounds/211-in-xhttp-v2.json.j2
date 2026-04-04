@@ -20,6 +20,10 @@
           }{{ "," if not loop.last }}
           {% endfor %}
         ],
+        {% set _ts = xray_v2_testseed | default(xray_testseed | default([])) %}
+        {% if _ts | length == 4 %}
+        "testseed": {{ _ts | to_json }},
+        {% endif %}
         "decryption": "{{ xray_vless_decryption | default('none') }}"
       },
       "sniffing": {
