@@ -1,0 +1,58 @@
+# {{ nginx_frontend_domain }} — HTTPS frontend for EU server
+# Managed by Ansible nginx_frontend role
+#
+# Serves Raven-subscribe and acts as fallback dest for XHTTP Reality probes.
+# XHTTP VPN traffic goes through nginx stream SNI routing on :443 directly.
+#
+# Routes:
+#   /sub/, /c/         → Raven-subscribe (127.0.0.1:{{ nginx_frontend_raven_port }})
+#   /api/              → Raven-subscribe admin API
+#   /health            → Raven-subscribe health check
+#   /                  → Default page (landing / 404)
+
+# ── HTTPS ─────────────────────────────────────────────────────────────────────
+server {
+    listen {{ nginx_frontend_listen_port }} ssl;
+    http2 on;
+    server_name {{ nginx_frontend_domain }};
+
+    ssl_certificate     /etc/letsencrypt/live/{{ nginx_frontend_domain }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ nginx_frontend_domain }}/privkey.pem;
+    include             /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
+
+    # ── Raven-subscribe: subscriptions ──────────────────────────────────────
+    location ~ ^/(sub|c)/ {
+        proxy_pass          http://127.0.0.1:{{ nginx_frontend_raven_port }};
+        proxy_set_header    Host              $host;
+        proxy_set_header    X-Real-IP         $remote_addr;
+        proxy_set_header    X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header    X-Forwarded-Proto $scheme;
+        proxy_read_timeout  30s;
+        proxy_connect_timeout 5s;
+    }
+
+    # ── Raven-subscribe: admin API ───────────────────────────────────────────
+    location /api/ {
+        proxy_pass          http://127.0.0.1:{{ nginx_frontend_raven_port }};
+        proxy_set_header    Host              $host;
+        proxy_set_header    X-Real-IP         $remote_addr;
+        proxy_set_header    X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header    X-Forwarded-Proto $scheme;
+        proxy_read_timeout  30s;
+        proxy_connect_timeout 5s;
+    }
+
+    # ── Raven-subscribe: health check ────────────────────────────────────────
+    location /health {
+        proxy_pass          http://127.0.0.1:{{ nginx_frontend_raven_port }};
+        proxy_set_header    Host              $host;
+        proxy_read_timeout  5s;
+        proxy_connect_timeout 5s;
+    }
+
+    # ── Everything else → 404 ────────────────────────────────────────────────
+    location / {
+        return 404;
+    }
+}

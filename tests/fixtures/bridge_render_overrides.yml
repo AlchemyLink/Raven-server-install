@@ -1,0 +1,9 @@
+---
+# Bridge render overrides for tests — geosite.dat absent, use empty lists.
+xray_bridge_log_dir: "/tmp/raven-xray-bridge-test-logs"
+xray_bridge_blocked_domains: []
+xray_bridge_direct_domains:
+  - "domain:ru"
+  - "domain:su"
+xray_bridge_direct_ips:
+  - "geoip:private"

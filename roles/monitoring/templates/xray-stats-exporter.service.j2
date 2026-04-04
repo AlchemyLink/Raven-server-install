@@ -1,0 +1,25 @@
+[Unit]
+Description=Xray Per-User Stats Prometheus Exporter
+After=network.target xray.service
+
+[Service]
+User={{ xray_stats_exporter_user }}
+Group={{ xray_stats_exporter_group }}
+NoNewPrivileges=true
+ProtectSystem=strict
+PrivateTmp=yes
+ProtectHome=yes
+ReadOnlyPaths={{ xray_stats_exporter_log_path }} /var/lib/xray-exporter
+ExecStart={{ xray_stats_exporter_bin_dir }}/xray-stats-exporter \
+  --listen={{ xray_stats_exporter_listen }} \
+  --metrics-path={{ xray_stats_exporter_metrics_path }} \
+  --xray-endpoint={{ xray_stats_exporter_xray_endpoint }} \
+  --log-path={{ xray_stats_exporter_log_path }} \
+  --geo-city-db={{ xray_stats_exporter_geo_city_db }} \
+  --geo-asn-db={{ xray_stats_exporter_geo_asn_db }}
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=10s
+
+[Install]
+WantedBy=multi-user.target

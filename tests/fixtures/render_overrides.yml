@@ -11,3 +11,12 @@ xray_log_config:
 
 # geosite.dat отсутствует в тестовой среде — используем пустой список.
 xray_blocked_domains: []
+
+# testseed для тестирования рендера (Vision padding, v25.12.8+)
+xray_testseed: [900, 500, 900, 256]
+
+# fragment для тестирования рендера (TLS ClientHello fragmentation)
+xray_freedom_fragment:
+  packets: "tlshello"
+  length: "100-200"
+  interval: "10-20"

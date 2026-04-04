@@ -1,6 +1,6 @@
   {
   "routing": {
-    "domainStrategy": "IPIfNonMatch",
+    "domainStrategy": "AsIs",
     "rules": [
       {% if xray_blocked_domains | length > 0 %}
       {
@@ -24,7 +24,9 @@
         "type": "field",
         "inboundTag": [
           "{{ xray_common.inbound_tag.vless_reality_in }}",
-          "{{ xray_common.inbound_tag.vless_xhttp_in }}"
+          "{{ xray_common.inbound_tag.vless_xhttp_in }}"{% if xray_v2_inbounds_enabled | default(false) %},
+          "{{ xray_common.inbound_tag.vless_reality_v2_in }}",
+          "{{ xray_common.inbound_tag.vless_xhttp_v2_in }}"{% endif %}
         ],
         "outboundTag": "freedom"
       }

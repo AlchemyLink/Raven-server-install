@@ -1,0 +1,52 @@
+---
+# Relay role — nginx SNI routing + reverse proxy on RU VPS
+#
+# Port 443 is handled by nginx stream with ssl_preread (SNI routing):
+#   my.example.com / example.com → local nginx HTTPS (:8443) for subscriptions + stub
+#   everything else (VPN SNIs)   → EU server :443 (SNI routing on EU side)
+#
+# Domain layout:
+#   example.com        A → RU VPS IP  (stub site, via SNI → local HTTPS)
+#   my.example.com     A → RU VPS IP  (Raven relay, via SNI → local HTTPS)
+#   media.example.com  A → EU VPS IP  (nginx_frontend, not this role)
+
+# ── Domain ───────────────────────────────────────────────────────────────────
+relay_domain: "example.com"           # Set to your RU VPS domain
+relay_sub_my: "my.{{ relay_domain }}" # Raven-subscribe relay (RU VPS)
+
+# ── Upstream EU server ────────────────────────────────────────────────────────
+# Set in secrets.yml
+# relay_upstream_host: "1.2.3.4"   # EU server IP address
+
+# Port where nginx_frontend SNI stream listens on EU server (both protocols)
+relay_upstream_port: 443
+
+# Port where nginx_frontend HTTPS listens on EU server (Raven-subscribe behind it)
+relay_upstream_raven_port: 8443
+
+
+# ── SNI stream routing on :443 ───────────────────────────────────────────────
+# nginx stream with ssl_preread reads SNI from TLS ClientHello and routes:
+#   relay_domain / relay_sub_my → local nginx HTTPS (relay_https_port)
+#   everything else             → EU server (relay_upstream_port)
+relay_stream_enabled: true
+relay_https_port: 8443                 # Local HTTPS port (behind stream, stub + Raven relay)
+
+# ── nginx ─────────────────────────────────────────────────────────────────────
+relay_nginx_user: "www-data"
+relay_webroot: "/var/www/{{ relay_domain }}"
+
+# ── Certbot ───────────────────────────────────────────────────────────────────
+relay_certbot_email: "" # Set in secrets.yml: relay_certbot_email: "admin@example.com"
+
+# ── Stub site ─────────────────────────────────────────────────────────────────
+relay_stub_title: "Welcome"
+relay_stub_description: "Personal website"
+
+# ── Bridge (xray_bridge role — chain proxy) ───────────────────────────────────
+# When relay_bridge_enabled=true, the nginx stream routes the bridge Reality SNI
+# to local RU Xray bridge instead of forwarding to EU.
+# Set relay_bridge_sni to match xray_bridge_reality_server_names[0].
+relay_bridge_enabled: false
+relay_bridge_sni: ""       # e.g. "www.wikipedia.org" — must match xray_bridge_reality_server_names
+relay_bridge_port: 5443    # Must match xray_bridge_port

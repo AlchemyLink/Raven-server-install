@@ -1,0 +1,101 @@
+---
+- name: Get latest node_exporter release version
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/prometheus/node_exporter/releases/latest"
+    method: GET
+    return_content: true
+    headers:
+      Accept: "application/vnd.github.v3+json"
+    status_code: 200
+  register: node_exporter_release_info
+  run_once: true
+  retries: 3
+  delay: 3
+  until: node_exporter_release_info.status == 200
+  when: node_exporter_version == "latest"
+
+- name: Set node_exporter version fact
+  ansible.builtin.set_fact:
+    node_exporter_resolved_version: >-
+      {{
+        node_exporter_release_info.json.tag_name
+        if node_exporter_version == "latest"
+        else node_exporter_version
+      }}
+
+- name: Detect architecture for node_exporter
+  ansible.builtin.set_fact:
+    node_exporter_arch: >-
+      {{
+        'amd64' if ansible_architecture in ['x86_64', 'amd64']
+        else 'arm64' if ansible_architecture in ['aarch64', 'arm64']
+        else 'armv7' if ansible_architecture.startswith('arm')
+        else ansible_architecture
+      }}
+
+- name: Download node_exporter archive
+  ansible.builtin.get_url:
+    url: "https://github.com/prometheus/node_exporter/releases/download/{{ node_exporter_resolved_version }}/node_exporter-{{ node_exporter_resolved_version[1:] }}.linux-{{ node_exporter_arch }}.tar.gz"
+    dest: "/tmp/node_exporter-{{ node_exporter_resolved_version }}.tar.gz"
+    mode: "0644"
+  register: node_exporter_download
+
+- name: Extract node_exporter binary
+  ansible.builtin.unarchive:
+    src: "/tmp/node_exporter-{{ node_exporter_resolved_version }}.tar.gz"
+    dest: /tmp/
+    remote_src: true
+  when: node_exporter_download.changed
+
+- name: Install node_exporter binary
+  ansible.builtin.copy:
+    src: "/tmp/node_exporter-{{ node_exporter_resolved_version[1:] }}.linux-{{ node_exporter_arch }}/node_exporter"
+    dest: "{{ node_exporter_bin_dir }}/node_exporter"
+    owner: root
+    group: root
+    mode: "0755"
+    remote_src: true
+  when: node_exporter_download.changed
+  notify: Restart node_exporter
+
+- name: Remove node_exporter temp files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/tmp/node_exporter-{{ node_exporter_resolved_version }}.tar.gz"
+    - "/tmp/node_exporter-{{ node_exporter_resolved_version[1:] }}.linux-{{ node_exporter_arch }}"
+
+- name: Set node_exporter effective listen address
+  ansible.builtin.set_fact:
+    node_exporter_listen: >-
+      {{
+        node_exporter_ru_listen
+        if inventory_hostname == 'vm_my_ru'
+        else node_exporter_listen
+      }}
+
+- name: Deploy node_exporter systemd unit
+  ansible.builtin.template:
+    src: node_exporter.service.j2
+    dest: "/etc/systemd/system/node_exporter.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart node_exporter
+
+- name: Enable and start node_exporter
+  ansible.builtin.systemd:
+    name: "{{ node_exporter_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Allow node_exporter from WireGuard subnet (RU ufw)
+  community.general.ufw:
+    rule: allow
+    src: "{{ wg_network }}"
+    port: "9100"
+    proto: tcp
+    comment: "node_exporter via WireGuard"
+  when: inventory_hostname == 'vm_my_ru'

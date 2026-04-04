@@ -1,6 +1,7 @@
 {
   "inbounds": [
    {
+      "listen": "{{ xray_vless_listen | default('0.0.0.0') }}",
       "port": {{ xray_vless_port }},
       "protocol": "vless",
       "tag": "{{ xray_vless_tag }}",
@@ -10,12 +11,16 @@
           {% for user in xray_users %}
           {
             "id": "{{ user.id }}",
-            "flow": "{{ 'xtls-rprx-vision' if _pq else (user.flow | default(xray_vless_default_flow)) }}",
+            "flow": "{{ 'xtls-rprx-vision' if _pq else user.flow }}",
             "email": "{{ user.email | default('') }}",
             "level": 0
           }{{ "," if not loop.last }}
           {% endfor %}
         ],
+        {% set _ts = xray_testseed | default([]) %}
+        {% if _ts | length == 4 %}
+        "testseed": {{ _ts | to_json }},
+        {% endif %}
         "decryption": "{{ xray_vless_decryption | default('none') }}"
       },
       "streamSettings": {

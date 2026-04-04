@@ -1,0 +1,20 @@
+---
+# IMPORTANT: Ansible executes handlers in definition order.
+# Validate must come BEFORE Restart to catch invalid configs before reload.
+
+- name: Validate xray-bridge
+  ansible.builtin.command:
+    cmd: "xray -test -confdir {{ xray_bridge_config_dir }}config.d"
+  register: validate_bridge_result
+  changed_when: false
+  failed_when: validate_bridge_result.rc != 0
+
+- name: Restart xray-bridge
+  ansible.builtin.systemd:
+    name: "{{ xray_bridge_service_name }}"
+    state: restarted
+    daemon_reload: true
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
