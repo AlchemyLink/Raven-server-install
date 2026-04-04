@@ -21,7 +21,14 @@ export RAVEN_TEST_CONF_DIR="$OUT"
 echo "==> [3/4] ansible-playbook render_conf.yml"
 ansible-playbook "$ROOT/playbooks/render_conf.yml"
 
-echo "==> [4/4] xray -test"
+BRIDGE_OUT="$ROOT/.output/bridge.conf.d"
+mkdir -p "$BRIDGE_OUT"
+export RAVEN_TEST_BRIDGE_CONF_DIR="$BRIDGE_OUT"
+
+echo "==> [4/5] ansible-playbook render_bridge_conf.yml"
+ansible-playbook "$ROOT/playbooks/render_bridge_conf.yml"
+
+echo "==> [5/5] xray -test"
 if [ "${SKIP_XRAY_TEST:-}" = "1" ]; then
   echo "SKIP_XRAY_TEST=1 — пропуск xray -test."
   exit 0
@@ -29,7 +36,8 @@ fi
 
 run_xray_test() {
   _dir="$1"
-  mkdir -p /tmp/raven-xray-test-logs
+  _logdir="${2:-/tmp/raven-xray-test-logs}"
+  mkdir -p "$_logdir"
   if command -v xray >/dev/null 2>&1; then
     echo "Using host binary: $(command -v xray)"
     xray -test -confdir "$_dir"
@@ -44,13 +52,17 @@ run_xray_test() {
     echo "Building $IMG from docker/test/xray-client ..."
     docker build -t "$IMG" -f "$REPO/docker/test/xray-client/Dockerfile" "$REPO/docker/test/xray-client"
   fi
+  _logdir_docker="/tmp/raven-xray-test-logs"
   docker run --rm \
     -v "$_dir:/etc/xray/config.d:ro" \
     --entrypoint /bin/sh \
     "$IMG" \
-    -c "mkdir -p /tmp/raven-xray-test-logs && exec /usr/local/bin/xray -test -confdir /etc/xray/config.d"
+    -c "mkdir -p ${_logdir_docker} && exec /usr/local/bin/xray -test -confdir /etc/xray/config.d"
 }
 
+echo "--- xray role ---"
 run_xray_test "$OUT"
+echo "--- xray_bridge role ---"
+run_xray_test "$BRIDGE_OUT" "/tmp/raven-xray-bridge-test-logs"
 
 echo "OK: all tests passed."

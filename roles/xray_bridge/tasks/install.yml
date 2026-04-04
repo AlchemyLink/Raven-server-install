@@ -1,0 +1,93 @@
+---
+- name: Xray Bridge | Ensure bridge group exists
+  ansible.builtin.group:
+    name: "{{ xray_bridge_group }}"
+    state: present
+    system: true
+
+- name: Xray Bridge | Create dedicated bridge user
+  ansible.builtin.user:
+    name: "{{ xray_bridge_user }}"
+    state: present
+    system: true
+    shell: /usr/sbin/nologin
+    group: "{{ xray_bridge_group }}"
+
+- name: Xray Bridge | Ensure log directory exists
+  ansible.builtin.file:
+    path: "{{ xray_bridge_log_dir }}"
+    state: directory
+    owner: "{{ xray_bridge_user }}"
+    group: "{{ xray_bridge_group }}"
+    mode: "0755"
+
+- name: Xray Bridge | Ensure install directory exists
+  ansible.builtin.file:
+    path: "{{ xray_bridge_install_dir }}"
+    state: directory
+    owner: "{{ xray_bridge_user }}"
+    group: "{{ xray_bridge_group }}"
+    mode: "0755"
+
+- name: Xray Bridge | Ensure config.d directory exists
+  ansible.builtin.file:
+    path: "{{ xray_bridge_config_dir }}config.d"
+    state: directory
+    owner: "{{ xray_bridge_user }}"
+    group: "{{ xray_bridge_group }}"
+    mode: "0755"
+
+# ── Xray binary ───────────────────────────────────────────────────────────────
+# Install Xray binary if not present. If the EU xray role already ran on this
+# host, /usr/local/bin/xray will exist and this is skipped.
+
+- name: Xray Bridge | Check if xray binary exists
+  ansible.builtin.stat:
+    path: "{{ xray_bridge_bin_dir }}/xray"
+  register: xray_bin_stat
+
+- name: Xray Bridge | Install Xray binary (if absent)
+  when: not xray_bin_stat.stat.exists
+  block:
+    - name: Xray Bridge | Get latest Xray release
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/{{ xray_github_repo }}/releases/latest"
+        method: GET
+        return_content: true
+        headers:
+          Accept: "application/vnd.github.v3+json"
+        status_code: 200
+      register: xray_release_info
+      retries: 3
+      delay: 3
+      until: xray_release_info.status == 200
+
+    - name: Xray Bridge | Set version + arch facts
+      ansible.builtin.set_fact:
+        xray_bridge_version: "{{ xray_release_info.json.tag_name }}"
+        xray_bridge_arch: >-
+          {{
+            '64' if ansible_architecture in ['x86_64', 'amd64']
+            else 'arm64-v8a' if ansible_architecture in ['aarch64', 'arm64']
+            else ansible_architecture
+          }}
+
+    - name: Xray Bridge | Download and unpack Xray
+      ansible.builtin.get_url:
+        url: "https://github.com/{{ xray_github_repo }}/releases/download/{{ xray_bridge_version }}/Xray-linux-{{ xray_bridge_arch }}.zip"
+        dest: "/tmp/Xray-{{ xray_bridge_version }}-linux-{{ xray_bridge_arch }}.zip"
+        mode: "0644"
+      register: bridge_xray_download
+
+    - name: Xray Bridge | Unarchive Xray
+      ansible.builtin.unarchive:
+        src: "{{ bridge_xray_download.dest }}"
+        dest: "{{ xray_bridge_install_dir }}"
+        remote_src: true
+
+    - name: Xray Bridge | Symlink xray binary to {{ xray_bridge_bin_dir }}
+      ansible.builtin.file:
+        src: "{{ xray_bridge_install_dir }}/xray"
+        dest: "{{ xray_bridge_bin_dir }}/xray"
+        state: link
+        force: true

@@ -42,3 +42,11 @@ relay_certbot_email: "" # Set in secrets.yml: relay_certbot_email: "admin@exampl
 # ── Stub site ─────────────────────────────────────────────────────────────────
 relay_stub_title: "Welcome"
 relay_stub_description: "Personal website"
+
+# ── Bridge (xray_bridge role — chain proxy) ───────────────────────────────────
+# When relay_bridge_enabled=true, the nginx stream routes the bridge Reality SNI
+# to local RU Xray bridge instead of forwarding to EU.
+# Set relay_bridge_sni to match xray_bridge_reality_server_names[0].
+relay_bridge_enabled: false
+relay_bridge_sni: ""       # e.g. "www.wikipedia.org" — must match xray_bridge_reality_server_names
+relay_bridge_port: 5443    # Must match xray_bridge_port
