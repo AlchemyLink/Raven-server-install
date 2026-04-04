@@ -1,0 +1,28 @@
+---
+- name: Xray Bridge | Validate
+  ansible.builtin.import_tasks: validate.yml
+  tags: always
+
+- name: Xray Bridge | Install
+  ansible.builtin.import_tasks: install.yml
+  tags: xray_bridge_install
+
+- name: Xray Bridge | Base config
+  ansible.builtin.import_tasks: base.yml
+  tags: xray_bridge_base
+
+- name: Xray Bridge | Inbounds
+  ansible.builtin.import_tasks: inbounds.yml
+  tags: xray_bridge_inbounds
+
+- name: Xray Bridge | Outbounds
+  ansible.builtin.import_tasks: outbounds.yml
+  tags: xray_bridge_outbounds
+
+- name: Xray Bridge | Routing
+  ansible.builtin.import_tasks: routing.yml
+  tags: xray_bridge_routing
+
+- name: Xray Bridge | Service
+  ansible.builtin.import_tasks: service.yml
+  tags: xray_bridge_service

@@ -1,0 +1,35 @@
+---
+# Рендерит templates/conf/*.j2 роли xray_bridge в test_conf_dir.
+- name: Render xray_bridge conf.d templates
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars_files:
+    - ../../roles/xray_bridge/defaults/main.yml
+    - ../fixtures/bridge_test_secrets.yml
+    - ../fixtures/bridge_render_overrides.yml
+  vars:
+    role_path: "{{ playbook_dir }}/../../roles/xray_bridge"
+    test_conf_dir: "{{ lookup('env', 'RAVEN_TEST_BRIDGE_CONF_DIR') | default(playbook_dir + '/../.output/bridge.conf.d', true) }}"
+  tasks:
+    - name: Ensure output directory
+      ansible.builtin.file:
+        path: "{{ test_conf_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Discover conf.d Jinja templates
+      ansible.builtin.find:
+        paths: "{{ role_path }}/templates/conf"
+        patterns: "*.j2"
+        recurse: true
+      register: bridge_conf_templates
+
+    - name: Template bridge conf.d fragments
+      ansible.builtin.template:
+        src: "{{ item.path }}"
+        dest: "{{ test_conf_dir }}/{{ item.path | basename | regex_replace('\\.j2$', '') }}"
+        mode: "0644"
+      loop: "{{ bridge_conf_templates.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
