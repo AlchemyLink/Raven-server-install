@@ -1,0 +1,41 @@
+{
+  "routing": {
+    "domainStrategy": "{{ xray_bridge_domain_strategy | default('IPIfNonMatch') }}",
+    "rules": [
+      {% if xray_bridge_blocked_domains | default([]) | length > 0 %}
+      {
+        "type": "field",
+        "domain": [
+          {% for domain in xray_bridge_blocked_domains %}
+          "{{ domain }}"{{ "," if not loop.last }}
+          {% endfor %}
+        ],
+        "outboundTag": "blocked"
+      },
+      {% endif %}
+      {
+        "type": "field",
+        "domain": [
+          {% for domain in xray_bridge_direct_domains %}
+          "{{ domain }}"{{ "," if not loop.last }}
+          {% endfor %}
+        ],
+        "outboundTag": "direct"
+      },
+      {
+        "type": "field",
+        "ip": [
+          {% for ip in xray_bridge_direct_ips %}
+          "{{ ip }}"{{ "," if not loop.last }}
+          {% endfor %}
+        ],
+        "outboundTag": "direct"
+      },
+      {
+        "type": "field",
+        "inboundTag": ["{{ xray_bridge_tag_in }}"],
+        "outboundTag": "{{ xray_bridge_tag_out }}"
+      }
+    ]
+  }
+}
