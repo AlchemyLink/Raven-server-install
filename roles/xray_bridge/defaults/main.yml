@@ -51,11 +51,11 @@ xray_bridge_vless_default_flow: "xtls-rprx-vision"
 # EU nginx routes this SNI to EU Xray's XHTTP port.
 xray_bridge_tag_out: "chain-out-eu"
 
-# EU Xray's XHTTP Reality destination SNI (must match nginx_frontend_stream_xhttp_sni on EU)
-xray_bridge_eu_xhttp_sni: "www.adobe.com"
+# EU Xray's XHTTP Reality destination SNI (must match nginx_frontend_stream_v2_xhttp_sni on EU)
+xray_bridge_eu_xhttp_sni: "addons.mozilla.org"
 
-# XHTTP path (must match xray_xhttp.xhttpSettings.path on EU)
-xray_bridge_eu_xhttp_path: "/api/v3/data-sync"
+# XHTTP path (must match xray_v2_xhttp.xhttpSettings.path on EU)
+xray_bridge_eu_xhttp_path: "/api/v4/sync"
 
 # Mode: packet-up preserves packet boundaries through the chain (better for mixed traffic)
 xray_bridge_eu_xhttp_mode: "packet-up"

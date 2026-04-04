@@ -2,14 +2,22 @@
 # Managed by Ansible nginx_frontend role
 #
 # Reads SNI from TLS ClientHello (ssl_preread) and routes TCP:
-#   {{ nginx_frontend_stream_xhttp_sni }} → Xray XHTTP+Reality (127.0.0.1:{{ nginx_frontend_stream_xhttp_port }})
-#   {{ nginx_frontend_domain }}           → nginx HTTPS (127.0.0.1:{{ nginx_frontend_listen_port }})
-#   default (other SNI)                   → Xray VLESS Reality  (127.0.0.1:{{ nginx_frontend_stream_reality_port }})
+#   {{ nginx_frontend_stream_xhttp_sni }} → Xray XHTTP+Reality      (127.0.0.1:{{ nginx_frontend_stream_xhttp_port }})
+{% if nginx_frontend_stream_v2_enabled | default(false) %}
+#   {{ nginx_frontend_stream_v2_xhttp_sni }}  → Xray XHTTP v2+Reality   (127.0.0.1:{{ nginx_frontend_stream_v2_xhttp_port }})
+#   {{ nginx_frontend_stream_v2_reality_sni }}       → Xray VLESS v2+Reality   (127.0.0.1:{{ nginx_frontend_stream_v2_reality_port }})
+{% endif %}
+#   {{ nginx_frontend_domain }}           → nginx HTTPS              (127.0.0.1:{{ nginx_frontend_listen_port }})
+#   default (other SNI)                   → Xray VLESS Reality       (127.0.0.1:{{ nginx_frontend_stream_reality_port }})
 #
 # This file is included inside stream {} block in nginx.conf
 
 map $ssl_preread_server_name $sni_backend {
     {{ nginx_frontend_stream_xhttp_sni }}   xhttp_reality;
+{% if nginx_frontend_stream_v2_enabled | default(false) %}
+    {{ nginx_frontend_stream_v2_xhttp_sni }}    xhttp_reality_v2;
+    {{ nginx_frontend_stream_v2_reality_sni }}  vless_reality_v2;
+{% endif %}
     {{ nginx_frontend_domain }}             nginx_https;
     default                                 vless_reality;
 }
@@ -18,6 +26,16 @@ upstream xhttp_reality {
     server 127.0.0.1:{{ nginx_frontend_stream_xhttp_port }};
 }
 
+{% if nginx_frontend_stream_v2_enabled | default(false) %}
+upstream xhttp_reality_v2 {
+    server 127.0.0.1:{{ nginx_frontend_stream_v2_xhttp_port }};
+}
+
+upstream vless_reality_v2 {
+    server 127.0.0.1:{{ nginx_frontend_stream_v2_reality_port }};
+}
+
+{% endif %}
 upstream nginx_https {
     server 127.0.0.1:{{ nginx_frontend_listen_port }};
 }
