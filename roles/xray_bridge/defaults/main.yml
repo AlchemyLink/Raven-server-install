@@ -76,7 +76,7 @@ xray_bridge_eu_port: 443
 # ── Split routing ─────────────────────────────────────────────────────────────
 # Domains and IPs that should bypass the chain and go direct from RU.
 xray_bridge_direct_domains:
-  - "geosite:ru"
+  - "domain:ru"
   - "domain:su"
   - "domain:рф"
 

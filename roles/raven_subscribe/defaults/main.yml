@@ -34,7 +34,11 @@ raven_subscribe_inbound_hosts: {}
 # Per-inbound port overrides. Falls back to inbound's own port when tag not listed.
 # Set in secrets.yml. With SNI routing both protocols share port 443.
 # Example: {"vless-reality-in": 443, "vless-xhttp-in": 443}
-raven_subscribe_inbound_ports: {}
+raven_subscribe_inbound_ports:
+    vless-reality-in: 443
+    vless-xhttp-in: 443
+    vless-reality-v2-in: 443
+    vless-xhttp-v2-in: 443
 
 # Path to sing-box config file. Leave empty to disable sing-box sync.
 # Example: "/etc/sing-box/config.json"
