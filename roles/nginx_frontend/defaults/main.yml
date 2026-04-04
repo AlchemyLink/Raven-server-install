@@ -32,7 +32,7 @@ nginx_frontend_stream_xhttp_port: 2053              # Must match xray_xhttp.port
 nginx_frontend_stream_reality_port: 4443            # Must match xray_vless_port
 
 # V2 inbounds (Xray-core >= v26.3.27) — enabled when xray_v2_inbounds_enabled: true
-nginx_frontend_stream_v2_enabled: false
+# nginx_frontend_stream_v2_enabled: true
 nginx_frontend_stream_v2_reality_sni: "dl.google.com"        # Must match xray_v2_vless.reality.server_names[0]
 nginx_frontend_stream_v2_reality_port: 4444                  # Must match xray_v2_vless.port
 nginx_frontend_stream_v2_xhttp_sni: "addons.mozilla.org"     # Must match xray_v2_xhttp.reality.server_names[0]
