@@ -334,6 +334,140 @@
       ],
       "title": "Probes всего (топ inbound)",
       "type": "bargauge"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 36},
+      "id": 40,
+      "title": "Деградация трафика",
+      "type": "row"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"fixedColor": "purple", "mode": "fixed"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}]},
+          "unit": "short",
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 37},
+      "id": 41,
+      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"]}, "textMode": "auto"},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+          "editorMode": "code",
+          "expr": "sum(xray_throughput_degradation_total) or vector(0)",
+          "instant": true,
+          "legendFormat": "Degradation Events",
+          "refId": "A"
+        }
+      ],
+      "title": "Деградация (событий всего)",
+      "type": "stat"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 18, "x": 6, "y": 37},
+      "id": 42,
+      "options": {
+        "legend": {"displayMode": "list", "placement": "bottom", "showLegend": true}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+          "editorMode": "code",
+          "expr": "xray_inbound_throughput_bytes_per_second",
+          "legendFormat": "{% raw %}{{inbound}}{% endraw %}",
+          "refId": "A"
+        }
+      ],
+      "title": "Пропускная способность по inbound (bytes/s)",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "showPoints": "never"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 10, "w": 12, "x": 0, "y": 42},
+      "id": 43,
+      "options": {
+        "legend": {"displayMode": "list", "placement": "bottom", "showLegend": true}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+          "editorMode": "code",
+          "expr": "increase(xray_throughput_degradation_total[$__rate_interval])",
+          "legendFormat": "{% raw %}{{inbound}}{% endraw %}",
+          "refId": "A"
+        }
+      ],
+      "title": "Деградация по inbound",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}]},
+          "unit": "short",
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 10, "w": 12, "x": 12, "y": 42},
+      "id": 44,
+      "options": {"displayMode": "gradient", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"]}, "showUnfilled": true},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+          "editorMode": "code",
+          "expr": "sort_desc(xray_throughput_degradation_total)",
+          "instant": true,
+          "legendFormat": "{% raw %}{{inbound}}{% endraw %}",
+          "refId": "A"
+        }
+      ],
+      "title": "Деградация всего (топ inbound)",
+      "type": "bargauge"
     }
 
   ],
