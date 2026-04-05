@@ -46,6 +46,9 @@ xray_bridge_vless_default_flow: "xtls-rprx-vision"
 # Optional Vision testseed (same format as xray_testseed)
 # xray_bridge_testseed: [900, 500, 900, 256]
 
+# Optional Vision testpre — pre-connection timing obfuscation (uint32, 0 = disabled)
+# xray_bridge_testpre: 0
+
 # ── Outbound to EU Xray (chain link) ─────────────────────────────────────────
 # RU Xray connects to EU Xray's XHTTP inbound via XHTTP packet-up mode.
 # EU nginx routes this SNI to EU Xray's XHTTP port.

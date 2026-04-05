@@ -167,6 +167,21 @@ xray_testseed: [900, 500, 900, 256]
 xray_v2_testseed: [1000, 600, 1000, 300]
 # Example: xray_v2_testseed: [1000, 600, 1000, 300]
 
+# ── Vision testpre — pre-connection timing obfuscation (Xray-core >= v25.12.8) ─
+# uint32 controlling the number of pre-connection frames sent before real data.
+# Eliminates connection timing signatures detectable by TSPU DPI.
+# Introduced alongside testseed in https://github.com/XTLS/Xray-core/pull/5270
+#
+# When 0 (or omitted) — testpre is omitted from config, Xray uses built-in defaults.
+# Goes into inbound "settings" alongside "clients", "decryption", and "testseed".
+
+# testpre for legacy inbounds (200-in-vless-reality, 210-in-xhttp)
+xray_testpre: 0
+
+# testpre for v2 inbounds (201-in-vless-reality-v2, 211-in-xhttp-v2)
+# Defaults to xray_testpre if not set.
+xray_v2_testpre: 0
+
 # V2 Reality keys — defaults to main xray_reality keys.
 # Override in secrets.yml for key isolation between legacy and v2 inbounds.
 # xray_v2_reality:

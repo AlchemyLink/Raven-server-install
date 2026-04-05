@@ -22,6 +22,10 @@
         {% if _ts | length == 4 %}
         "testseed": {{ _ts | to_json }},
         {% endif %}
+        {% set _tp = xray_testpre | default(0) %}
+        {% if _tp | int > 0 %}
+        "testpre": {{ _tp | int }},
+        {% endif %}
         "decryption": "{{ xray_vless_decryption | default('none') }}"
       },
       "sniffing": {
