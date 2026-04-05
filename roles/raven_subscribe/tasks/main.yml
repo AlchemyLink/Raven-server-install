@@ -61,6 +61,13 @@
     group: "{{ raven_subscribe_group }}"
     mode: "0750"
 
+- name: Raven-subscribe | Backup config
+  ansible.builtin.copy:
+    src: "{{ raven_subscribe_config_dir }}/config.json"
+    dest: "{{ raven_subscribe_config_dir }}/config.json.bak"
+    remote_src: true
+  ignore_errors: true
+
 - name: Raven-subscribe | Deploy config
   ansible.builtin.template:
     src: config.json.j2
