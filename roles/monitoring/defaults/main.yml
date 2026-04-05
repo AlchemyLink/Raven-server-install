@@ -48,6 +48,7 @@ xray_stats_exporter_service_name: "xray-stats-exporter"
 xray_stats_exporter_user: "xrayuser"    # needs read access to Xray gRPC API and access.log
 xray_stats_exporter_group: "xrayuser"
 xray_stats_exporter_log_path: "/var/log/Xray/access.log"
+xray_stats_exporter_error_log_path: "/var/log/Xray/error.log"
 xray_stats_exporter_geo_city_db: "/var/lib/xray-exporter/GeoLite2-City.mmdb"
 xray_stats_exporter_geo_asn_db: "/var/lib/xray-exporter/GeoLite2-ASN.mmdb"
 
