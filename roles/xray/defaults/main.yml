@@ -180,7 +180,7 @@ xray_testpre: 0
 
 # testpre for v2 inbounds (201-in-vless-reality-v2, 211-in-xhttp-v2)
 # Defaults to xray_testpre if not set.
-xray_v2_testpre: 0
+xray_v2_testpre: 5
 
 # V2 Reality keys — defaults to main xray_reality keys.
 # Override in secrets.yml for key isolation between legacy and v2 inbounds.
