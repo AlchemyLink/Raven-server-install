@@ -24,6 +24,10 @@
         {% if _ts | length == 4 %}
         "testseed": {{ _ts | to_json }},
         {% endif %}
+        {% set _tp = xray_v2_testpre | default(xray_testpre | default(0)) %}
+        {% if _tp | int > 0 %}
+        "testpre": {{ _tp | int }},
+        {% endif %}
         "decryption": "{{ xray_vless_decryption | default('none') }}"
       },
       "sniffing": {
@@ -41,14 +45,6 @@
           "dest": "{{ xray_v2_xhttp.reality.dest }}",
           "privateKey": "{{ _v2r.private_key }}",
           "spiderX": "{{ _v2r.spiderX | default('/') }}",
-          {% set _seed = _v2r.mldsa65_seed | default('') %}
-          {% if _seed %}
-          "mldsa65Seed": "{{ _v2r.mldsa65_seed }}",
-          {% set _verify = _v2r.mldsa65_verify | default('') %}
-          {% if _verify %}
-          "mldsa65Verify": "{{ _v2r.mldsa65_verify }}",
-          {% endif %}
-          {% endif %}
           "serverNames": [
             {% set _v2_xhttp_sni = xray_v2_xhttp.reality.server_names %}
             {% for name in _v2_xhttp_sni %}
