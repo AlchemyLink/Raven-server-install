@@ -16,7 +16,23 @@
   "xray_enabled": {{ raven_subscribe_xray_enabled | lower }},
   "singbox_enabled": {{ raven_subscribe_singbox_enabled | lower }}{% if raven_subscribe_inbound_hosts | default({}) | length > 0 %},
   "inbound_hosts": {{ raven_subscribe_inbound_hosts | to_json }}{% endif %}{% if raven_subscribe_inbound_ports | default({}) | length > 0 %},
-  "inbound_ports": {{ raven_subscribe_inbound_ports | to_json }}{% endif %}{% if raven_subscribe_vless_client_encryption | default({}) | length > 0 %},
-  "vless_client_encryption": {{ raven_subscribe_vless_client_encryption | to_json }}{% endif %}{% if raven_subscribe_singbox_config | default('') != '' %},
+  "inbound_ports": {{ raven_subscribe_inbound_ports | to_json }}{% endif %}
+{#
+  vless_client_encryption: prefer explicit raven_subscribe_vless_client_encryption if set,
+  otherwise auto-build from xray_vless_client_encryption (loaded via xray secrets vars_file).
+  Supports per-inbound override via raven_subscribe_vless_client_encryption map.
+#}
+{%- set ns = namespace(enc_map=raven_subscribe_vless_client_encryption | default({})) -%}
+{%- if ns.enc_map | length == 0 and xray_vless_client_encryption is defined and xray_vless_client_encryption != '' -%}
+  {%- set _tags = xray_inbound_tags | default({}) -%}
+  {%- set ns.enc_map = {
+    (_tags.vless_reality_in    | default('vless-reality-in')):    xray_vless_client_encryption,
+    (_tags.vless_xhttp_in      | default('vless-xhttp-in')):      xray_vless_client_encryption,
+    (_tags.vless_reality_v2_in | default('vless-reality-v2-in')): xray_vless_client_encryption,
+    (_tags.vless_xhttp_v2_in   | default('vless-xhttp-v2-in')):   xray_vless_client_encryption,
+  } -%}
+{%- endif -%}
+{% if ns.enc_map | length > 0 %},
+  "vless_client_encryption": {{ ns.enc_map | to_json }}{% endif %}{% if raven_subscribe_singbox_config | default('') != '' %},
   "singbox_config": "{{ raven_subscribe_singbox_config }}"{% endif %}
 }
