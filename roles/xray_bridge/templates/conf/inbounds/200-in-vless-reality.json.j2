@@ -20,6 +20,10 @@
         {% if _ts | length == 4 %}
         "testseed": {{ _ts | to_json }},
         {% endif %}
+        {% set _tp = xray_bridge_testpre | default(0) %}
+        {% if _tp | int > 0 %}
+        "testpre": {{ _tp | int }},
+        {% endif %}
         "decryption": "none"
       },
       "streamSettings": {
