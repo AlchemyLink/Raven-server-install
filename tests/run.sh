@@ -7,8 +7,9 @@ export ANSIBLE_CONFIG="${ROOT}/ansible.cfg"
 cd "$ROOT"
 # ansible-playbook ищет роли относительно tests/ansible.cfg (roles_path = ../roles)
 
-echo "==> [1/4] Generate test_secrets.yml (x25519)"
+echo "==> [1/4] Generate test_secrets.yml and bridge_test_secrets.yml (x25519)"
 "$ROOT/scripts/gen-reality-keys.sh" > "$ROOT/fixtures/test_secrets.yml"
+"$ROOT/scripts/gen-bridge-test-secrets.sh" > "$ROOT/fixtures/bridge_test_secrets.yml"
 
 echo "==> [2/4] ansible-playbook validate_vars.yml"
 ansible-playbook "$ROOT/playbooks/validate_vars.yml"
