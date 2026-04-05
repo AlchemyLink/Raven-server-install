@@ -5,6 +5,7 @@
   gather_facts: true
 
   vars_files:
+    - "xray/defaults/secrets.yml"           # xray_vless_client_encryption, xray_inbound_tags
     - "raven_subscribe/defaults/secrets.yml"
 
   roles:
