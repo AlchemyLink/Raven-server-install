@@ -7,12 +7,6 @@
 #   - SNI routing on :443 → Xray XHTTP, Xray Reality, or nginx HTTPS
 #   - Proxy Raven-subscribe (/sub/, /c/, /api/, /health) on :8443
 
-# ── Domain ────────────────────────────────────────────────────────────────────
-nginx_frontend_domain: "media.example.com"  # Set to your EU VPS domain
-
-# ── Certbot ───────────────────────────────────────────────────────────────────
-nginx_frontend_certbot_email: ""   # Set in secrets.yml
-
 # ── nginx HTTPS listen port ──────────────────────────────────────────────────
 # Serves Raven-subscribe (subscriptions + admin API) and acts as Reality dest
 # for XHTTP probe responses. NOT the main entry point — :443 stream is.
@@ -24,7 +18,6 @@ nginx_frontend_raven_port: 8080    # Must match raven_subscribe_listen_addr port
 # ── SNI stream routing on :443 ───────────────────────────────────────────────
 # nginx stream with ssl_preread reads SNI from TLS ClientHello and routes:
 #   SNI = xhttp_sni (e.g. www.adobe.com)  → Xray XHTTP+Reality (xhttp_port)
-#   SNI = nginx_frontend_domain           → nginx HTTPS (listen_port) for Raven
 #   default (e.g. askubuntu.com)          → Xray Reality TCP (reality_port)
 nginx_frontend_stream_enabled: true
 nginx_frontend_stream_xhttp_sni: "www.adobe.com"   # Must match xray_xhttp.reality.server_names[0]
