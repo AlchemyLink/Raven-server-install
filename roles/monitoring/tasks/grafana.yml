@@ -120,6 +120,15 @@
     mode: "0640"
   notify: Restart grafana
 
+- name: Deploy Grafana TSPU detection dashboard
+  ansible.builtin.template:
+    src: dashboards/tspu-detection.json.j2
+    dest: "{{ grafana_data_dir }}/dashboards/tspu-detection.json"
+    owner: grafana
+    group: grafana
+    mode: "0640"
+  notify: Restart grafana
+
 - name: Deploy Grafana alerting rules
   ansible.builtin.template:
     src: grafana-alerting.yml.j2
