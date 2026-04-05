@@ -1,23 +1,23 @@
 ---
-- name: Nginx frontend | Check if certificate exists
+- name: Nginx frontend | Ensure ssl directory exists
+  ansible.builtin.file:
+    path: /etc/nginx/ssl
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Nginx frontend | Check if self-signed cert exists
   ansible.builtin.stat:
-    path: "/etc/letsencrypt/live/{{ nginx_frontend_domain }}/fullchain.pem"
+    path: /etc/nginx/ssl/nginx-frontend.crt
   register: nginx_frontend_cert
 
-- name: Nginx frontend | Obtain Let's Encrypt certificate
+- name: Nginx frontend | Generate self-signed certificate
   ansible.builtin.command:
     cmd: >
-      certbot certonly --webroot
-      --webroot-path /var/www/letsencrypt
-      --non-interactive
-      --agree-tos
-      --email {{ nginx_frontend_certbot_email }}
-      -d {{ nginx_frontend_domain }}
+      openssl req -x509 -nodes -days 3650 -newkey rsa:2048
+      -keyout /etc/nginx/ssl/nginx-frontend.key
+      -out /etc/nginx/ssl/nginx-frontend.crt
+      -subj "/CN=nginx-frontend"
   when: not nginx_frontend_cert.stat.exists
   notify: Reload nginx
-
-- name: Nginx frontend | Ensure certbot renewal timer is enabled
-  ansible.builtin.service:
-    name: certbot.timer
-    enabled: true
-    state: started

@@ -1,4 +1,4 @@
-# {{ nginx_frontend_domain }} — HTTPS frontend for EU server
+# _ — HTTPS frontend for EU server
 # Managed by Ansible nginx_frontend role
 #
 # Serves Raven-subscribe and acts as fallback dest for XHTTP Reality probes.
@@ -14,12 +14,10 @@
 server {
     listen {{ nginx_frontend_listen_port }} ssl;
     http2 on;
-    server_name {{ nginx_frontend_domain }};
+    server_name _;
 
-    ssl_certificate     /etc/letsencrypt/live/{{ nginx_frontend_domain }}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/{{ nginx_frontend_domain }}/privkey.pem;
-    include             /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
+    ssl_certificate     /etc/nginx/ssl/nginx-frontend.crt;
+    ssl_certificate_key /etc/nginx/ssl/nginx-frontend.key;
 
     # ── Raven-subscribe: subscriptions ──────────────────────────────────────
     location ~ ^/(sub|c)/ {
