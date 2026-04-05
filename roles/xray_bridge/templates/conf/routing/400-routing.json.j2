@@ -13,6 +13,7 @@
         "outboundTag": "blocked"
       },
       {% endif %}
+      {% if xray_bridge_direct_domains | default([]) | length > 0 %}
       {
         "type": "field",
         "domain": [
@@ -22,6 +23,8 @@
         ],
         "outboundTag": "direct"
       },
+      {% endif %}
+      {% if xray_bridge_direct_ips | default([]) | length > 0 %}
       {
         "type": "field",
         "ip": [
@@ -31,6 +34,7 @@
         ],
         "outboundTag": "direct"
       },
+      {% endif %}
       {
         "type": "field",
         "inboundTag": ["{{ xray_bridge_tag_in }}"],
