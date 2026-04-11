@@ -1,0 +1,34 @@
+---
+- name: Copy xray-stats-exporter binary (bridge)
+  ansible.builtin.copy:
+    src: "{{ xray_bridge_stats_exporter_local_binary }}"
+    dest: "{{ xray_bridge_stats_exporter_bin_dir }}/xray-stats-exporter"
+    owner: root
+    group: root
+    mode: "0755"
+  when: xray_bridge_stats_exporter_local_binary is defined
+  notify: Restart xray-stats-exporter-bridge
+
+- name: Deploy xray-stats-exporter-bridge systemd unit
+  ansible.builtin.template:
+    src: xray-stats-exporter-bridge.service.j2
+    dest: "/etc/systemd/system/xray-stats-exporter-bridge.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart xray-stats-exporter-bridge
+
+- name: Enable and start xray-stats-exporter-bridge
+  ansible.builtin.systemd:
+    name: "{{ xray_bridge_stats_exporter_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Allow xray-stats-exporter-bridge from WireGuard subnet (RU ufw)
+  community.general.ufw:
+    rule: allow
+    src: "{{ wg_network }}"
+    port: "{{ xray_bridge_stats_exporter_listen.split(':')[1] }}"
+    proto: tcp
+    comment: "xray-stats-exporter-bridge via WireGuard"
