@@ -1,7 +1,7 @@
 ---
 # Relay playbook — RU VPS
 # Usage:
-#   ansible-playbook roles/role_relay.yml -i roles/relay/inventory.ini \
+#   ansible-playbook roles/role_relay.yml -i roles/hosts.yml \
 #     --vault-password-file vault_password.txt
 #
 # Tags:
@@ -17,7 +17,6 @@
   become: true
 
   vars_files:
-    - relay/defaults/main.yml
     - relay/defaults/secrets.yml
 
   roles:

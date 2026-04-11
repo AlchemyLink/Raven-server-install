@@ -7,6 +7,12 @@
 {% if relay_bridge_enabled | default(false) and relay_bridge_sni != '' %}
 #   {{ relay_bridge_sni }}     → local Xray bridge (127.0.0.1:{{ relay_bridge_port }}) — chain proxy
 {% endif %}
+{% if relay_transparent_enabled | default(false) %}
+#   {{ relay_transparent_reality_sni }}    → xray-bridge transparent :{{ relay_transparent_reality_port }} (EU Reality)
+#   {{ relay_transparent_xhttp_sni }}      → xray-bridge transparent :{{ relay_transparent_xhttp_port }} (EU XHTTP)
+#   {{ relay_transparent_reality_v2_sni }} → xray-bridge transparent :{{ relay_transparent_reality_v2_port }} (EU Reality v2)
+#   {{ relay_transparent_xhttp_v2_sni }}   → xray-bridge transparent :{{ relay_transparent_xhttp_v2_port }} (EU XHTTP v2)
+{% endif %}
 #   everything else (VPN)  → EU server ({{ relay_upstream_host }}:{{ relay_upstream_port }})
 #
 # This file is included inside stream {} block in nginx.conf
@@ -18,6 +24,12 @@ map $ssl_preread_server_name $relay_backend {
 {% if relay_bridge_enabled | default(false) and relay_bridge_sni != '' %}
     {{ relay_bridge_sni }} xray_bridge;
 {% endif %}
+{% if relay_transparent_enabled | default(false) %}
+    {{ relay_transparent_reality_sni }}    xray_bridge_reality;
+    {{ relay_transparent_xhttp_sni }}      xray_bridge_xhttp;
+    {{ relay_transparent_reality_v2_sni }} xray_bridge_reality_v2;
+    {{ relay_transparent_xhttp_v2_sni }}   xray_bridge_xhttp_v2;
+{% endif %}
     default                eu_vpn;
 }
 
@@ -28,6 +40,24 @@ upstream local_https {
 {% if relay_bridge_enabled | default(false) and relay_bridge_sni != '' %}
 upstream xray_bridge {
     server 127.0.0.1:{{ relay_bridge_port }};
+}
+
+{% endif %}
+{% if relay_transparent_enabled | default(false) %}
+upstream xray_bridge_reality {
+    server 127.0.0.1:{{ relay_transparent_reality_port }};
+}
+
+upstream xray_bridge_xhttp {
+    server 127.0.0.1:{{ relay_transparent_xhttp_port }};
+}
+
+upstream xray_bridge_reality_v2 {
+    server 127.0.0.1:{{ relay_transparent_reality_v2_port }};
+}
+
+upstream xray_bridge_xhttp_v2 {
+    server 127.0.0.1:{{ relay_transparent_xhttp_v2_port }};
 }
 
 {% endif %}

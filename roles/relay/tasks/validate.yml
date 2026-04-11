@@ -9,3 +9,13 @@
     fail_msg: >-
       relay_upstream_host and relay_certbot_email must be set in secrets.yml.
     success_msg: "Relay vars are valid"
+
+- name: Relay | Validate Cloudflare proxy vars
+  ansible.builtin.assert:
+    that:
+      - relay_cloudflare_secret is defined
+      - relay_cloudflare_secret | length >= 32
+    fail_msg: >-
+      relay_cloudflare_secret must be set in secrets.yml (min 32 chars).
+      Generate with: openssl rand -hex 24
+  when: relay_cloudflare_proxy | default(false) and relay_cloudflare_enforce | default(true)
