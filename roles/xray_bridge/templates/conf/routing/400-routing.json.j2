@@ -37,7 +37,15 @@
       {% endif %}
       {
         "type": "field",
-        "inboundTag": ["{{ xray_bridge_tag_in }}"],
+        "inboundTag": [
+          "{{ xray_bridge_tag_in }}"
+          {% if xray_bridge_transparent_enabled | default(false) %},
+          "{{ xray_bridge_transparent_reality_tag }}",
+          "{{ xray_bridge_transparent_xhttp_tag }}",
+          "{{ xray_bridge_transparent_reality_v2_tag }}",
+          "{{ xray_bridge_transparent_xhttp_v2_tag }}"
+          {% endif %}
+        ],
         "outboundTag": "{{ xray_bridge_tag_out }}"
       }
     ]
