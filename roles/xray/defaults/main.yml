@@ -58,6 +58,34 @@ xray_blocked_domains:                         # List of domains to block
   - "geosite:category-ads"
   - "geosite:category-public-tracker"
 
+# ── Direct-RU routing (EU server) ────────────────────────────────────────────
+# Routes Russian traffic directly from EU server instead of through freedom.
+# domainStrategy: IPIfNonMatch resolves unmatched domains to IP for geoip rules.
+# Set xray_direct_ru_enabled: false to disable (all traffic → freedom).
+xray_direct_ru_enabled: true
+
+# Additional RU domains to route direct (beyond geosite:category-gov-ru and
+# domain:ru/su/рф). Focus on non-.ru TLDs — .ru is already fully covered above.
+# Note: domain:X matches X itself AND all subdomains.
+xray_direct_ru_domains:
+  # VK ecosystem — non-.ru CDN/API (vk.com = VK social, userapi.com = photo/media API,
+  # vk-cdn.net = CDN; domain:ru covers vkontakte.ru, vk.ru, etc.)
+  - "domain:vk.com"
+  - "domain:userapi.com"          # sun0.userapi.com … sun99.userapi.com (VK media CDN)
+  - "domain:vk-cdn.net"           # VK static CDN
+  # OK.ru ecosystem — non-.ru CDN
+  - "domain:mycdn.me"             # OK.ru/Odnoklassniki CDN (avatars, media)
+  # Yandex ecosystem — non-.ru (yandex.ru/.net/.com all needed; domain:ru covers ya.ru)
+  - "domain:yandex.net"           # Yandex API/CDN
+  - "domain:yandex.com"           # Yandex international
+  - "domain:yastatic.net"         # Yandex static assets CDN (maps, images, JS)
+  # Mail.ru ecosystem — non-.ru
+  - "domain:mailru.com"           # Mail.ru CDN/API (non-.ru TLD)
+  # Avito — non-.ru image CDN
+  - "domain:avito.st"             # Avito image CDN (00.img.avito.st … 99.img.avito.st)
+  # 2GIS — non-.ru international domain
+  - "domain:2gis.com"             # 2GIS maps international
+
 # Xray Reality api configuration
 xray_api:
   enable: true                               # Enable Xray API

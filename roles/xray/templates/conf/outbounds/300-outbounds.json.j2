@@ -39,6 +39,13 @@
       "protocol": "blackhole",
       "settings": {},
       "tag": "blocked"
-    }
+    }{% if xray_direct_ru_enabled | default(true) %},
+    {
+      "protocol": "freedom",
+      "settings": {
+        "domainStrategy": "UseIPv4"
+      },
+      "tag": "direct-ru"
+    }{% endif %}
   ]
 }
