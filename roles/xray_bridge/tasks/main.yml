@@ -23,6 +23,10 @@
   ansible.builtin.import_tasks: routing.yml
   tags: xray_bridge_routing
 
+- name: Xray Bridge | Stats API config
+  ansible.builtin.import_tasks: api.yml
+  tags: xray_bridge_api
+
 - name: Xray Bridge | Service
   ansible.builtin.import_tasks: service.yml
   tags: xray_bridge_service

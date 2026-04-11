@@ -1,0 +1,13 @@
+{
+  {% if xray_bridge_api_enabled %}
+  "api": {
+    "tag": "{{ xray_bridge_api_tag }}",
+    "listen": "{{ xray_bridge_api_address }}:{{ xray_bridge_api_port }}",
+    "services": [
+      {% for service in xray_bridge_api_services %}
+      "{{ service }}"{{ "," if not loop.last }}
+      {% endfor %}
+    ]
+  }
+  {% endif %}
+}

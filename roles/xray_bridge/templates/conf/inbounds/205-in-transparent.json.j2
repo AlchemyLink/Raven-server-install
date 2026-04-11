@@ -1,0 +1,238 @@
+{
+  "inbounds": [
+{% if xray_bridge_transparent_enabled | default(false) %}
+{% set _v2r = xray_v2_reality | default(xray_reality) %}
+{% set _pq  = xray_vless_decryption | default('none') != 'none' %}
+    {
+      "listen": "127.0.0.1",
+      "port": {{ xray_bridge_transparent_reality_port }},
+      "protocol": "vless",
+      "tag": "{{ xray_bridge_transparent_reality_tag }}",
+      "settings": {
+        "clients": [
+          {% for user in xray_users %}
+          {
+            "id": "{{ user.id }}",
+            "flow": "{{ 'xtls-rprx-vision' if _pq else user.flow | default(xray_vless_default_flow) }}",
+            "email": "{{ (user.email | default('') | trim) or user.id }}",
+            "level": 0
+          }{{ "," if not loop.last }}
+          {% endfor %}
+        ],
+        {% set _ts = xray_testseed | default([]) %}
+        {% if _ts | length == 4 %}
+        "testseed": {{ _ts | to_json }},
+        {% endif %}
+        {% set _tp = xray_testpre | default(0) %}
+        {% if _tp | int > 0 %}
+        "testpre": {{ _tp | int }},
+        {% endif %}
+        "decryption": "{{ xray_vless_decryption | default('none') }}"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "{{ xray_reality_dest }}",
+          "spiderX": "{{ xray_reality.spiderX | default('/') }}",
+          "serverNames": [
+            {% for name in xray_reality_server_names %}
+            "{{ name }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "privateKey": "{{ xray_reality.private_key }}",
+          "shortIds": [
+            {% for sid in xray_reality.short_id %}
+            "{{ sid }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "xver": 0
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls", "quic"],
+        "routeOnly": true
+      }
+    },
+    {
+      "listen": "127.0.0.1",
+      "port": {{ xray_bridge_transparent_xhttp_port }},
+      "protocol": "vless",
+      "tag": "{{ xray_bridge_transparent_xhttp_tag }}",
+      "settings": {
+        "clients": [
+          {% for user in xray_users %}
+          {% set _flow = user.flow | default('') %}
+          {
+            "id": "{{ user.id }}",
+            "flow": "{{ 'xtls-rprx-vision' if _pq else _flow }}",
+            "email": "{{ (user.email | default('') | trim) or user.id }}",
+            "level": 0
+          }{{ "," if not loop.last }}
+          {% endfor %}
+        ],
+        {% set _ts = xray_testseed | default([]) %}
+        {% if _ts | length == 4 %}
+        "testseed": {{ _ts | to_json }},
+        {% endif %}
+        {% set _tp = xray_testpre | default(0) %}
+        {% if _tp | int > 0 %}
+        "testpre": {{ _tp | int }},
+        {% endif %}
+        "decryption": "{{ xray_vless_decryption | default('none') }}"
+      },
+      "streamSettings": {
+        "network": "{{ xray_xhttp.network }}",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "{{ xray_xhttp.reality.dest }}",
+          "spiderX": "{{ xray_reality.spiderX | default('/') }}",
+          "serverNames": [
+            {% for name in xray_xhttp.reality.server_names %}
+            "{{ name }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "privateKey": "{{ xray_reality.private_key }}",
+          "shortIds": [
+            {% for sid in xray_reality.short_id %}
+            "{{ sid }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "xver": 0
+        },
+        "xhttpSettings": {
+          "mode": "{{ xray_xhttp.xhttpSettings.mode }}",
+          "path": "{{ xray_xhttp.xhttpSettings.path }}",
+          "scMaxPacketSize": {{ xray_xhttp.xhttpSettings.scMaxPacketSize }},
+          "extra": {
+            "xPaddingBytes": "100-1000"
+          }
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls", "quic"],
+        "routeOnly": true
+      }
+    },
+    {
+      "listen": "127.0.0.1",
+      "port": {{ xray_bridge_transparent_reality_v2_port }},
+      "protocol": "vless",
+      "tag": "{{ xray_bridge_transparent_reality_v2_tag }}",
+      "settings": {
+        "clients": [
+          {% for user in xray_users %}
+          {
+            "id": "{{ user.id }}",
+            "flow": "{{ 'xtls-rprx-vision' if _pq else user.flow | default(xray_vless_default_flow) }}",
+            "email": "{{ (user.email | default('') | trim) or user.id }}",
+            "level": 0
+          }{{ "," if not loop.last }}
+          {% endfor %}
+        ],
+        {% set _ts = xray_v2_testseed | default(xray_testseed | default([])) %}
+        {% if _ts | length == 4 %}
+        "testseed": {{ _ts | to_json }},
+        {% endif %}
+        {% set _tp = xray_v2_testpre | default(xray_testpre | default(0)) %}
+        {% if _tp | int > 0 %}
+        "testpre": {{ _tp | int }},
+        {% endif %}
+        "decryption": "{{ xray_vless_decryption | default('none') }}"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "{{ xray_v2_vless.reality.dest }}",
+          "spiderX": "{{ _v2r.spiderX | default('/') }}",
+          "serverNames": [
+            {% for name in xray_v2_vless.reality.server_names %}
+            "{{ name }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "privateKey": "{{ _v2r.private_key }}",
+          "shortIds": [
+            {% for sid in _v2r.short_id %}
+            "{{ sid }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "xver": 0
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls", "quic"],
+        "routeOnly": true
+      }
+    },
+    {
+      "listen": "127.0.0.1",
+      "port": {{ xray_bridge_transparent_xhttp_v2_port }},
+      "protocol": "vless",
+      "tag": "{{ xray_bridge_transparent_xhttp_v2_tag }}",
+      "settings": {
+        "clients": [
+          {% for user in xray_users %}
+          {% set _flow = user.flow | default('') %}
+          {
+            "id": "{{ user.id }}",
+            "flow": "{{ 'xtls-rprx-vision' if _pq else _flow }}",
+            "email": "{{ (user.email | default('') | trim) or user.id }}",
+            "level": 0
+          }{{ "," if not loop.last }}
+          {% endfor %}
+        ],
+        {% set _ts = xray_v2_testseed | default(xray_testseed | default([])) %}
+        {% if _ts | length == 4 %}
+        "testseed": {{ _ts | to_json }},
+        {% endif %}
+        {% set _tp = xray_v2_testpre | default(xray_testpre | default(0)) %}
+        {% if _tp | int > 0 %}
+        "testpre": {{ _tp | int }},
+        {% endif %}
+        "decryption": "{{ xray_vless_decryption | default('none') }}"
+      },
+      "streamSettings": {
+        "network": "{{ xray_v2_xhttp.network }}",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "{{ xray_v2_xhttp.reality.dest }}",
+          "spiderX": "{{ _v2r.spiderX | default('/') }}",
+          "serverNames": [
+            {% for name in xray_v2_xhttp.reality.server_names %}
+            "{{ name }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "privateKey": "{{ _v2r.private_key }}",
+          "shortIds": [
+            {% for sid in _v2r.short_id %}
+            "{{ sid }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "xver": 0
+        },
+        "xhttpSettings": {
+          "mode": "{{ xray_v2_xhttp.xhttpSettings.mode }}",
+          "path": "{{ xray_v2_xhttp.xhttpSettings.path }}",
+          "scMaxPacketSize": {{ xray_v2_xhttp.xhttpSettings.scMaxPacketSize }},
+          "extra": {
+            "xPaddingBytes": "100-1000"
+          }
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls", "quic"],
+        "routeOnly": true
+      }
+    }
+{% endif %}
+  ]
+}
