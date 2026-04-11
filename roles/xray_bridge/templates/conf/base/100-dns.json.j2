@@ -1,0 +1,10 @@
+{
+  "dns": {
+    "servers": [
+      {% for server in xray_bridge_dns_servers %}
+      "{{ server }}"{{ "," if not loop.last }}
+      {% endfor %}
+    ],
+    "queryStrategy": "{{ xray_bridge_dns_query_strategy }}"
+  }
+}
