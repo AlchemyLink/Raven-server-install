@@ -34,6 +34,31 @@ server {
     include             /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
 
+{% if relay_cloudflare_proxy | default(false) %}
+    # ── Cloudflare Proxy mode ────────────────────────────────────────────────
+    # $remote_addr here is always 127.0.0.1 (nginx stream proxies locally).
+    # Real client IP comes from Cloudflare's CF-Connecting-IP HTTP header.
+{% if relay_cloudflare_enforce | default(true) %}
+    # Block requests that bypass Cloudflare (no valid X-CF-Origin-Secret).
+    if ($http_x_origin_secret != "{{ relay_cloudflare_secret }}") {
+        return 403;
+    }
+{% endif %}
+
+    location / {
+        proxy_pass          https://{{ relay_upstream_host }}:{{ relay_upstream_raven_port }};
+        proxy_ssl_server_name on;
+        proxy_set_header    Host              $host;
+        # Forward real client IP from Cloudflare — CF-Connecting-IP is set by Cloudflare,
+        # and only reachable here because nginx terminates TLS from Cloudflare's edge.
+        proxy_set_header    X-Real-IP         $http_cf_connecting_ip;
+        proxy_set_header    X-Forwarded-For   $http_cf_connecting_ip;
+        proxy_set_header    X-Forwarded-Proto $scheme;
+        proxy_set_header    CF-Connecting-IP  $http_cf_connecting_ip;
+        proxy_read_timeout  60s;
+        proxy_connect_timeout 10s;
+    }
+{% else %}
     location / {
         proxy_pass          https://{{ relay_upstream_host }}:{{ relay_upstream_raven_port }};
         proxy_ssl_server_name on;
@@ -44,4 +69,5 @@ server {
         proxy_read_timeout  60s;
         proxy_connect_timeout 10s;
     }
+{% endif %}
 }

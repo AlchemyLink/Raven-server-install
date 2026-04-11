@@ -50,3 +50,42 @@ relay_stub_description: "Personal website"
 relay_bridge_enabled: false
 relay_bridge_sni: ""       # e.g. "www.wikipedia.org" — must match xray_bridge_reality_server_names
 relay_bridge_port: 5443    # Must match xray_bridge_port
+
+# ── Transparent bridge (all EU VPN SNIs routed through xray-bridge) ───────────
+# When relay_transparent_enabled=true, ALL EU VPN SNIs are routed to xray-bridge
+# instead of forwarding directly to EU. Clients use their existing EU configs
+# unchanged — the bridge transparently chains to EU via XHTTP.
+# Requires xray_bridge_transparent_enabled=true on RU Xray bridge.
+# SNI values must match EU xray inbound Reality server_names.
+relay_transparent_enabled: false
+
+relay_transparent_reality_sni: "askubuntu.com"
+relay_transparent_reality_port: 5444
+
+relay_transparent_xhttp_sni: "www.adobe.com"
+relay_transparent_xhttp_port: 5445
+
+relay_transparent_reality_v2_sni: "dl.google.com"
+relay_transparent_reality_v2_port: 5446
+
+relay_transparent_xhttp_v2_sni: "addons.mozilla.org"
+relay_transparent_xhttp_v2_port: 5447
+
+# ── Cloudflare Proxy (for relay_sub_my subscription endpoint) ─────────────────
+# When enabled, my.example.com A-record points to Cloudflare (orange cloud in DNS).
+# Cloudflare terminates TLS and forwards requests with CF-Connecting-IP header.
+#
+# Setup steps:
+#   1. Cloudflare DNS: set my.example.com A record to Proxied (orange cloud)
+#   2. Cloudflare SSL/TLS mode: Full (Strict)
+#   3. Cloudflare Transform Rules: add HTTP Request Header
+#      Name: X-CF-Origin-Secret  Value: <relay_cloudflare_secret>
+#   4. Set relay_cloudflare_proxy: true in inventory
+#   5. Set relay_cloudflare_secret in secrets.yml (ansible-vault)
+#   6. Deploy: ansible-playbook roles/role_relay.yml --tags relay_nginx_ssl
+#
+# When relay_cloudflare_enforce: true — nginx returns 403 for requests without
+# the correct X-CF-Origin-Secret header (blocks direct access bypassing CF).
+relay_cloudflare_proxy: false
+relay_cloudflare_enforce: true   # block requests that bypass Cloudflare
+# relay_cloudflare_secret: ""    # set in secrets.yml (ansible-vault encrypted)
