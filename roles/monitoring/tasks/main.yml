@@ -27,3 +27,13 @@
   ansible.builtin.import_tasks: grafana.yml
   when: inventory_hostname == 'vm_my_srv'
   tags: grafana
+
+- name: Deploy blackbox-exporter
+  ansible.builtin.import_tasks: blackbox.yml
+  when: inventory_hostname == 'vm_my_srv'
+  tags: blackbox
+
+- name: Deploy xray-stats-exporter-bridge
+  ansible.builtin.import_tasks: xray_stats_exporter_bridge.yml
+  when: inventory_hostname == 'vm_my_ru'
+  tags: xray_stats_exporter_bridge

@@ -1,0 +1,24 @@
+[Unit]
+Description=Xray Per-User Stats Prometheus Exporter (bridge)
+After=network.target xray-bridge.service
+
+[Service]
+User={{ xray_bridge_stats_exporter_user }}
+Group={{ xray_bridge_stats_exporter_group }}
+NoNewPrivileges=true
+ProtectSystem=strict
+PrivateTmp=yes
+ProtectHome=yes
+ReadOnlyPaths={{ xray_bridge_stats_exporter_log_path }} {{ xray_bridge_stats_exporter_error_log_path }}
+ExecStart={{ xray_bridge_stats_exporter_bin_dir }}/xray-stats-exporter \
+  --listen={{ xray_bridge_stats_exporter_listen }} \
+  --metrics-path={{ xray_bridge_stats_exporter_metrics_path }} \
+  --xray-endpoint={{ xray_bridge_stats_exporter_xray_endpoint }} \
+  --log-path={{ xray_bridge_stats_exporter_log_path }} \
+  --error-log-path={{ xray_bridge_stats_exporter_error_log_path }}
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=10s
+
+[Install]
+WantedBy=multi-user.target

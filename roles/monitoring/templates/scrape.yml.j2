@@ -15,6 +15,14 @@ scrape_configs:
       - targets:
           - {{ xray_stats_exporter_listen }}
 
+  - job_name: xray-bridge-stats
+    metrics_path: {{ xray_bridge_stats_exporter_metrics_path }}
+    static_configs:
+      - targets:
+          - {{ xray_bridge_stats_exporter_listen }}
+        labels:
+          server: ru
+
   - job_name: node
     static_configs:
       - targets:
@@ -36,3 +44,22 @@ scrape_configs:
     static_configs:
       - targets:
           - {{ raven_subscribe_scrape_addr }}
+
+{% for probe in blackbox_inbound_probes %}
+  # Blackbox probe: {{ probe.name }} ({{ probe.sni }})
+  - job_name: "blackbox_{{ probe.name }}"
+    metrics_path: /probe
+    params:
+      module: ["tcp_tls_{{ probe.name | replace('-', '_') }}"]
+      target: ["{{ probe.target }}"]
+    static_configs:
+      - targets:
+          - {{ blackbox_listen }}
+        labels:
+          inbound: "{{ probe.name }}"
+          server: "{{ probe.server }}"
+          sni: "{{ probe.sni }}"
+    relabel_configs:
+      - target_label: instance
+        replacement: "{{ probe.target }}"
+{% endfor %}
