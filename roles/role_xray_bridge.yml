@@ -23,6 +23,7 @@
 #   xray_bridge_inbounds  — deploy inbound config (VLESS+Reality)
 #   xray_bridge_outbounds — deploy outbound config (chain to EU + direct)
 #   xray_bridge_routing   — deploy routing config (split RU/global)
+#   xray_bridge_api       — deploy Stats API config (StatsService gRPC on 127.0.0.1:10086)
 #   xray_bridge_service   — deploy systemd unit, enable service
 
 - name: Configure Xray bridge (RU chain proxy)
@@ -32,6 +33,8 @@
   vars_files:
     - xray_bridge/defaults/main.yml
     - xray_bridge/defaults/secrets.yml
+    - xray/defaults/main.yml
+    - xray/defaults/secrets.yml
 
   roles:
     - role: xray_bridge

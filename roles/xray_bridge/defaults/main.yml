@@ -78,10 +78,31 @@ xray_bridge_eu_port: 443
 
 # ── Split routing ─────────────────────────────────────────────────────────────
 # Domains and IPs that should bypass the chain and go direct from RU.
+# Note: domain:X matches X itself AND all subdomains.
+# domain:ru/su/рф covers all .ru/.su/.рф TLD — no need to list yandex.ru, vk.ru, etc.
 xray_bridge_direct_domains:
+  # Russian TLDs — covers everything under .ru/.su/.рф
   - "domain:ru"
   - "domain:su"
   - "domain:рф"
+  # Government (belt-and-suspenders alongside domain:ru + geosite:category-gov-ru)
+  - "geosite:category-gov-ru"
+  # VK ecosystem — non-.ru TLDs
+  - "domain:vk.com"               # VK social network
+  - "domain:userapi.com"          # VK media CDN (sun0…sun99.userapi.com)
+  - "domain:vk-cdn.net"           # VK static CDN
+  # OK.ru ecosystem — non-.ru CDN
+  - "domain:mycdn.me"             # Odnoklassniki CDN
+  # Yandex ecosystem — non-.ru TLDs
+  - "domain:yandex.net"           # Yandex API/CDN
+  - "domain:yandex.com"           # Yandex international
+  - "domain:yastatic.net"         # Yandex static assets CDN
+  # Mail.ru ecosystem — non-.ru
+  - "domain:mailru.com"           # Mail.ru CDN/API
+  # Avito — non-.ru image CDN
+  - "domain:avito.st"             # Avito image CDN (00-99.img.avito.st)
+  # 2GIS — non-.ru international
+  - "domain:2gis.com"             # 2GIS maps international
 
 xray_bridge_direct_ips:
   - "geoip:ru"
@@ -93,6 +114,35 @@ xray_bridge_blocked_domains:
 
 # domainStrategy for routing: IPIfNonMatch resolves unmatched domains to IP for geoip rules
 xray_bridge_domain_strategy: "IPIfNonMatch"
+
+# ── Transparent inbounds (EU SNIs routed to RU bridge) ───────────────────────
+# When enabled, xray-bridge accepts all EU VPN connections using EU Reality keys.
+# Clients use their existing EU configs unchanged — RU nginx routes them here.
+# Requires EU xray/defaults/main.yml + xray/defaults/secrets.yml loaded in playbook.
+xray_bridge_transparent_enabled: false
+
+# Ports for each transparent inbound (RU nginx routes each EU SNI to a distinct port)
+xray_bridge_transparent_reality_port: 5444
+xray_bridge_transparent_xhttp_port: 5445
+xray_bridge_transparent_reality_v2_port: 5446
+xray_bridge_transparent_xhttp_v2_port: 5447
+
+# Tags for transparent inbounds (used in routing rules → chain-out-eu)
+xray_bridge_transparent_reality_tag: "vless-reality-transparent"
+xray_bridge_transparent_xhttp_tag: "vless-xhttp-transparent"
+xray_bridge_transparent_reality_v2_tag: "vless-reality-v2-transparent"
+xray_bridge_transparent_xhttp_v2_tag: "vless-xhttp-v2-transparent"
+
+# ── Stats API ─────────────────────────────────────────────────────────────────
+# Enables StatsService gRPC API so xray-stats-exporter can scrape per-user traffic.
+# Port must not conflict with EU Xray API (10085).
+xray_bridge_api_enabled: true
+xray_bridge_api_address: "127.0.0.1"
+xray_bridge_api_port: 10086
+xray_bridge_api_tag: "bridge-api"
+xray_bridge_api_services:
+  - "HandlerService"
+  - "StatsService"
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 xray_bridge_log_level: "warning"
