@@ -144,6 +144,14 @@ xray_bridge_api_services:
   - "HandlerService"
   - "StatsService"
 
+# ── DNS ──────────────────────────────────────────────────────────────────────
+# Plain TCP DNS for bridge's own outbound lookups. No DoH — DoH requests would
+# route through the chain and cause EOF failures.
+xray_bridge_dns_servers:
+  - "tcp+local://8.8.8.8"
+  - "tcp+local://1.1.1.1"
+xray_bridge_dns_query_strategy: "UseIPv4"
+
 # ── Logging ───────────────────────────────────────────────────────────────────
 xray_bridge_log_level: "warning"
 
