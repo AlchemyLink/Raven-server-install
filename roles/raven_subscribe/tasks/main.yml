@@ -44,6 +44,17 @@
     owner: root
     group: root
   notify: Restart raven-subscribe
+  when: raven_subscribe_local_binary is not defined
+
+- name: Raven-subscribe | Copy local binary
+  ansible.builtin.copy:
+    src: "{{ raven_subscribe_local_binary }}"
+    dest: "{{ raven_subscribe_install_dir }}/xray-subscription"
+    mode: "0755"
+    owner: root
+    group: root
+  notify: Restart raven-subscribe
+  when: raven_subscribe_local_binary is defined
 
 - name: Raven-subscribe | Ensure config directory exists
   ansible.builtin.file:
