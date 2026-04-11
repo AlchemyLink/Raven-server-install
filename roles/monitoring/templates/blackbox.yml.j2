@@ -1,0 +1,14 @@
+# Blackbox exporter config — Managed by Ansible monitoring role
+# One module per inbound probe (SNI is part of TLS config, must be per-module).
+
+modules:
+{% for probe in blackbox_inbound_probes %}
+  tcp_tls_{{ probe.name | replace('-', '_') }}:
+    prober: tcp
+    timeout: 10s
+    tcp:
+      tls: true
+      tls_config:
+        server_name: "{{ probe.sni }}"
+        insecure_skip_verify: true   # Reality certs come from upstream domain — skip local verify
+{% endfor %}

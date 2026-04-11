@@ -52,6 +52,21 @@ xray_stats_exporter_error_log_path: "/var/log/Xray/error.log"
 xray_stats_exporter_geo_city_db: "/var/lib/xray-exporter/GeoLite2-City.mmdb"
 xray_stats_exporter_geo_asn_db: "/var/lib/xray-exporter/GeoLite2-ASN.mmdb"
 
+# xray-stats-exporter-bridge (per-user traffic for RU xray-bridge, runs on vm_my_ru)
+# Listens on WireGuard interface — EU VictoriaMetrics scrapes via 10.10.0.2:9552.
+# No geo DBs: xray-exporter (which downloads GeoLite2) is not deployed on RU.
+# error-log-path enables TSPU detection metrics (R4A).
+xray_bridge_stats_exporter_listen: "10.10.0.2:9552"
+xray_bridge_stats_exporter_metrics_path: "/metrics"
+xray_bridge_stats_exporter_xray_endpoint: "127.0.0.1:10086"
+xray_bridge_stats_exporter_bin_dir: "/usr/local/bin"
+xray_bridge_stats_exporter_service_name: "xray-stats-exporter-bridge"
+xray_bridge_stats_exporter_user: "xraybridgeuser"
+xray_bridge_stats_exporter_group: "xraybridgeuser"
+xray_bridge_stats_exporter_log_path: "/var/log/xray-bridge/access.log"
+xray_bridge_stats_exporter_error_log_path: "/var/log/xray-bridge/error.log"
+# xray_bridge_stats_exporter_local_binary: path to pre-built binary on control machine (optional)
+
 # raven-subscribe health probe (VictoriaMetrics scrapes /health → up metric)
 raven_subscribe_scrape_addr: "127.0.0.1:8080"
 
@@ -70,3 +85,39 @@ grafana_prometheus_datasource_uid: "grafanacloud-compassvpn-prom"
 # grafana_admin_password: set in secrets.yml (ansible-vault)
 # victoriametrics_auth_username: set in secrets.yml (ansible-vault)
 # victoriametrics_auth_password: set in secrets.yml (ansible-vault)
+
+# Blackbox exporter — active TCP+TLS probes for each Xray inbound
+blackbox_version: "latest"
+blackbox_github_repo: "prometheus/blackbox_exporter"
+blackbox_listen: "127.0.0.1:9115"
+blackbox_bin_dir: "/usr/local/bin"
+blackbox_config_dir: "/etc/blackbox"
+blackbox_service_name: "blackbox-exporter"
+blackbox_user: "blackbox"
+blackbox_group: "blackbox"
+
+# Inbound probes — TCP+TLS handshake to each SNI via nginx :443
+# probe_success == 0 → inbound or nginx is down → critical alert
+blackbox_inbound_probes:
+  # EU VPS inbounds (via EU nginx :443, SNI-routed to Xray)
+  - name: "vless-reality"
+    target: "{{ hostvars['vm_my_srv']['ansible_host'] }}:443"
+    sni: "askubuntu.com"
+    server: "eu"
+  - name: "vless-xhttp"
+    target: "{{ hostvars['vm_my_srv']['ansible_host'] }}:443"
+    sni: "www.adobe.com"
+    server: "eu"
+  - name: "vless-reality-v2"
+    target: "{{ hostvars['vm_my_srv']['ansible_host'] }}:443"
+    sni: "dl.google.com"
+    server: "eu"
+  - name: "vless-xhttp-v2"
+    target: "{{ hostvars['vm_my_srv']['ansible_host'] }}:443"
+    sni: "addons.mozilla.org"
+    server: "eu"
+  # RU VPS — xray-bridge inbound (via RU nginx :443)
+  - name: "xray-bridge"
+    target: "{{ hostvars['vm_my_ru']['ansible_host'] }}:443"
+    sni: "www.wikipedia.org"
+    server: "ru"

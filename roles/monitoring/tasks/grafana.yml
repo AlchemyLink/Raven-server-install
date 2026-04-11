@@ -129,6 +129,24 @@
     mode: "0640"
   notify: Restart grafana
 
+- name: Deploy Grafana inbound status dashboard
+  ansible.builtin.template:
+    src: dashboards/inbound-status.json.j2
+    dest: "{{ grafana_data_dir }}/dashboards/inbound-status.json"
+    owner: grafana
+    group: grafana
+    mode: "0640"
+  notify: Restart grafana
+
+- name: Deploy Grafana RU Traffic Split dashboard
+  ansible.builtin.template:
+    src: dashboards/ru-traffic-split.json.j2
+    dest: "{{ grafana_data_dir }}/dashboards/ru-traffic-split.json"
+    owner: grafana
+    group: grafana
+    mode: "0640"
+  notify: Restart grafana
+
 - name: Deploy Grafana alerting rules
   ansible.builtin.template:
     src: grafana-alerting.yml.j2

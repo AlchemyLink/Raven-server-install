@@ -33,3 +33,17 @@
     state: restarted
     daemon_reload: true
   when: ansible_facts['service_mgr'] == "systemd"
+
+- name: Restart blackbox-exporter
+  ansible.builtin.systemd:
+    name: "{{ blackbox_service_name }}"
+    state: restarted
+    daemon_reload: true
+  when: ansible_facts['service_mgr'] == "systemd"
+
+- name: Restart xray-stats-exporter-bridge
+  ansible.builtin.systemd:
+    name: "{{ xray_bridge_stats_exporter_service_name }}"
+    state: restarted
+    daemon_reload: true
+  when: ansible_facts['service_mgr'] == "systemd"

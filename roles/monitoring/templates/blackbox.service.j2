@@ -1,0 +1,23 @@
+[Unit]
+Description=Blackbox Exporter — active TCP/TLS probing
+Documentation=https://github.com/prometheus/blackbox_exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ blackbox_user }}
+Group={{ blackbox_group }}
+ExecStart={{ blackbox_bin_dir }}/blackbox_exporter \
+    --config.file={{ blackbox_config_dir }}/blackbox.yml \
+    --web.listen-address={{ blackbox_listen }}
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadOnlyPaths=/
+
+[Install]
+WantedBy=multi-user.target
