@@ -42,6 +42,14 @@
             {% endfor %}
           ],
           "privateKey": "{{ xray_reality.private_key }}",
+          {% set _seed = xray_reality.mldsa65_seed | default('') %}
+          {% if _seed %}
+          "mldsa65Seed": "{{ xray_reality.mldsa65_seed }}",
+          {% set _verify = xray_reality.mldsa65_verify | default('') %}
+          {% if _verify %}
+          "mldsa65Verify": "{{ xray_reality.mldsa65_verify }}",
+          {% endif %}
+          {% endif %}
           "shortIds": [
             {% for sid in xray_reality.short_id %}
             "{{ sid }}"{{ "," if not loop.last }}
@@ -96,6 +104,14 @@
             {% endfor %}
           ],
           "privateKey": "{{ xray_reality.private_key }}",
+          {% set _seed = xray_reality.mldsa65_seed | default('') %}
+          {% if _seed %}
+          "mldsa65Seed": "{{ xray_reality.mldsa65_seed }}",
+          {% set _verify = xray_reality.mldsa65_verify | default('') %}
+          {% if _verify %}
+          "mldsa65Verify": "{{ xray_reality.mldsa65_verify }}",
+          {% endif %}
+          {% endif %}
           "shortIds": [
             {% for sid in xray_reality.short_id %}
             "{{ sid }}"{{ "," if not loop.last }}
@@ -157,6 +173,14 @@
             {% endfor %}
           ],
           "privateKey": "{{ _v2r.private_key }}",
+          {% set _seed = _v2r.mldsa65_seed | default('') %}
+          {% if _seed %}
+          "mldsa65Seed": "{{ _v2r.mldsa65_seed }}",
+          {% set _verify = _v2r.mldsa65_verify | default('') %}
+          {% if _verify %}
+          "mldsa65Verify": "{{ _v2r.mldsa65_verify }}",
+          {% endif %}
+          {% endif %}
           "shortIds": [
             {% for sid in _v2r.short_id %}
             "{{ sid }}"{{ "," if not loop.last }}
