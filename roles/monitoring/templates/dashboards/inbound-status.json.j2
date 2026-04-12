@@ -34,8 +34,7 @@
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "expr": "probe_success{job=\"blackbox_vless-reality\"}",
           "legendFormat": "vless-reality",
-          "instant": true,
-          "refId": "A"
+          "instant": true, "range": false, "queryType": "instant", "refId": "A"
         }
       ],
       "title": "vless-reality\naskubuntu.com",
@@ -62,8 +61,7 @@
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "expr": "probe_success{job=\"blackbox_vless-xhttp\"}",
           "legendFormat": "vless-xhttp",
-          "instant": true,
-          "refId": "A"
+          "instant": true, "range": false, "queryType": "instant", "refId": "A"
         }
       ],
       "title": "vless-xhttp\nwww.adobe.com",
@@ -90,8 +88,7 @@
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "expr": "probe_success{job=\"blackbox_vless-reality-v2\"}",
           "legendFormat": "vless-reality-v2",
-          "instant": true,
-          "refId": "A"
+          "instant": true, "range": false, "queryType": "instant", "refId": "A"
         }
       ],
       "title": "vless-reality-v2\ndl.google.com",
@@ -118,8 +115,7 @@
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "expr": "probe_success{job=\"blackbox_vless-xhttp-v2\"}",
           "legendFormat": "vless-xhttp-v2",
-          "instant": true,
-          "refId": "A"
+          "instant": true, "range": false, "queryType": "instant", "refId": "A"
         }
       ],
       "title": "vless-xhttp-v2\naddons.mozilla.org",
@@ -146,8 +142,7 @@
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "expr": "probe_success{job=\"blackbox_xray-bridge\"}",
           "legendFormat": "xray-bridge",
-          "instant": true,
-          "refId": "A"
+          "instant": true, "range": false, "queryType": "instant", "refId": "A"
         }
       ],
       "title": "xray-bridge (RU)\nwww.wikipedia.org",
@@ -237,12 +232,12 @@
 
   ],
   "refresh": "30s",
-  "schemaVersion": 38,
+  "schemaVersion": 39,
   "tags": ["xray", "inbound", "probe"],
   "time": {"from": "now-3h", "to": "now"},
   "timepicker": {},
   "timezone": "browser",
   "title": "Inbound Status",
   "uid": "inbound-status",
-  "version": 1
+  "version": 3
 }

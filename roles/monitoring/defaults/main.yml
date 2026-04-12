@@ -58,7 +58,7 @@ xray_stats_exporter_geo_asn_db: "/var/lib/xray-exporter/GeoLite2-ASN.mmdb"
 # error-log-path enables TSPU detection metrics (R4A).
 xray_bridge_stats_exporter_listen: "10.10.0.2:9552"
 xray_bridge_stats_exporter_metrics_path: "/metrics"
-xray_bridge_stats_exporter_xray_endpoint: "127.0.0.1:10086"
+xray_bridge_stats_exporter_xray_endpoint: "10.10.0.2:10086"
 xray_bridge_stats_exporter_bin_dir: "/usr/local/bin"
 xray_bridge_stats_exporter_service_name: "xray-stats-exporter-bridge"
 xray_bridge_stats_exporter_user: "xraybridgeuser"
