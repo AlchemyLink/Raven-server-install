@@ -9,6 +9,56 @@
   when: xray_bridge_stats_exporter_local_binary is defined
   notify: Restart xray-stats-exporter-bridge
 
+- name: Ensure geo DB directory exists on bridge
+  ansible.builtin.file:
+    path: "{{ xray_bridge_stats_exporter_data_dir }}"
+    state: directory
+    owner: "{{ xray_bridge_stats_exporter_user }}"
+    group: "{{ xray_bridge_stats_exporter_group }}"
+    mode: "0750"
+
+- name: Pull GeoLite2-City DB from EU VPS to control machine
+  ansible.builtin.shell:
+    cmd: >
+      ssh -o StrictHostKeyChecking=accept-new
+      -i {{ hostvars['vm_my_srv']['ansible_ssh_private_key_file'] | replace('~', lookup('env', 'HOME')) }}
+      -p {{ hostvars['vm_my_srv']['ansible_port'] | default(22) }}
+      {{ hostvars['vm_my_srv']['ansible_user'] }}@{{ hostvars['vm_my_srv']['ansible_host'] }}
+      "sudo cat {{ xray_stats_exporter_geo_city_db }}"
+      > /tmp/ansible_geo_city.mmdb
+    creates: /tmp/ansible_geo_city.mmdb
+  delegate_to: localhost
+
+- name: Copy GeoLite2-City DB to bridge server
+  ansible.builtin.copy:
+    src: "/tmp/ansible_geo_city.mmdb"
+    dest: "{{ xray_bridge_stats_exporter_geo_city_db }}"
+    owner: "{{ xray_bridge_stats_exporter_user }}"
+    group: "{{ xray_bridge_stats_exporter_group }}"
+    mode: "0640"
+  notify: Restart xray-stats-exporter-bridge
+
+- name: Pull GeoLite2-ASN DB from EU VPS to control machine
+  ansible.builtin.shell:
+    cmd: >
+      ssh -o StrictHostKeyChecking=accept-new
+      -i {{ hostvars['vm_my_srv']['ansible_ssh_private_key_file'] | replace('~', lookup('env', 'HOME')) }}
+      -p {{ hostvars['vm_my_srv']['ansible_port'] | default(22) }}
+      {{ hostvars['vm_my_srv']['ansible_user'] }}@{{ hostvars['vm_my_srv']['ansible_host'] }}
+      "sudo cat {{ xray_stats_exporter_geo_asn_db }}"
+      > /tmp/ansible_geo_asn.mmdb
+    creates: /tmp/ansible_geo_asn.mmdb
+  delegate_to: localhost
+
+- name: Copy GeoLite2-ASN DB to bridge server
+  ansible.builtin.copy:
+    src: "/tmp/ansible_geo_asn.mmdb"
+    dest: "{{ xray_bridge_stats_exporter_geo_asn_db }}"
+    owner: "{{ xray_bridge_stats_exporter_user }}"
+    group: "{{ xray_bridge_stats_exporter_group }}"
+    mode: "0640"
+  notify: Restart xray-stats-exporter-bridge
+
 - name: Deploy xray-stats-exporter-bridge systemd unit
   ansible.builtin.template:
     src: xray-stats-exporter-bridge.service.j2
