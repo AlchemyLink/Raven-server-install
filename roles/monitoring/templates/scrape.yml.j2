@@ -55,3 +55,18 @@ scrape_configs:
       - target_label: instance
         replacement: "{{ probe.target }}"
 {% endfor %}
+
+  # Blackbox HTTP probe: raven-subscribe /health
+  - job_name: "blackbox_raven-subscribe"
+    metrics_path: /probe
+    params:
+      module: ["http_2xx"]
+      target: ["http://{{ raven_subscribe_scrape_addr }}/health"]
+    static_configs:
+      - targets:
+          - {{ blackbox_listen }}
+        labels:
+          instance: "raven-subscribe"
+    relabel_configs:
+      - target_label: instance
+        replacement: "raven-subscribe"
