@@ -23,7 +23,7 @@
       "collapsed": false,
       "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
       "id": 10,
-      "title": "Пользователи — трафик",
+      "title": "Пользователи — трафик (EU + Bridge)",
       "type": "row"
     },
 
@@ -51,7 +51,7 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "rate(xray_user_uplink_bytes_total[$__rate_interval])",
+          "expr": "sum by (email) (rate(xray_user_uplink_bytes_total{job=~\"xray-stats|xray-bridge-stats\",email!=\"xray_bridge@example.com\"}[$__rate_interval]))",
           "legendFormat": "{% raw %}{{email}}{% endraw %}",
           "range": true,
           "refId": "A"
@@ -85,7 +85,7 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "rate(xray_user_downlink_bytes_total[$__rate_interval])",
+          "expr": "sum by (email) (rate(xray_user_downlink_bytes_total{job=~\"xray-stats|xray-bridge-stats\",email!=\"xray_bridge@example.com\"}[$__rate_interval]))",
           "legendFormat": "{% raw %}{{email}}{% endraw %}",
           "range": true,
           "refId": "A"
@@ -112,7 +112,7 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "sort_desc(increase(xray_user_downlink_bytes_total[$__range]))",
+          "expr": "sort_desc(sum by (email) (increase(xray_user_downlink_bytes_total{job=~\"xray-stats|xray-bridge-stats\",email!=\"xray_bridge@example.com\"}[$__range])))",
           "instant": true,
           "legendFormat": "{% raw %}{{email}}{% endraw %}",
           "refId": "A"
@@ -139,7 +139,7 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "sort_desc(increase(xray_user_uplink_bytes_total[$__range]))",
+          "expr": "sort_desc(sum by (email) (increase(xray_user_uplink_bytes_total{job=~\"xray-stats|xray-bridge-stats\",email!=\"xray_bridge@example.com\"}[$__range])))",
           "instant": true,
           "legendFormat": "{% raw %}{{email}}{% endraw %}",
           "refId": "A"
@@ -181,18 +181,34 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "rate(xray_inbound_downlink_bytes_total[$__rate_interval])",
-          "legendFormat": "{% raw %}{{inbound}}{% endraw %} down",
+          "expr": "rate(xray_inbound_downlink_bytes_total{job=\"xray-stats\"}[$__rate_interval])",
+          "legendFormat": "EU / {% raw %}{{inbound}}{% endraw %} down",
           "range": true,
           "refId": "A"
         },
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "rate(xray_inbound_uplink_bytes_total[$__rate_interval])",
-          "legendFormat": "{% raw %}{{inbound}}{% endraw %} up",
+          "expr": "rate(xray_inbound_uplink_bytes_total{job=\"xray-stats\"}[$__rate_interval])",
+          "legendFormat": "EU / {% raw %}{{inbound}}{% endraw %} up",
           "range": true,
           "refId": "B"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+          "editorMode": "code",
+          "expr": "rate(xray_inbound_downlink_bytes_total{job=\"xray-bridge-stats\"}[$__rate_interval])",
+          "legendFormat": "Bridge / {% raw %}{{inbound}}{% endraw %} down",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+          "editorMode": "code",
+          "expr": "rate(xray_inbound_uplink_bytes_total{job=\"xray-bridge-stats\"}[$__rate_interval])",
+          "legendFormat": "Bridge / {% raw %}{{inbound}}{% endraw %} up",
+          "range": true,
+          "refId": "D"
         }
       ],
       "title": "Трафик по inbound (bytes/s)",
@@ -216,9 +232,9 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "sort_desc(increase(xray_inbound_downlink_bytes_total[$__range]))",
+          "expr": "sort_desc(increase(xray_inbound_downlink_bytes_total{job=~\"xray-stats|xray-bridge-stats\"}[$__range]))",
           "instant": true,
-          "legendFormat": "{% raw %}{{inbound}}{% endraw %}",
+          "legendFormat": "{% raw %}{{job}}{% endraw %} / {% raw %}{{inbound}}{% endraw %}",
           "refId": "A"
         }
       ],
@@ -236,6 +252,6 @@
   "timezone": "browser",
   "title": "Xray — per-user upload / download",
   "uid": "raven-xray-users-traffic",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }
