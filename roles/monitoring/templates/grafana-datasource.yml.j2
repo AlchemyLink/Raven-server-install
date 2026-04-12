@@ -10,5 +10,8 @@ datasources:
     editable: false
     basicAuth: true
     basicAuthUser: {{ victoriametrics_auth_username }}
+    jsonData:
+      httpMethod: POST
+      prometheusType: Prometheus
     secureJsonData:
       basicAuthPassword: {{ victoriametrics_auth_password }}
