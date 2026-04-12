@@ -12,3 +12,10 @@ modules:
         server_name: "{{ probe.sni }}"
         insecure_skip_verify: true   # Reality certs come from upstream domain — skip local verify
 {% endfor %}
+
+  http_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      valid_status_codes: [200]
+      method: GET
