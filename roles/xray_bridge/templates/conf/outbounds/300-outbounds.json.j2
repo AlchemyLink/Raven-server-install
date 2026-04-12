@@ -10,7 +10,7 @@
             "users": [
               {
                 "id": "{{ xray_bridge_eu_user_id }}",
-                "encryption": "none",
+                "encryption": "{{ xray_vless_client_encryption | default('none') }}",
                 "flow": "xtls-rprx-vision",
                 "level": 0
               }

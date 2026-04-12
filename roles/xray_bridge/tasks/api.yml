@@ -10,3 +10,12 @@
   notify:
     - Validate xray-bridge
     - Restart xray-bridge
+
+- name: Xray Bridge | Allow gRPC API from WireGuard subnet
+  community.general.ufw:
+    rule: allow
+    src: "{{ wg_network | default('10.10.0.0/24') }}"
+    port: "{{ xray_bridge_api_port | string }}"
+    proto: tcp
+    comment: "xray-bridge gRPC API via WireGuard"
+  when: xray_bridge_api_enabled | default(false)
