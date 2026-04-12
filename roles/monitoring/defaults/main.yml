@@ -54,7 +54,7 @@ xray_stats_exporter_geo_asn_db: "/var/lib/xray-exporter/GeoLite2-ASN.mmdb"
 
 # xray-stats-exporter-bridge (per-user traffic for RU xray-bridge, runs on vm_my_ru)
 # Listens on WireGuard interface — EU VictoriaMetrics scrapes via 10.10.0.2:9552.
-# No geo DBs: xray-exporter (which downloads GeoLite2) is not deployed on RU.
+# GeoLite2 DBs are synced from EU /var/lib/xray-exporter/ via control machine.
 # error-log-path enables TSPU detection metrics (R4A).
 xray_bridge_stats_exporter_listen: "10.10.0.2:9552"
 xray_bridge_stats_exporter_metrics_path: "/metrics"
@@ -65,6 +65,9 @@ xray_bridge_stats_exporter_user: "xraybridgeuser"
 xray_bridge_stats_exporter_group: "xraybridgeuser"
 xray_bridge_stats_exporter_log_path: "/var/log/xray-bridge/access.log"
 xray_bridge_stats_exporter_error_log_path: "/var/log/xray-bridge/error.log"
+xray_bridge_stats_exporter_data_dir: "/var/lib/xray-stats-exporter-bridge"
+xray_bridge_stats_exporter_geo_city_db: "/var/lib/xray-stats-exporter-bridge/GeoLite2-City.mmdb"
+xray_bridge_stats_exporter_geo_asn_db: "/var/lib/xray-stats-exporter-bridge/GeoLite2-ASN.mmdb"
 # xray_bridge_stats_exporter_local_binary: path to pre-built binary on control machine (optional)
 
 # raven-subscribe health probe (VictoriaMetrics scrapes /health → up metric)
