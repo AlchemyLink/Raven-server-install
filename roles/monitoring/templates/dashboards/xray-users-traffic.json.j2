@@ -240,6 +240,86 @@
       ],
       "title": "Inbound download за период",
       "type": "bargauge"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 42},
+      "id": 30,
+      "title": "Карта локаций пользователей",
+      "type": "row"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"hideFrom": {"legend": false, "tooltip": false, "viz": false}}
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 14, "w": 24, "x": 0, "y": 43},
+      "id": 31,
+      "options": {
+        "view": {"allLayers": true, "id": "zero", "lat": 0, "lon": 0, "zoom": 2},
+        "layers": [
+          {
+            "config": {
+              "showLegend": true,
+              "style": {
+                "color": {"fixed": "dark-blue"},
+                "opacity": 0.8,
+                "size": {"fixed": 6, "max": 15, "min": 2},
+                "symbol": {"fixed": "img/icons/marker/circle.svg", "mode": "fixed"},
+                "text": {"field": "email", "fixed": "", "mode": "field"}
+              }
+            },
+            "location": {
+              "latitude": "lat",
+              "longitude": "lon",
+              "mode": "coords"
+            },
+            "name": "Users",
+            "tooltip": true,
+            "type": "markers"
+          }
+        ],
+        "tooltip": {"mode": "details"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+          "editorMode": "code",
+          "expr": "xray_user_last_country",
+          "instant": true,
+          "queryType": "instant",
+          "range": false,
+          "legendFormat": "{% raw %}{{email}}{% endraw %}",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {"mode": "columns"}
+        },
+        {
+          "id": "reduce",
+          "options": {"reducers": ["lastNotNull"], "labelsToFields": false}
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {"destinationType": "number", "targetField": "lat"},
+              {"destinationType": "number", "targetField": "lon"}
+            ]
+          }
+        }
+      ],
+      "title": "Карта локаций пользователей",
+      "type": "geomap"
     }
 
   ],
@@ -252,6 +332,6 @@
   "timezone": "browser",
   "title": "Xray — per-user upload / download",
   "uid": "raven-xray-users-traffic",
-  "version": 3,
+  "version": 4,
   "weekStart": ""
 }
