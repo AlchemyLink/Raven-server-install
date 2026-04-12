@@ -110,6 +110,7 @@
     group: grafana
     mode: "0640"
   notify: Restart grafana
+  tags: grafana_dashboards
 
 - name: Deploy Grafana server status dashboard
   ansible.builtin.template:
@@ -119,6 +120,7 @@
     group: grafana
     mode: "0640"
   notify: Restart grafana
+  tags: grafana_dashboards
 
 - name: Deploy Grafana TSPU detection dashboard
   ansible.builtin.template:
@@ -128,6 +130,7 @@
     group: grafana
     mode: "0640"
   notify: Restart grafana
+  tags: grafana_dashboards
 
 - name: Deploy Grafana inbound status dashboard
   ansible.builtin.template:
@@ -137,6 +140,7 @@
     group: grafana
     mode: "0640"
   notify: Restart grafana
+  tags: grafana_dashboards
 
 - name: Deploy Grafana RU Traffic Split dashboard
   ansible.builtin.template:
@@ -146,6 +150,7 @@
     group: grafana
     mode: "0640"
   notify: Restart grafana
+  tags: grafana_dashboards
 
 - name: Deploy Grafana alerting rules
   ansible.builtin.template:
@@ -155,6 +160,7 @@
     group: grafana
     mode: "0640"
   notify: Restart grafana
+  tags: grafana_dashboards
 
 - name: Enable and start Grafana
   ansible.builtin.systemd:
