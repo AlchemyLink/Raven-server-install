@@ -40,6 +40,13 @@ raven_subscribe_inbound_ports:
     vless-reality-v2-in: 443
     vless-xhttp-v2-in: 443
 
+# Bridge user sync — pushes all EU inbound users to xray-bridge transparent inbounds via gRPC.
+# Requires xray-bridge Stats API enabled and WireGuard tunnel between EU and RU VPS.
+# bridge_api_addr: gRPC address of xray-bridge API (reachable from EU via WireGuard)
+# bridge_transparent_tags: maps EU inbound tag → bridge transparent inbound tag
+raven_subscribe_bridge_api_addr: ""
+raven_subscribe_bridge_transparent_tags: {}
+
 # Path to sing-box config file. Leave empty to disable sing-box sync.
 # Example: "/etc/sing-box/config.json"
 raven_subscribe_singbox_config: ""
