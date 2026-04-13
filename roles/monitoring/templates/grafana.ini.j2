@@ -1,7 +1,7 @@
 [server]
 http_addr = {{ grafana_listen.split(':')[0] }}
 http_port = {{ grafana_listen.split(':')[1] }}
-# SSH tunnel: ssh -L 13000:127.0.0.1:13000 ... then open http://localhost:13000
+# SSH tunnel (Grafana is on RU VPS): ssh -L 13000:127.0.0.1:13000 deploy@{{ hostvars['vm_my_ru']['ansible_host'] }} -p {{ hostvars['vm_my_ru']['ansible_port'] | default(22) }}
 
 [security]
 admin_user = admin

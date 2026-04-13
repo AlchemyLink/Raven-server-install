@@ -17,7 +17,7 @@ xray_exporter_group: "xrayuser"
 # VictoriaMetrics
 victoriametrics_version: "latest"            # "latest" or pinned e.g. "v1.101.0"
 victoriametrics_github_repo: "VictoriaMetrics/VictoriaMetrics"
-victoriametrics_listen: "127.0.0.1:8428"
+victoriametrics_listen: "10.10.0.2:8428"     # WireGuard interface — vmagent push from EU + Grafana access
 victoriametrics_retention_months: 1          # 1 month retention
 victoriametrics_data_dir: "/var/lib/victoriametrics"
 victoriametrics_bin_dir: "/usr/local/bin"
@@ -25,8 +25,23 @@ victoriametrics_service_name: "victoriametrics"
 victoriametrics_scrape_interval: "15s"
 victoriametrics_scrape_timeout: "5s"
 victoriametrics_scrape_config: "/etc/victoriametrics/scrape.yml"
+# External label attached to every scraped sample. CompassVPN dashboard 23181
+# filters all queries by donor=~"$donor"; without this label, ~80% of panels
+# are empty because label_values(donor) returns nothing.
+monitoring_donor_label: "alchemylink"
 victoriametrics_user: "victoriametrics"
 victoriametrics_group: "victoriametrics"
+
+# vmagent (EU VPS — scrapes EU exporters, pushes to RU VictoriaMetrics via WireGuard)
+vmagent_version: "latest"
+vmagent_listen: "127.0.0.1:8429"
+vmagent_remote_write_url: "http://10.10.0.2:8428/api/v1/write"
+vmagent_data_dir: "/var/lib/vmagent"
+vmagent_scrape_config: "/etc/victoriametrics/vmagent-scrape.yml"
+vmagent_bin_dir: "/usr/local/bin"
+vmagent_service_name: "vmagent"
+vmagent_user: "vmagent"
+vmagent_group: "vmagent"
 
 # WireGuard network (for ufw rules on RU)
 wg_network: "10.10.0.0/24"
@@ -51,6 +66,20 @@ xray_stats_exporter_log_path: "/var/log/Xray/access.log"
 xray_stats_exporter_error_log_path: "/var/log/Xray/error.log"
 xray_stats_exporter_geo_city_db: "/var/lib/xray-exporter/GeoLite2-City.mmdb"
 xray_stats_exporter_geo_asn_db: "/var/lib/xray-exporter/GeoLite2-ASN.mmdb"
+
+# xray-exporter-bridge (compassvpn/xray-exporter for RU xray-bridge, runs on vm_my_ru)
+# Listens on WireGuard interface — EU VictoriaMetrics scrapes via 10.10.0.2:9553.
+# Shares the same binary as EU xray-exporter (same GitHub repo / version).
+xray_bridge_exporter_listen: "10.10.0.2:9553"
+xray_bridge_exporter_metrics_path: "/scrape"
+xray_bridge_exporter_xray_endpoint: "10.10.0.2:10086"
+xray_bridge_exporter_log_path: "/var/log/xray-bridge/access.log"
+xray_bridge_exporter_log_time_window: 5
+xray_bridge_exporter_bin_dir: "/usr/local/bin"
+xray_bridge_exporter_data_dir: "/var/lib/xray-exporter-bridge"
+xray_bridge_exporter_service_name: "xray-exporter-bridge"
+xray_bridge_exporter_user: "xraybridgeuser"
+xray_bridge_exporter_group: "xraybridgeuser"
 
 # xray-stats-exporter-bridge (per-user traffic for RU xray-bridge, runs on vm_my_ru)
 # Listens on WireGuard interface — EU VictoriaMetrics scrapes via 10.10.0.2:9552.

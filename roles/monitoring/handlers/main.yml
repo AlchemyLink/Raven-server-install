@@ -47,3 +47,17 @@
     state: restarted
     daemon_reload: true
   when: ansible_facts['service_mgr'] == "systemd"
+
+- name: Restart vmagent
+  ansible.builtin.systemd:
+    name: "{{ vmagent_service_name }}"
+    state: restarted
+    daemon_reload: true
+  when: ansible_facts['service_mgr'] == "systemd"
+
+- name: Restart xray-exporter-bridge
+  ansible.builtin.systemd:
+    name: "{{ xray_bridge_exporter_service_name }}"
+    state: restarted
+    daemon_reload: true
+  when: ansible_facts['service_mgr'] == "systemd"

@@ -1,20 +1,13 @@
 global:
   scrape_interval: {{ victoriametrics_scrape_interval }}
   scrape_timeout: {{ victoriametrics_scrape_timeout }}
+  external_labels:
+    donor: "{{ monitoring_donor_label }}"
 
+# RU-local exporters only.
+# EU exporters (xray, xray-stats, node-eu, blackbox) are scraped by
+# vmagent on EU VPS and pushed here via /api/v1/write over WireGuard.
 scrape_configs:
-  - job_name: xray
-    metrics_path: {{ xray_exporter_metrics_path }}
-    static_configs:
-      - targets:
-          - {{ xray_exporter_listen }}
-
-  - job_name: xray-stats
-    metrics_path: {{ xray_stats_exporter_metrics_path }}
-    static_configs:
-      - targets:
-          - {{ xray_stats_exporter_listen }}
-
   - job_name: xray-bridge-stats
     metrics_path: {{ xray_bridge_stats_exporter_metrics_path }}
     static_configs:
@@ -23,50 +16,18 @@ scrape_configs:
         labels:
           server: ru
 
+  - job_name: xray-bridge
+    metrics_path: {{ xray_bridge_exporter_metrics_path }}
+    static_configs:
+      - targets:
+          - {{ xray_bridge_exporter_listen }}
+        labels:
+          server: ru
+
   - job_name: node
     static_configs:
       - targets:
-          - {{ node_exporter_listen }}
-        labels:
-          server: eu
-          instance: "{{ hostvars['vm_my_srv']['ansible_host'] }}"
-      - targets:
-          - {{ node_exporter_ru_scrape }}        # WireGuard → RU:9100
+          - {{ node_exporter_ru_listen }}
         labels:
           server: ru
           instance: "{{ hostvars['vm_my_ru']['ansible_host'] }}"
-
-
-{% for probe in blackbox_inbound_probes %}
-  # Blackbox probe: {{ probe.name }} ({{ probe.sni }})
-  - job_name: "blackbox_{{ probe.name }}"
-    metrics_path: /probe
-    params:
-      module: ["tcp_tls_{{ probe.name | replace('-', '_') }}"]
-      target: ["{{ probe.target }}"]
-    static_configs:
-      - targets:
-          - {{ blackbox_listen }}
-        labels:
-          inbound: "{{ probe.name }}"
-          server: "{{ probe.server }}"
-          sni: "{{ probe.sni }}"
-    relabel_configs:
-      - target_label: instance
-        replacement: "{{ probe.target }}"
-{% endfor %}
-
-  # Blackbox HTTP probe: raven-subscribe /health
-  - job_name: "blackbox_raven-subscribe"
-    metrics_path: /probe
-    params:
-      module: ["http_2xx"]
-      target: ["http://{{ raven_subscribe_scrape_addr }}/health"]
-    static_configs:
-      - targets:
-          - {{ blackbox_listen }}
-        labels:
-          instance: "raven-subscribe"
-    relabel_configs:
-      - target_label: instance
-        replacement: "raven-subscribe"
