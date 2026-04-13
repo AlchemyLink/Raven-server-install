@@ -1,0 +1,22 @@
+[Unit]
+Description=vmagent — metrics scraper / remote write agent
+Documentation=https://docs.victoriametrics.com/vmagent/
+After=network.target
+
+[Service]
+User={{ vmagent_user }}
+Group={{ vmagent_group }}
+NoNewPrivileges=true
+ExecStart={{ vmagent_bin_dir }}/vmagent \
+  -httpListenAddr={{ vmagent_listen }} \
+  -promscrape.config={{ vmagent_scrape_config }} \
+  -remoteWrite.url={{ vmagent_remote_write_url }} \
+  -remoteWrite.basicAuth.username={{ victoriametrics_auth_username }} \
+  -remoteWrite.basicAuth.password={{ victoriametrics_auth_password }} \
+  -remoteWrite.tmpDataPath={{ vmagent_data_dir }}
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+
+[Install]
+WantedBy=multi-user.target
