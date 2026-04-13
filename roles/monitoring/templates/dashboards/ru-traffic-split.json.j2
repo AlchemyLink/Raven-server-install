@@ -342,6 +342,99 @@
       ],
       "title": "TSPU события на bridge (events/s)",
       "type": "timeseries"
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 58},
+      "id": 50,
+      "title": "RU Direct — топ назначений",
+      "type": "row"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Доля трафика, уходящего напрямую с RU (не через цепочку на EU). Метрика: xray_outbound_requests_total{job=\"xray-bridge\"}.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"fixedColor": "blue", "mode": "fixed"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.3},
+              {"color": "red", "value": 0.7}
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 8, "x": 0, "y": 59},
+      "id": 51,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+          "editorMode": "code",
+          "expr": "sum(rate(xray_outbound_requests_total{job=\"xray-bridge\",outbound=~\"direct.*\"}[5m])) / sum(rate(xray_outbound_requests_total{job=\"xray-bridge\"}[5m]))",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Доля direct-трафика (RU bridge)",
+      "type": "stat"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Топ-10 IP-назначений через RU bridge за выбранный диапазон. xray-exporter парсит access.log, который не содержит разбивку по outbound — показан весь трафик bridge (direct + chain-out-eu).",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {"type": "auto"},
+            "inspect": false
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "Value"},
+            "properties": [
+              {"id": "displayName", "value": "Запросов"},
+              {"id": "custom.width", "value": 120}
+            ]
+          },
+          {
+            "matcher": {"id": "byName", "options": "target"},
+            "properties": [{"id": "displayName", "value": "Назначение (IP)"}]
+          }
+        ]
+      },
+      "gridPos": {"h": 12, "w": 24, "x": 0, "y": 63},
+      "id": 52,
+      "options": {
+        "footer": {"show": false},
+        "showHeader": true,
+        "sortBy": [{"desc": true, "displayName": "Запросов"}]
+      },
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+          "editorMode": "code",
+          "expr": "topk(10, sum by (target) (increase(xray_requested_domain_ip_total{job=\"xray-bridge\"}[$__range])))",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Топ-10 назначений (RU bridge, все outbound, за период)",
+      "transformations": [
+        {"id": "filterFieldsByName", "options": {"include": {"names": ["target", "Value"]}}}
+      ],
+      "type": "table"
     }
 
   ],
@@ -354,6 +447,6 @@
   "timezone": "browser",
   "title": "RU Traffic Split",
   "uid": "raven-ru-traffic-split",
-  "version": 1,
+  "version": 3,
   "weekStart": ""
 }

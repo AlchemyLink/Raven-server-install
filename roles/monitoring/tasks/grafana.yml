@@ -1,49 +1,55 @@
 ---
-- name: Install Grafana apt dependencies
+- name: Install jq (required to patch CompassVPN dashboard)
   ansible.builtin.apt:
-    name:
-      - apt-transport-https
-      - software-properties-common
-      - wget
+    name: jq
     state: present
     update_cache: true
 
-- name: Ensure /etc/apt/keyrings exists
-  ansible.builtin.file:
-    path: /etc/apt/keyrings
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
+# apt.grafana.com is geoblocked from RU (403). Download .deb on control
+# machine (no geo restrictions) and copy to remote for local install.
+- name: Get latest Grafana release version (GitHub API)
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/grafana/grafana/releases/latest"
+    method: GET
+    return_content: true
+    headers:
+      Accept: "application/vnd.github.v3+json"
+    status_code: 200
+  register: grafana_release_info
+  delegate_to: localhost
+  run_once: true
+  retries: 3
+  delay: 3
+  until: grafana_release_info.status == 200
 
-- name: Remove stale Grafana GPG key if present
-  ansible.builtin.file:
-    path: /etc/apt/keyrings/grafana.gpg
-    state: absent
+- name: Set Grafana version fact
+  ansible.builtin.set_fact:
+    grafana_resolved_version: "{{ grafana_release_info.json.tag_name | regex_replace('^v', '') }}"
 
-- name: Download and dearmor Grafana GPG key
-  ansible.builtin.shell:
-    cmd: "curl -fsSL https://apt.grafana.com/gpg.key | gpg --dearmor -o /etc/apt/keyrings/grafana.gpg"
-  changed_when: true
+- name: Download Grafana .deb on control machine
+  ansible.builtin.get_url:
+    url: "https://dl.grafana.com/oss/release/grafana_{{ grafana_resolved_version }}_amd64.deb"
+    dest: "/tmp/grafana_{{ grafana_resolved_version }}_amd64.deb"
+    mode: "0644"
+  delegate_to: localhost
+  run_once: true
 
-- name: Set permissions on Grafana GPG key
-  ansible.builtin.file:
-    path: /etc/apt/keyrings/grafana.gpg
-    owner: root
-    group: root
+- name: Copy Grafana .deb to remote
+  ansible.builtin.copy:
+    src: "/tmp/grafana_{{ grafana_resolved_version }}_amd64.deb"
+    dest: "/tmp/grafana_{{ grafana_resolved_version }}_amd64.deb"
     mode: "0644"
 
-- name: Add Grafana apt repository
-  ansible.builtin.apt_repository:
-    repo: "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main"
-    filename: grafana
-    state: present
-    update_cache: true
-
-- name: Install Grafana
+- name: Install Grafana from .deb
   ansible.builtin.apt:
-    name: grafana
+    deb: "/tmp/grafana_{{ grafana_resolved_version }}_amd64.deb"
     state: present
+  notify: Restart grafana
+
+- name: Remove Grafana .deb temp file
+  ansible.builtin.file:
+    path: "/tmp/grafana_{{ grafana_resolved_version }}_amd64.deb"
+    state: absent
 
 - name: Ensure Grafana provisioning directories exist
   ansible.builtin.file:
@@ -94,6 +100,29 @@
     mode: "0640"
   retries: 3
   delay: 3
+
+# CompassVPN panel "Proxy Configuration Links" queries vpn_config{...}, a metric
+# emitted only by CompassVPN's management daemon (we do not run it). Strip the
+# panel so it doesn't render as empty. Runs after every download to survive
+# upstream dashboard refreshes.
+- name: Strip non-functional panels from CompassVPN dashboard
+  ansible.builtin.shell:
+    cmd: |
+      set -euo pipefail
+      src="{{ grafana_data_dir }}/dashboards/xray-compassvpn.json"
+      tmp=$(mktemp)
+      jq 'walk(if type=="object" and (.panels?|type)=="array" then .panels |= map(select(.title!="Proxy Configuration Links")) else . end)' "$src" > "$tmp"
+      if ! cmp -s "$src" "$tmp"; then
+        install -o grafana -g grafana -m 0640 "$tmp" "$src"
+        rm -f "$tmp"
+        echo CHANGED
+      else
+        rm -f "$tmp"
+      fi
+    executable: /bin/bash
+  register: jq_patch_compassvpn
+  changed_when: "'CHANGED' in jq_patch_compassvpn.stdout"
+  notify: Restart grafana
 
 - name: Replace DS_* datasource placeholders with provisioned UID (file provisioning has no variable)
   ansible.builtin.replace:

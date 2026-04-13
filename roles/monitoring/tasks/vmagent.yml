@@ -1,0 +1,123 @@
+---
+- name: Create vmagent system group
+  ansible.builtin.group:
+    name: "{{ vmagent_group }}"
+    state: present
+    system: true
+
+- name: Create vmagent system user
+  ansible.builtin.user:
+    name: "{{ vmagent_user }}"
+    group: "{{ vmagent_group }}"
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+
+- name: Ensure vmagent data directory exists (WAL buffer for WG outages)
+  ansible.builtin.file:
+    path: "{{ vmagent_data_dir }}"
+    state: directory
+    owner: "{{ vmagent_user }}"
+    group: "{{ vmagent_group }}"
+    mode: "0750"
+
+- name: Ensure vmagent config directory exists
+  ansible.builtin.file:
+    path: /etc/victoriametrics
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Detect architecture for vmagent
+  ansible.builtin.set_fact:
+    vmagent_arch: >-
+      {{
+        'amd64' if ansible_architecture in ['x86_64', 'amd64']
+        else 'arm64' if ansible_architecture in ['aarch64', 'arm64']
+        else ansible_architecture
+      }}
+
+- name: Get latest vmagent release version
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/{{ victoriametrics_github_repo }}/releases/latest"
+    method: GET
+    return_content: true
+    headers:
+      Accept: "application/vnd.github.v3+json"
+    status_code: 200
+  register: vmagent_latest_release
+  run_once: true
+  retries: 3
+  delay: 3
+  until: vmagent_latest_release.status == 200
+  when: vmagent_version == "latest"
+
+- name: Set vmagent version fact
+  ansible.builtin.set_fact:
+    vmagent_resolved_version: >-
+      {{
+        vmagent_latest_release.json.tag_name
+        if vmagent_version == "latest"
+        else vmagent_version
+      }}
+
+# vmagent is bundled inside vmutils-linux-{arch}-{version}.tar.gz
+# (not distributed as a standalone archive in the main VictoriaMetrics repo)
+- name: Download vmutils bundle (contains vmagent)
+  ansible.builtin.get_url:
+    url: "https://github.com/{{ victoriametrics_github_repo }}/releases/download/{{ vmagent_resolved_version }}/vmutils-linux-{{ vmagent_arch }}-{{ vmagent_resolved_version }}.tar.gz"
+    dest: "/tmp/vmutils-{{ vmagent_resolved_version }}.tar.gz"
+    mode: "0644"
+  register: vmagent_download
+
+- name: Extract vmutils bundle
+  ansible.builtin.unarchive:
+    src: "/tmp/vmutils-{{ vmagent_resolved_version }}.tar.gz"
+    dest: /tmp/
+    remote_src: true
+  when: vmagent_download.changed
+
+- name: Install vmagent binary
+  ansible.builtin.copy:
+    src: /tmp/vmagent-prod
+    dest: "{{ vmagent_bin_dir }}/vmagent"
+    owner: root
+    group: root
+    mode: "0755"
+    remote_src: true
+  when: vmagent_download.changed
+  notify: Restart vmagent
+
+- name: Remove vmutils temp files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/tmp/vmutils-{{ vmagent_resolved_version }}.tar.gz"
+    - "/tmp/vmagent-prod"
+
+- name: Deploy vmagent scrape config (EU exporters)
+  ansible.builtin.template:
+    src: vmagent-scrape.yml.j2
+    dest: "{{ vmagent_scrape_config }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart vmagent
+
+- name: Deploy vmagent systemd unit
+  ansible.builtin.template:
+    src: vmagent.service.j2
+    dest: "/etc/systemd/system/vmagent.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart vmagent
+
+- name: Enable and start vmagent
+  ansible.builtin.systemd:
+    name: "{{ vmagent_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true
