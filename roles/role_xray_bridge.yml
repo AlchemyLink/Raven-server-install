@@ -27,7 +27,7 @@
 #   xray_bridge_service   — deploy systemd unit, enable service
 
 - name: Configure Xray bridge (RU chain proxy)
-  hosts: vm_my_ru
+  hosts: vm_my_ru2
   become: true
 
   vars_files:

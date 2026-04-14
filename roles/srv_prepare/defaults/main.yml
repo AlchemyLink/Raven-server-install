@@ -14,8 +14,8 @@ srv_prepare_apps_list_apt:
   - openssl
   - dnsutils
   - jq
-  - docker
-  - docker-compose
+  # - docker
+  # - docker-compose
   - sqlite3
 
 # Yum package for install
