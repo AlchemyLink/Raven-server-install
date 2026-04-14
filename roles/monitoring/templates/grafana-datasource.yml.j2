@@ -13,5 +13,7 @@ datasources:
     jsonData:
       httpMethod: POST
       prometheusType: Prometheus
+      prometheusVersion: "2.48.0"
+      timeInterval: "{{ victoriametrics_scrape_interval }}"
     secureJsonData:
       basicAuthPassword: {{ victoriametrics_auth_password }}

@@ -47,31 +47,35 @@
       Accept: "application/vnd.github.v3+json"
     status_code: 200
   register: vm_release_list
-  run_once: true
   retries: 3
   delay: 3
   until: vm_release_list.status == 200
-  when: victoriametrics_version == "latest"
+  when: victoriametrics_version | string == "latest"
 
-- name: Set VictoriaMetrics version fact
+- name: Set VictoriaMetrics version fact (pinned)
+  ansible.builtin.set_fact:
+    vm_resolved_version: "{{ victoriametrics_version }}"
+  when: victoriametrics_version | string != "latest"
+
+- name: Set VictoriaMetrics version fact (from GitHub releases)
   ansible.builtin.set_fact:
     vm_resolved_version: >-
-      {%- if victoriametrics_version != "latest" -%}
-        {{ victoriametrics_version }}
-      {%- else -%}
-        {%- set asset_pattern = 'victoria-metrics-linux-' + vm_arch + '-' -%}
-        {%- set ns = namespace(version='') -%}
-        {%- for release in vm_release_list.json -%}
-          {%- if ns.version == '' -%}
-            {%- for asset in release.assets -%}
-              {%- if asset.name.startswith(asset_pattern) and asset.name.endswith('.tar.gz') and 'enterprise' not in asset.name and 'cluster' not in asset.name -%}
-                {%- set ns.version = release.tag_name -%}
-              {%- endif -%}
-            {%- endfor -%}
-          {%- endif -%}
-        {%- endfor -%}
-        {{ ns.version }}
-      {%- endif -%}
+      {%- set releases = vm_release_list.json | default(vm_release_list.content | from_json, true) -%}
+      {%- set asset_pattern = 'victoria-metrics-linux-' + vm_arch + '-' -%}
+      {%- set ns = namespace(version='') -%}
+      {%- for release in releases -%}
+        {%- if ns.version == '' -%}
+          {%- for asset in release.assets -%}
+            {%- if asset.name.startswith(asset_pattern) and asset.name.endswith('.tar.gz') and 'enterprise' not in asset.name and 'cluster' not in asset.name -%}
+              {%- set ns.version = release.tag_name -%}
+            {%- endif -%}
+          {%- endfor -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ ns.version }}
+  when:
+    - victoriametrics_version | string == "latest"
+    - not (vm_release_list.skipped | default(false))
 
 - name: Download VictoriaMetrics binary
   ansible.builtin.get_url:
