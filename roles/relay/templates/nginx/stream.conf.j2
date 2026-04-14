@@ -15,6 +15,10 @@
 {% endif %}
 #   everything else (VPN)  → EU server ({{ relay_upstream_host }}:{{ relay_upstream_port }})
 #
+# PROXY protocol: only on upstreams to local Xray (127.0.0.1). Real client IP in
+# access.log → xray-stats-exporter geo / Grafana map. Do NOT add proxy_protocol
+# to eu_vpn — EU expects raw TCP without PROXY.
+#
 # This file is included inside stream {} block in nginx.conf
 
 {% if relay_stream_enabled %}
@@ -39,25 +43,25 @@ upstream local_https {
 
 {% if relay_bridge_enabled | default(false) and relay_bridge_sni != '' %}
 upstream xray_bridge {
-    server 127.0.0.1:{{ relay_bridge_port }};
+    server 127.0.0.1:{{ relay_bridge_port }} proxy_protocol;
 }
 
 {% endif %}
 {% if relay_transparent_enabled | default(false) %}
 upstream xray_bridge_reality {
-    server 127.0.0.1:{{ relay_transparent_reality_port }};
+    server 127.0.0.1:{{ relay_transparent_reality_port }} proxy_protocol;
 }
 
 upstream xray_bridge_xhttp {
-    server 127.0.0.1:{{ relay_transparent_xhttp_port }};
+    server 127.0.0.1:{{ relay_transparent_xhttp_port }} proxy_protocol;
 }
 
 upstream xray_bridge_reality_v2 {
-    server 127.0.0.1:{{ relay_transparent_reality_v2_port }};
+    server 127.0.0.1:{{ relay_transparent_reality_v2_port }} proxy_protocol;
 }
 
 upstream xray_bridge_xhttp_v2 {
-    server 127.0.0.1:{{ relay_transparent_xhttp_v2_port }};
+    server 127.0.0.1:{{ relay_transparent_xhttp_v2_port }} proxy_protocol;
 }
 
 {% endif %}

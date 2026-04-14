@@ -31,6 +31,9 @@
       },
       "streamSettings": {
         "network": "tcp",
+        "sockopt": {
+          "acceptProxyProtocol": true
+        },
         "security": "reality",
         "realitySettings": {
           "show": false,
@@ -93,6 +96,9 @@
       },
       "streamSettings": {
         "network": "{{ xray_xhttp.network }}",
+        "sockopt": {
+          "acceptProxyProtocol": true
+        },
         "security": "reality",
         "realitySettings": {
           "show": false,
@@ -162,6 +168,9 @@
       },
       "streamSettings": {
         "network": "tcp",
+        "sockopt": {
+          "acceptProxyProtocol": true
+        },
         "security": "reality",
         "realitySettings": {
           "show": false,
@@ -224,6 +233,9 @@
       },
       "streamSettings": {
         "network": "{{ xray_v2_xhttp.network }}",
+        "sockopt": {
+          "acceptProxyProtocol": true
+        },
         "security": "reality",
         "realitySettings": {
           "show": false,

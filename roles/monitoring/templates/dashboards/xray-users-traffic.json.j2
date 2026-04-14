@@ -246,12 +246,13 @@
       "collapsed": false,
       "gridPos": {"h": 1, "w": 24, "x": 0, "y": 42},
       "id": 30,
-      "title": "Карта локаций пользователей",
+      "title": "Карта локаций пользователей (ingress RU)",
       "type": "row"
     },
 
     {
       "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Геолокация по IP из access.log xray-bridge на RU (клиенты приходят на RU, дальше transparent stream на EU). Метрика job=xray-bridge-stats — не EU xray-stats.",
       "fieldConfig": {
         "defaults": {
           "color": {"mode": "palette-classic"},
@@ -291,7 +292,7 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "xray_user_last_country",
+          "expr": "xray_user_last_country{job=\"xray-bridge-stats\"}",
           "instant": true,
           "queryType": "instant",
           "range": false,
@@ -318,7 +319,7 @@
           }
         }
       ],
-      "title": "Карта локаций пользователей",
+      "title": "Карта локаций пользователей (RU ingress)",
       "type": "geomap"
     }
 
@@ -332,6 +333,6 @@
   "timezone": "browser",
   "title": "Xray — per-user upload / download",
   "uid": "raven-xray-users-traffic",
-  "version": 4,
+  "version": 5,
   "weekStart": ""
 }
