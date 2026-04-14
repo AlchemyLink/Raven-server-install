@@ -9,8 +9,10 @@ xray_log_config:
   logrotate_config: "/etc/logrotate.d/xray"
   dns_log: false
 
-# geosite.dat отсутствует в тестовой среде — используем пустой список.
+# geosite.dat / geoip.dat нет в CI и у ./tests/run.sh без установки ассетов —
+# пустой список блокировок и без правил geosite:/geoip: в direct-RU.
 xray_blocked_domains: []
+xray_direct_ru_enabled: false
 
 # testseed для тестирования рендера (Vision padding, v25.12.8+)
 xray_testseed: [900, 500, 900, 256]
