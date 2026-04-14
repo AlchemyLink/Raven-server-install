@@ -17,6 +17,8 @@ chmod +x tests/run.sh tests/scripts/gen-reality-keys.sh
 ./tests/run.sh
 ```
 
+Зафиксированный результат последнего прогона: [LAST_RUN.md](LAST_RUN.md).
+
 Скрипт:
 
 1. Скачивает Xray (кэш в `tests/.cache/`), выполняет `xray x25519`, пишет `tests/fixtures/test_secrets.yml` (в `.gitignore`).
@@ -48,7 +50,7 @@ ansible-playbook tests/playbooks/render_conf.yml
 | `playbooks/validate_vars.yml` | Проверки из роли |
 | `playbooks/render_conf.yml` | Рендер `conf.d` |
 | `fixtures/test_secrets.yml.example` | Пример секретов |
-| `fixtures/render_overrides.yml` | Логи в `/tmp/...`, чтобы `xray -test` не требовал `/var/log/Xray` |
+| `fixtures/render_overrides.yml` | Логи в `/tmp/...`, чтобы `xray -test` не требовал `/var/log/Xray`; без `geosite.dat`/`geoip.dat` в CI задано `xray_direct_ru_enabled: false`, иначе маршрутизация с `geosite:`/`geoip:` падает на «failed to open file: geosite.dat». |
 | `scripts/gen-reality-keys.sh` | Генерация валидных ключей Reality (`xray x25519`) |
 
 Рендер **не включает** `templates/conf/users/*.j2` — в роли `users.yml` по умолчанию отключён; фрагменты users только дополняют inbounds по tag вместе с основными файлами, отдельно для `-test` дают ошибку «no Port set».
