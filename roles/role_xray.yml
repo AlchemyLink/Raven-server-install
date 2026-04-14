@@ -1,8 +1,9 @@
 # File: playbooks/xray_setup.yml
 ---
 - name: Install and configure Xray
-  hosts: vm_my_srv
+  hosts: vm_my_ru2
   become: true
+  become_method: sudo
   gather_facts: true
 
   vars_files:
