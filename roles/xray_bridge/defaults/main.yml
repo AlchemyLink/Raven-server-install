@@ -103,6 +103,34 @@ xray_bridge_direct_domains:
   - "domain:avito.st"             # Avito image CDN (00-99.img.avito.st)
   # 2GIS — non-.ru international
   - "domain:2gis.com"             # 2GIS maps international
+  # Wildberries — non-.ru marketplace + CDN
+  - "domain:wildberries.com"      # Wildberries international domain
+  - "domain:wbcdn.net"            # Wildberries CDN
+  # Ozon — non-.ru CDN (Ozon blocks login when VPN detected)
+  - "domain:ozonusercontent.com"  # Ozon image/media CDN
+  - "domain:ozon.com"             # Ozon international
+  # QIWI — non-.ru payment system
+  - "domain:qiwi.com"             # QIWI wallet
+  - "domain:qiwi.net"             # QIWI CDN
+  # Sberbank — non-.ru international domains
+  - "domain:sberbank.com"         # Sber international
+  - "domain:sbrf.ru"              # Sber legacy (already in domain:ru but explicit)
+  # Tinkoff / T-Bank — non-.ru (TCS Group listed abroad)
+  - "domain:tinkoff.com"          # Tinkoff international
+  # HeadHunter — non-.ru international
+  - "domain:hh.com"               # HH.com international
+  # CDEK — non-.ru delivery service
+  - "domain:cdek.com"             # CDEK international
+  # Kaspersky / Dr.Web — security software update servers
+  - "domain:kaspersky.com"        # Kaspersky update/activation
+  - "domain:kaspersky-labs.com"   # Kaspersky labs CDN
+  - "domain:drweb.com"            # Dr.Web update servers
+  # RuStore — Russian app store non-.ru assets
+  - "domain:rustore.ru"           # RuStore (covered by domain:ru but explicit)
+  # MTS — non-.ru CDN
+  - "domain:mts.com"              # MTS international
+  # Megafon — non-.ru
+  - "domain:megafon.com"          # Megafon international
 
 xray_bridge_direct_ips:
   - "geoip:ru"
@@ -147,9 +175,15 @@ xray_bridge_api_services:
 # ── DNS ──────────────────────────────────────────────────────────────────────
 # Plain TCP DNS for bridge's own outbound lookups. No DoH — DoH requests would
 # route through the chain and cause EOF failures.
+#
+# Yandex DNS (77.88.8.8) is the primary server — resolves .ru domains to Russian
+# IPs reliably, ensuring geoip:ru routing fires on split-routing direct rules.
+# 8.8.8.8 / 1.1.1.1 as fallback for domains not in Russian DNS.
 xray_bridge_dns_servers:
-  - "tcp+local://8.8.8.8"
-  - "tcp+local://1.1.1.1"
+  - "tcp+local://77.88.8.8"      # Yandex DNS — optimal for .ru resolution
+  - "tcp+local://77.88.8.1"      # Yandex DNS secondary
+  - "tcp+local://8.8.8.8"        # Google DNS fallback
+  - "tcp+local://1.1.1.1"        # Cloudflare DNS fallback
 xray_bridge_dns_query_strategy: "UseIPv4"
 
 # ── Logging ───────────────────────────────────────────────────────────────────
