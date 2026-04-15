@@ -1,4 +1,12 @@
 ---
+- name: Nginx frontend | Remove orphan stream configs (old domain names)
+  ansible.builtin.shell: |
+    find /etc/nginx/stream.d/ -name '*.conf' \
+      ! -name '{{ nginx_frontend_domain }}.conf' \
+      -delete
+  changed_when: false
+  tags: nginx_frontend_stream
+
 - name: Nginx frontend | Ensure stream.d directory exists
   ansible.builtin.file:
     path: /etc/nginx/stream.d
