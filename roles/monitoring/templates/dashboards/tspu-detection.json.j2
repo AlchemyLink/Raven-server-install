@@ -38,20 +38,20 @@
         },
         "overrides": []
       },
-      "gridPos": {"h": 5, "w": 8, "x": 0, "y": 1},
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 1},
       "id": 1,
       "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"]}, "textMode": "auto"},
       "targets": [
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "sum(xray_handshake_failure_total) or vector(0)",
+          "expr": "sum(xray_handshake_failure_total{job=~\"xray-stats|xray-bridge-stats\"}) or vector(0)",
           "instant": true,
           "legendFormat": "Handshake Failures",
           "refId": "A"
         }
       ],
-      "title": "Handshake Failures",
+      "title": "Handshake Failures (EU+Bridge)",
       "type": "stat"
     },
 
@@ -61,26 +61,26 @@
         "defaults": {
           "color": {"fixedColor": "orange", "mode": "fixed"},
           "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "orange", "value": 10}]},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "orange", "value": 20}]},
           "unit": "short",
           "noValue": "0"
         },
         "overrides": []
       },
-      "gridPos": {"h": 5, "w": 8, "x": 8, "y": 1},
+      "gridPos": {"h": 5, "w": 6, "x": 6, "y": 1},
       "id": 2,
       "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"]}, "textMode": "auto"},
       "targets": [
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "sum(xray_connection_reset_total) or vector(0)",
+          "expr": "sum(xray_connection_reset_total{job=~\"xray-stats|xray-bridge-stats\"}) or vector(0)",
           "instant": true,
           "legendFormat": "Connection Resets",
           "refId": "A"
         }
       ],
-      "title": "Connection Resets (TCP RST)",
+      "title": "Connection Resets / Broken Pipe (EU+Bridge)",
       "type": "stat"
     },
 
@@ -96,20 +96,49 @@
         },
         "overrides": []
       },
-      "gridPos": {"h": 5, "w": 8, "x": 16, "y": 1},
+      "gridPos": {"h": 5, "w": 6, "x": 12, "y": 1},
       "id": 3,
       "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"]}, "textMode": "auto"},
       "targets": [
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "sum(xray_probe_detected_total) or vector(0)",
+          "expr": "sum(xray_probe_detected_total{job=~\"xray-stats|xray-bridge-stats\"}) or vector(0)",
           "instant": true,
           "legendFormat": "Probes",
           "refId": "A"
         }
       ],
-      "title": "Probes Detected",
+      "title": "Active Probes Detected (EU+Bridge)",
+      "type": "stat"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"fixedColor": "purple", "mode": "fixed"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 50}, {"color": "red", "value": 200}]},
+          "unit": "short",
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 18, "y": 1},
+      "id": 4,
+      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"]}, "textMode": "auto"},
+      "targets": [
+        {
+          "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+          "editorMode": "code",
+          "expr": "sum(xray_throughput_degradation_total{job=~\"xray-stats|xray-bridge-stats\"}) or vector(0)",
+          "instant": true,
+          "legendFormat": "Degradation",
+          "refId": "A"
+        }
+      ],
+      "title": "Throughput Degradation Events (EU+Bridge)",
       "type": "stat"
     },
 
@@ -151,26 +180,26 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "sum(increase(xray_handshake_failure_total[$__rate_interval]))",
+          "expr": "sum(increase(xray_handshake_failure_total{job=~\"xray-stats|xray-bridge-stats\"}[$__rate_interval]))",
           "legendFormat": "Handshake Failures",
           "refId": "A"
         },
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "sum(increase(xray_connection_reset_total[$__rate_interval]))",
-          "legendFormat": "Connection Resets",
+          "expr": "sum(increase(xray_connection_reset_total{job=~\"xray-stats|xray-bridge-stats\"}[$__rate_interval]))",
+          "legendFormat": "Connection Resets / Broken Pipe",
           "refId": "B"
         },
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "sum(increase(xray_probe_detected_total[$__rate_interval]))",
-          "legendFormat": "Probes",
+          "expr": "sum(increase(xray_probe_detected_total{job=~\"xray-stats|xray-bridge-stats\"}[$__rate_interval]))",
+          "legendFormat": "Active Probes",
           "refId": "C"
         }
       ],
-      "title": "TSPU события за период",
+      "title": "TSPU события за период (EU + Bridge)",
       "type": "timeseries"
     },
 
@@ -207,12 +236,12 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "increase(xray_handshake_failure_total[$__rate_interval])",
-          "legendFormat": "{% raw %}{{inbound}}{% endraw %}",
+          "expr": "increase(xray_handshake_failure_total{job=~\"xray-stats|xray-bridge-stats\"}[$__rate_interval])",
+          "legendFormat": "{% raw %}{{job}}/{{inbound}}{% endraw %}",
           "refId": "A"
         }
       ],
-      "title": "Handshake Failures по inbound",
+      "title": "Handshake Failures по inbound (EU + Bridge)",
       "type": "timeseries"
     },
 
@@ -240,12 +269,12 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "increase(xray_connection_reset_total[$__rate_interval])",
-          "legendFormat": "{% raw %}{{inbound}}{% endraw %}",
+          "expr": "increase(xray_connection_reset_total{job=~\"xray-stats|xray-bridge-stats\"}[$__rate_interval])",
+          "legendFormat": "{% raw %}{{job}}/{{inbound}}{% endraw %}",
           "refId": "A"
         }
       ],
-      "title": "Connection Resets по inbound",
+      "title": "Connection Resets / Broken Pipe по inbound (EU + Bridge)",
       "type": "timeseries"
     },
 
@@ -268,13 +297,13 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "sort_desc(xray_handshake_failure_total)",
+          "expr": "sort_desc(xray_handshake_failure_total{job=~\"xray-stats|xray-bridge-stats\"})",
           "instant": true,
-          "legendFormat": "{% raw %}{{inbound}}{% endraw %}",
+          "legendFormat": "{% raw %}{{job}}/{{inbound}}{% endraw %}",
           "refId": "A"
         }
       ],
-      "title": "Handshake Failures всего (топ inbound)",
+      "title": "Handshake Failures всего (топ inbound, EU+Bridge)",
       "type": "bargauge"
     },
 
@@ -297,13 +326,13 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "sort_desc(xray_connection_reset_total)",
+          "expr": "sort_desc(xray_connection_reset_total{job=~\"xray-stats|xray-bridge-stats\"})",
           "instant": true,
-          "legendFormat": "{% raw %}{{inbound}}{% endraw %}",
+          "legendFormat": "{% raw %}{{job}}/{{inbound}}{% endraw %}",
           "refId": "A"
         }
       ],
-      "title": "Connection Resets всего (топ inbound)",
+      "title": "Connection Resets всего (топ inbound, EU+Bridge)",
       "type": "bargauge"
     },
 
@@ -326,13 +355,13 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "sort_desc(xray_probe_detected_total)",
+          "expr": "sort_desc(xray_probe_detected_total{job=~\"xray-stats|xray-bridge-stats\"})",
           "instant": true,
-          "legendFormat": "{% raw %}{{inbound}}{% endraw %}",
+          "legendFormat": "{% raw %}{{job}}/{{inbound}}{% endraw %}",
           "refId": "A"
         }
       ],
-      "title": "Probes всего (топ inbound)",
+      "title": "Active Probes всего (топ inbound, EU+Bridge)",
       "type": "bargauge"
     },
 
@@ -350,7 +379,7 @@
         "defaults": {
           "color": {"fixedColor": "purple", "mode": "fixed"},
           "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}]},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 50}, {"color": "red", "value": 200}]},
           "unit": "short",
           "noValue": "0"
         },
@@ -363,7 +392,7 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "sum(xray_throughput_degradation_total) or vector(0)",
+          "expr": "sum(xray_throughput_degradation_total{job=~\"xray-stats|xray-bridge-stats\"}) or vector(0)",
           "instant": true,
           "legendFormat": "Degradation Events",
           "refId": "A"
@@ -399,8 +428,8 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "xray_inbound_throughput_bytes_per_second",
-          "legendFormat": "{% raw %}{{inbound}}{% endraw %}",
+          "expr": "xray_inbound_throughput_bytes_per_second{job=~\"xray-stats|xray-bridge-stats\"}",
+          "legendFormat": "{% raw %}{{job}}/{{inbound}}{% endraw %}",
           "refId": "A"
         }
       ],
@@ -432,8 +461,8 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "increase(xray_throughput_degradation_total[$__rate_interval])",
-          "legendFormat": "{% raw %}{{inbound}}{% endraw %}",
+          "expr": "increase(xray_throughput_degradation_total{job=~\"xray-stats|xray-bridge-stats\"}[$__rate_interval])",
+          "legendFormat": "{% raw %}{{job}}/{{inbound}}{% endraw %}",
           "refId": "A"
         }
       ],
@@ -460,9 +489,9 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "sort_desc(xray_throughput_degradation_total)",
+          "expr": "sort_desc(xray_throughput_degradation_total{job=~\"xray-stats|xray-bridge-stats\"})",
           "instant": true,
-          "legendFormat": "{% raw %}{{inbound}}{% endraw %}",
+          "legendFormat": "{% raw %}{{job}}/{{inbound}}{% endraw %}",
           "refId": "A"
         }
       ],

@@ -378,7 +378,7 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "sum(rate(xray_outbound_requests_total{job=\"xray-bridge\",outbound=~\"direct.*\"}[5m])) / sum(rate(xray_outbound_requests_total{job=\"xray-bridge\"}[5m]))",
+          "expr": "(sum(xray_outbound_requests_total{job=\"xray-bridge\",outbound=~\"direct.*\"}) or vector(0)) / clamp_min(sum(xray_outbound_requests_total{job=\"xray-bridge\"}) or vector(0), 1)",
           "instant": true,
           "refId": "A"
         }
