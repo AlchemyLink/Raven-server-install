@@ -148,6 +148,30 @@
     state: link
     force: true
 
+# ── Geo data (ensure Loyalsoldier enhanced build is present) ─────────────────
+# The Xray-core zip includes basic v2fly geoip/geosite, but routing config uses
+# categories like geosite:category-gov-ru that require the enhanced Loyalsoldier
+# build. Download unconditionally to keep assets fresh.
+- name: Download Loyalsoldier geosite.dat
+  ansible.builtin.get_url:
+    url: "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
+    dest: "{{ xray_install_dir }}/geosite.dat"
+    mode: "0644"
+    owner: "{{ xray_user }}"
+    group: "{{ xray_group }}"
+  retries: 3
+  delay: 3
+
+- name: Download Loyalsoldier geoip.dat
+  ansible.builtin.get_url:
+    url: "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat"
+    dest: "{{ xray_install_dir }}/geoip.dat"
+    mode: "0644"
+    owner: "{{ xray_user }}"
+    group: "{{ xray_group }}"
+  retries: 3
+  delay: 3
+
 - name: Deploy Logrotate configuration for Xray
   ansible.builtin.template:
     src: logrotate.json.j2
