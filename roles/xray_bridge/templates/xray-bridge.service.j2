@@ -1,7 +1,10 @@
 [Unit]
 Description=Xray Bridge Service (RU chain proxy)
 Documentation=https://xtls.github.io/documents/
-After=network.target nss-lookup.target
+# WireGuard must be up before xray-bridge binds to 10.10.0.2 — without this,
+# xray-bridge fails with "bind: cannot assign requested address" on boot.
+After=network.target nss-lookup.target wg-quick@wg0.service
+Wants=wg-quick@wg0.service
 
 [Service]
 User={{ xray_bridge_user }}
