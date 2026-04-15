@@ -10,7 +10,7 @@
 - name: Deploy WireGuard
   hosts:
     - vm_my_srv
-    - vm_my_ru
+    - vm_my_ru2
   become: true
 
   vars_files:
