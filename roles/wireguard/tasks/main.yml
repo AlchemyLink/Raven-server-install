@@ -11,5 +11,5 @@
 
 - name: Configure WireGuard on RU
   ansible.builtin.import_tasks: ru.yml
-  when: inventory_hostname == 'vm_my_ru'
+  when: inventory_hostname == 'vm_my_ru2'
   tags: wireguard_ru

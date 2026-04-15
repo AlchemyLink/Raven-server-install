@@ -9,7 +9,7 @@
 - name: Deploy monitoring stack
   hosts:
     - vm_my_srv
-    - vm_my_ru
+    - vm_my_ru2
   become: true
   roles:
     - role: monitoring
