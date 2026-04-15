@@ -46,6 +46,11 @@ vmagent_group: "vmagent"
 # WireGuard network (for ufw rules on RU)
 wg_network: "10.10.0.0/24"
 
+# Server public IPs — derived from inventory; used in Grafana dashboards and alerts.
+# Override in group_vars/host_vars if inventory structure differs.
+monitoring_eu_host: "{{ hostvars['vm_my_srv']['ansible_host'] }}"
+monitoring_ru_host: "{{ hostvars['vm_my_ru2']['ansible_host'] }}"
+
 # node_exporter (system metrics: CPU, RAM, disk, network)
 node_exporter_version: "latest"
 node_exporter_listen: "127.0.0.1:9100"         # EU: localhost only
@@ -150,6 +155,6 @@ blackbox_inbound_probes:
     server: "eu"
   # RU VPS — xray-bridge inbound (via RU nginx :443)
   - name: "xray-bridge"
-    target: "{{ hostvars['vm_my_ru']['ansible_host'] }}:443"
+    target: "{{ hostvars['vm_my_ru2']['ansible_host'] }}:443"
     sni: "www.wikipedia.org"
     server: "ru"

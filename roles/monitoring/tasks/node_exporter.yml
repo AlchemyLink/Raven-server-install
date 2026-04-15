@@ -71,7 +71,7 @@
     node_exporter_listen: >-
       {{
         node_exporter_ru_listen
-        if inventory_hostname == 'vm_my_ru'
+        if inventory_hostname in ['vm_my_ru', 'vm_my_ru2']
         else node_exporter_listen
       }}
 
@@ -98,4 +98,4 @@
     port: "9100"
     proto: tcp
     comment: "node_exporter via WireGuard"
-  when: inventory_hostname == 'vm_my_ru'
+  when: inventory_hostname in ['vm_my_ru', 'vm_my_ru2']
