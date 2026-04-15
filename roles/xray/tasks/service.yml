@@ -17,18 +17,54 @@
   when: ansible_facts.service_mgr == "openrc"
   notify: Restart xray
 
+- name: Validate Xray config before starting
+  ansible.builtin.command:
+    cmd: "{{ xray_install_dir }}/xray -test -confdir {{ xray_config_dir }}config.d"
+  register: xray_config_test
+  changed_when: false
+  failed_when: false
+
+- name: Fail with config validation details
+  ansible.builtin.fail:
+    msg: |
+      Xray config validation failed (rc={{ xray_config_test.rc }}).
+      stdout: {{ xray_config_test.stdout | default('') }}
+      stderr: {{ xray_config_test.stderr | default('') }}
+      Hint: check geo assets exist: ls -la {{ xray_install_dir }}/geosite.dat {{ xray_install_dir }}/geoip.dat
+  when: xray_config_test.rc != 0
+
 - name: Ensure Xray service is enabled and started
   ansible.builtin.service:
     name: "{{ xray_service_name }}"
     enabled: true
     state: started
+  register: xray_service_start
+
+- name: Wait for Xray service to stabilize
+  ansible.builtin.pause:
+    seconds: 2
+  when: xray_service_start.changed
 
 - name: Gather service facts
   ansible.builtin.service_facts:
 
+- name: Collect journal on failure
+  ansible.builtin.command:
+    cmd: "journalctl -u {{ xray_service_name }} --no-pager -n 30"
+  register: xray_journal
+  changed_when: false
+  failed_when: false
+  when:
+    - ansible_facts.services is defined
+    - ansible_facts.services[xray_service_name + '.service'] is defined
+    - ansible_facts.services[xray_service_name + '.service'].state != 'running'
+
 - name: Validate Xray service is running
   ansible.builtin.fail:
-    msg: "Xray service is not running"
+    msg: |
+      Xray service is not running.
+      Journal (last 30 lines):
+      {{ xray_journal.stdout | default('(no journal output)') }}
   when:
     - ansible_facts.services is defined
     - ansible_facts.services[xray_service_name + '.service'] is defined
