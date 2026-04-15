@@ -53,17 +53,12 @@
   failed_when: false
   when: xray_bin_dir is defined and xray_bin_dir != ''
 
-- name: Correct permissions for Xray service files (if necessary)
-  ansible.builtin.file:
-    path: "{{ xray_install_dir }}"
-    owner: "{{ xray_user }}"
-    group: "{{ xray_group }}"
-
-- name: Ensure Xray install directory exists
+- name: Ensure Xray install directory exists with correct ownership
   ansible.builtin.file:
     path: "{{ xray_install_dir }}"
     state: directory
-
+    owner: "{{ xray_user }}"
+    group: "{{ xray_group }}"
     mode: "0755"
 
 - name: Ensure Xray config directory exists
