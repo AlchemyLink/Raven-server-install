@@ -17,12 +17,26 @@
   when: ansible_facts.service_mgr == "openrc"
   notify: Restart xray
 
+- name: Check config.d is not empty
+  ansible.builtin.find:
+    paths: "{{ xray_config_dir }}config.d"
+    patterns: "*.json"
+  register: xray_config_files
+
+- name: Fail if config.d has no JSON files
+  ansible.builtin.fail:
+    msg: >-
+      No JSON config files found in {{ xray_config_dir }}config.d/.
+      Run the full playbook (without --tags) to generate configs first.
+  when: xray_config_files.matched == 0
+
 - name: Validate Xray config before starting
   ansible.builtin.command:
     cmd: "{{ xray_install_dir }}/xray -test -confdir {{ xray_config_dir }}config.d"
   register: xray_config_test
   changed_when: false
   failed_when: false
+  timeout: 30
 
 - name: Fail with config validation details
   ansible.builtin.fail:
