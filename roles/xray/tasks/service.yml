@@ -47,6 +47,15 @@
       Hint: check geo assets exist: ls -la {{ xray_install_dir }}/geosite.dat {{ xray_install_dir }}/geoip.dat
   when: xray_config_test.rc != 0
 
+- name: Restore log directory ownership after config test
+  ansible.builtin.file:
+    path: "{{ xray_log_dir }}"
+    state: directory
+    owner: "{{ xray_user }}"
+    group: "{{ xray_group }}"
+    mode: "0755"
+    recurse: true
+
 - name: Ensure Xray service is enabled and started
   ansible.builtin.service:
     name: "{{ xray_service_name }}"
