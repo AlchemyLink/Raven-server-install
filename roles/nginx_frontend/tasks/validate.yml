@@ -1,2 +1,20 @@
 ---
-# nginx_frontend uses self-signed cert — no domain or certbot required
+- name: Nginx frontend | Validate nginx_frontend_domain is defined
+  ansible.builtin.assert:
+    that:
+      - nginx_frontend_domain is defined
+      - nginx_frontend_domain | length > 0
+    fail_msg: >-
+      nginx_frontend_domain is not set.
+      Add it to roles/nginx_frontend/defaults/secrets.yml (e.g. nginx_frontend_domain: "example.com")
+    success_msg: "nginx_frontend_domain is set: {{ nginx_frontend_domain }}"
+
+- name: Nginx frontend | Validate nginx_frontend_certbot_email is defined
+  ansible.builtin.assert:
+    that:
+      - nginx_frontend_certbot_email is defined
+      - nginx_frontend_certbot_email | length > 0
+    fail_msg: >-
+      nginx_frontend_certbot_email is not set.
+      Add it to roles/nginx_frontend/defaults/secrets.yml
+    success_msg: "nginx_frontend_certbot_email is set"
