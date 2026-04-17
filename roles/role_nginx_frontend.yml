@@ -1,7 +1,7 @@
 ---
 # nginx frontend playbook — EU VPS
 # Usage:
-#   ansible-playbook roles/role_nginx_frontend.yml -i roles/hosts.yml \
+#   ansible-playbook roles/role_nginx_frontend.yml -i roles/nginx_frontend/inventory.ini \
 #     --vault-password-file vault_password.txt
 #
 # Tags:
@@ -12,7 +12,7 @@
 #   nginx_frontend_stream   — deploy TCP stream relay for VLESS Reality
 
 - name: Configure nginx frontend
-  hosts: vm_my_srv
+  hosts: vpn
   become: true
 
   vars_files:
