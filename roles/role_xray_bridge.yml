@@ -9,12 +9,12 @@
 #
 # Deployment:
 #   ansible-playbook roles/role_xray_bridge.yml \
-#     -i roles/relay/inventory.ini \
+#     -i roles/hosts.yml \
 #     --vault-password-file vault_password.txt
 #
 # After deploying the bridge, update relay role to route bridge SNI:
 #   Set relay_bridge_enabled=true and relay_bridge_sni in relay secrets.yml
-#   ansible-playbook roles/role_relay.yml -i roles/relay/inventory.ini \
+#   ansible-playbook roles/role_relay.yml -i roles/hosts.yml \
 #     --vault-password-file vault_password.txt --tags relay_stream
 #
 # Tags:
