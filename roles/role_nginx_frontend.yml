@@ -1,7 +1,7 @@
 ---
 # nginx frontend playbook — EU VPS
 # Usage:
-#   ansible-playbook roles/role_nginx_frontend.yml -i roles/nginx_frontend/inventory.ini \
+#   ansible-playbook roles/role_nginx_frontend.yml -i roles/hosts.yml \
 #     --vault-password-file vault_password.txt
 #
 # Tags:
