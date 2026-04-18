@@ -344,6 +344,7 @@ raven_subscribe_inbound_ports:
 ### `roles/nginx_frontend/defaults/secrets.yml`
 
 ```yaml
+nginx_frontend_domain: "your-domain.com"
 nginx_frontend_certbot_email: "admin@example.com"
 ```
 
@@ -401,7 +402,6 @@ singbox:
 
 | Переменная | По умолчанию | Описание |
 |-----------|--------------|---------|
-| `nginx_frontend_domain` | `media.example.com` | Домен EU VPS — используется для TLS сертификата и SNI routing |
 | `nginx_frontend_listen_port` | `8443` | Внутренний порт nginx HTTPS (проксируется из :443 через stream) |
 | `nginx_frontend_raven_port` | `8080` | Порт upstream Raven-subscribe |
 | `nginx_frontend_stream_xhttp_sni` | `www.adobe.com` | SNI для маршрутизации на Xray XHTTP inbound |
