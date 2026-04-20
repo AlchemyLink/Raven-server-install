@@ -3,6 +3,7 @@
   ansible.builtin.apt:
     name:
       - nginx
+      - libnginx-mod-stream
       - certbot
       - python3-certbot-nginx
     state: present
@@ -30,4 +31,4 @@
 - name: Nginx frontend | Fail with clear message
   when: _nginx_start_result is failed
   ansible.builtin.fail:
-    msg: "nginx failed to start — see journal output above. If you see 'unknown directive http2', your nginx version is < 1.25.1. Run with --tags nginx_frontend_ssl to redeploy the config after this is fixed."
+    msg: "nginx failed to start — see journal output above. Common causes: 'unknown directive stream' means libnginx-mod-stream is missing (reinstall with --tags nginx_frontend_install); 'unknown directive http2' means nginx < 1.25.1."
