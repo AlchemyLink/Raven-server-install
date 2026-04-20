@@ -12,8 +12,10 @@
 
 # ── HTTPS ─────────────────────────────────────────────────────────────────────
 server {
-    listen {{ nginx_frontend_listen_port }} ssl;
+    listen {{ nginx_frontend_listen_port }} ssl{{ '' if _nginx_has_http2_directive else ' http2' }};
+{% if _nginx_has_http2_directive %}
     http2 on;
+{% endif %}
     server_name _;
 
     ssl_certificate     /etc/nginx/ssl/nginx-frontend.crt;
