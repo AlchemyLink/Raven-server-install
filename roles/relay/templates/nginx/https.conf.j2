@@ -6,8 +6,10 @@
 
 # ── {{ relay_domain }} — stub site ──────────────────────────────────────────────────
 server {
-    listen {{ relay_https_port }} ssl;
+    listen {{ relay_https_port }} ssl{{ '' if _nginx_has_http2_directive else ' http2' }};
+{% if _nginx_has_http2_directive %}
     http2 on;
+{% endif %}
     server_name {{ relay_domain }};
 
     ssl_certificate     /etc/letsencrypt/live/{{ relay_domain }}/fullchain.pem;
@@ -25,8 +27,10 @@ server {
 
 # ── {{ relay_sub_my }} — Raven-subscribe relay ───────────────────────────────────
 server {
-    listen {{ relay_https_port }} ssl;
+    listen {{ relay_https_port }} ssl{{ '' if _nginx_has_http2_directive else ' http2' }};
+{% if _nginx_has_http2_directive %}
     http2 on;
+{% endif %}
     server_name {{ relay_sub_my }};
 
     ssl_certificate     /etc/letsencrypt/live/{{ relay_domain }}/fullchain.pem;
