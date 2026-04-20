@@ -8,7 +8,10 @@
       - raven_subscribe_server_host != ''
     fail_msg: >-
       raven_subscribe_admin_token and raven_subscribe_server_host must be set in secrets.yml.
-      Generate a strong token: openssl rand -hex 32
+      Copy the example file and fill in your values:
+        cp roles/raven_subscribe/defaults/secrets.yml.example roles/raven_subscribe/defaults/secrets.yml
+        # edit the file, then encrypt:
+        ansible-vault encrypt roles/raven_subscribe/defaults/secrets.yml --vault-password-file vault_password.txt
     success_msg: "Raven-subscribe vars are valid"
 
 - name: Raven-subscribe | Get latest release info
