@@ -1,4 +1,15 @@
 ---
+- name: Nginx frontend | Detect nginx version for http2 directive
+  ansible.builtin.command: nginx -v
+  register: _nginx_version_output
+  changed_when: false
+
+- name: Nginx frontend | Set http2 directive fact
+  ansible.builtin.set_fact:
+    _nginx_has_http2_directive: >-
+      {{ (_nginx_version_output.stderr | regex_search('nginx/(\d+\.\d+\.\d+)', '\1') | first | default('0.0.0'))
+         is version('1.25.1', '>=') }}
+
 - name: Nginx frontend | Deploy HTTPS config
   ansible.builtin.template:
     src: nginx/https.conf.j2
