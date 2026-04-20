@@ -13,3 +13,21 @@
     name: nginx
     enabled: true
     state: started
+  register: _nginx_start_result
+  ignore_errors: true
+
+- name: Nginx frontend | Show nginx error log on start failure
+  when: _nginx_start_result is failed
+  ansible.builtin.command: journalctl -u nginx -n 30 --no-pager
+  register: _nginx_journal
+  changed_when: false
+
+- name: Nginx frontend | Print nginx journal
+  when: _nginx_start_result is failed
+  ansible.builtin.debug:
+    msg: "{{ _nginx_journal.stdout_lines }}"
+
+- name: Nginx frontend | Fail with clear message
+  when: _nginx_start_result is failed
+  ansible.builtin.fail:
+    msg: "nginx failed to start — see journal output above. If you see 'unknown directive http2', your nginx version is < 1.25.1. Run with --tags nginx_frontend_ssl to redeploy the config after this is fixed."
