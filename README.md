@@ -10,15 +10,15 @@ Ansible playbooks for deploying a production-ready self-hosted VPN server stack 
 **What you get:**
 
 - Xray-core with VLESS + XTLS-Reality (TCP) and VLESS + XHTTP (HTTP/2) inbounds
+- V2 parallel inbounds with isolated Reality keys for forward secrecy
+- Post-quantum VLESS Encryption (mlkem768x25519plus, Xray-core ≥ 26.x)
 - nginx SNI routing on port 443 — all VPN traffic goes through standard HTTPS port
-- Optional post-quantum VLESS Encryption (mlkem768x25519plus, Xray-core ≥ 26.x)
+- Optional RU chain proxy (`xray_bridge` role) — RU VPS accepts client connections with EU keys, chains to EU via XHTTP
 - Optional Hysteria2 via [sing-box](https://github.com/SagerNet/sing-box)
 - [Raven-subscribe](https://github.com/AlchemyLink/Raven-subscribe) — subscription server: auto-discovers users, serves client configs via personal URLs
 - [xray-stats-exporter](https://github.com/AlchemyLink/xray-stats-exporter) + VictoriaMetrics + Grafana — monitoring with per-user and per-inbound traffic dashboards
-- nginx TLS frontend on EU VPS (`nginx_frontend` role) with PROXY protocol for real client IPs
-- nginx SNI relay on RU VPS — hides EU server IP from clients (`relay` role)
 - Systemd services with config validation before every reload
-- Ad and tracker blocking via geosite routing rules (`geosite:category-ads-all`)
+- Ad and tracker blocking via geosite routing rules
 - BBR congestion control and sysctl tuning (`srv_prepare` role)
 
 ---
@@ -35,6 +35,7 @@ Ansible playbooks for deploying a production-ready self-hosted VPN server stack 
 - [VLESS Encryption (optional)](#vless-encryption-optional)
 - [Hysteria2 / sing-box (optional)](#hysteria2--sing-box-optional)
 - [Testing](#testing)
+- [Troubleshooting](#troubleshooting)
 - [Related Projects](#related-projects)
 - [License](#license)
 
@@ -54,30 +55,26 @@ Client  ──VLESS+XHTTP────►  VPS:443 (nginx SNI) ──► VPS:2053
 Client  ──subscription───►  VPS:443 (nginx SNI) ──► VPS:8443 (nginx HTTPS) ──► Raven:8080
 ```
 
-### Dual-server with RU relay (recommended for CIS users)
+### Dual-server with transparent RU bridge (recommended for CIS users)
 
 EU VPS runs Xray + nginx_frontend + Raven-subscribe.
-RU VPS runs an SNI relay that hides the EU IP from clients and passes traffic through.
+RU VPS runs an SNI relay + xray_bridge. Clients use their **existing EU configs unchanged** — RU nginx routes each SNI to the bridge, which accepts connections using EU Reality keys and chains to EU via XHTTP.
 
 ```
-EU VPS                               RU VPS (example.com)
-┌────────────────────────────────┐   ┌─────────────────────────────────────┐
-│ nginx stream :443 (SNI routing)│   │ nginx stream :443 (SNI routing)     │
-│   SNI dest.com  → Xray :4443   │◄──│   SNI dest.com  → EU:443            │
-│   SNI adobe.com → Xray :2053   │◄──│   SNI adobe.com → EU:443            │
-│   SNI my.domain → nginx :8443  │   │   SNI my.domain → local nginx :8443 │
-│                                │   │     → EU:8443 → Raven :8080         │
-│ Raven-subscribe :8080 (local)  │   └─────────────────────────────────────┘
-└────────────────────────────────┘                   ▲
-                                                  clients
+Client (unchanged EU config)
+       │ SNI: askubuntu.com / dl.google.com / addons.mozilla.org
+       ▼
+RU VPS :443 (nginx SNI routing)
+  ├─ askubuntu.com     → xray-bridge :5444  (Reality transparent inbound, EU v1 keys)
+  ├─ dl.google.com     → xray-bridge :5446  (Reality v2, EU v2 keys + mldsa65)
+  ├─ addons.mozilla.org→ xray-bridge :5447  (XHTTP v2, EU v2 keys)
+  └─ www.wikipedia.org → xray-bridge :5443  (bridge-specific inbound)
+       │
+       ▼ XHTTP packet-up, EU v2 Reality keys
+EU VPS :443 (nginx SNI) → Xray XHTTP :2054 → Internet
 ```
 
-**Client connection flow:**
-```
-VLESS Reality:  client → RU:443 (SNI relay) → EU:443 (nginx SNI) → Xray:4443
-VLESS XHTTP:    client → RU:443 (SNI relay) → EU:443 (nginx SNI) → Xray:2053
-Subscription:   client → my.example.com:443 → RU nginx → EU:8443 → Raven:8080
-```
+Raven-subscribe on EU automatically syncs users to bridge inbounds via WireGuard+gRPC.
 
 ### Role map
 
@@ -85,21 +82,25 @@ Subscription:   client → my.example.com:443 → RU nginx → EU:8443 → Raven
 |------|-----|----------|--------------|
 | `srv_prepare` | EU | `role_xray.yml` | BBR, sysctl tuning, system user `xrayuser` |
 | `xray` | EU | `role_xray.yml` | Xray binary + split config in `/etc/xray/config.d/` |
-| `raven_subscribe` | EU | `role_raven_subscribe.yml` | Subscription server, gRPC sync with Xray |
-| `nginx_frontend` | EU | `role_nginx_frontend.yml` | nginx SNI routing on :443, HTTPS proxy on :8443, PROXY protocol |
-| `monitoring` | EU | `role_monitoring.yml` | xray-stats-exporter + VictoriaMetrics + Grafana |
+| `raven_subscribe` | EU | `role_raven_subscribe.yml` | Subscription server, gRPC sync with Xray and bridge |
+| `nginx_frontend` | EU | `role_nginx_frontend.yml` | nginx SNI routing on :443, HTTPS proxy on :8443 |
+| `monitoring` | EU+RU | `role_monitoring.yml` | xray-stats-exporter + VictoriaMetrics + Grafana |
+| `wireguard` | EU+RU | `role_wireguard.yml` | WireGuard mesh — EU↔RU tunnel for monitoring and bridge sync |
 | `sing-box-playbook` | EU | `role_sing-box.yml` | sing-box + Hysteria2 (optional) |
-| `relay` | RU | `role_relay.yml` | nginx SNI relay on :443 — forwards all VPN traffic to EU |
+| `relay` | RU | `role_relay.yml` | nginx SNI relay on :443 — forwards or routes VPN traffic |
+| `xray_bridge` | RU | `role_xray_bridge.yml` | Xray chain proxy — accepts client connections, chains to EU via XHTTP |
 
 ---
 
 ## Requirements
 
 - **Ansible** >= 2.14 (`ansible-core`)
-- **Target OS**: Debian/Ubuntu with systemd
+- **Target OS**: Debian 11+/Ubuntu 20.04+ with systemd
 - **Python 3** on the target server
 - **ansible-vault** for secrets management
 - **Docker** (optional, for local config validation tests)
+
+> **Note:** The `nginx_frontend` and `relay` roles install `libnginx-mod-stream` automatically. If nginx is already installed without it, run `sudo apt install libnginx-mod-stream && sudo systemctl restart nginx`.
 
 ---
 
@@ -112,9 +113,22 @@ git clone https://github.com/AlchemyLink/Raven-server-install.git
 cd Raven-server-install
 ```
 
-### 2. Create inventory
+### 2. Create vault password file
 
-For the **xray** and **raven_subscribe** roles, edit `roles/hosts.yml.example` (copy to `roles/hosts.yml`):
+```bash
+echo "your-strong-vault-password" > vault_password.txt
+chmod 600 vault_password.txt
+```
+
+### 3. Create inventory
+
+Copy the example and fill in your server IPs:
+
+```bash
+cp roles/hosts.yml.example roles/hosts.yml
+```
+
+Edit `roles/hosts.yml`:
 
 ```yaml
 all:
@@ -124,47 +138,40 @@ all:
         vm_my_srv:
           ansible_host: "EU_VPS_IP"
           ansible_port: 22
+        vm_my_ru2:                        # optional: RU VPS for relay + bridge
+          ansible_host: "RU_VPS_IP"
+          ansible_port: 22
+          ansible_user: deploy
       vars:
         ansible_user: deploy
         ansible_python_interpreter: /usr/bin/python3
         ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+        ansible_ssh_host_key_checking: false
 ```
 
-For **nginx_frontend** and **relay** roles, edit their respective `inventory.ini` files:
+### 4. Create secrets files
 
-```ini
-# roles/nginx_frontend/inventory.ini
-[eu]
-vpn ansible_host=EU_VPS_IP ansible_user=deploy
-
-# roles/relay/inventory.ini
-[relay]
-relay ansible_host=RU_VPS_IP ansible_user=deploy
-```
-
-### 3. Create secrets files
-
-Each role has a `defaults/secrets.yml.example`. Copy and fill in the values, then encrypt:
+Each role has a `defaults/secrets.yml.example`. Copy, fill in values, then encrypt:
 
 ```bash
-# Xray
+# Xray (EU)
 cp roles/xray/defaults/secrets.yml.example roles/xray/defaults/secrets.yml
-# edit roles/xray/defaults/secrets.yml
+# Edit: add Reality keys (xray x25519), short_id (openssl rand -hex 8), users (uuidgen)
 ansible-vault encrypt roles/xray/defaults/secrets.yml --vault-password-file vault_password.txt
 
-# Raven-subscribe
+# Raven-subscribe (EU)
 cp roles/raven_subscribe/defaults/secrets.yml.example roles/raven_subscribe/defaults/secrets.yml
-# edit roles/raven_subscribe/defaults/secrets.yml
+# Edit: set admin_token (openssl rand -hex 32) and server_host
 ansible-vault encrypt roles/raven_subscribe/defaults/secrets.yml --vault-password-file vault_password.txt
 
-# nginx_frontend (EU VPS)
+# nginx_frontend (EU)
 cp roles/nginx_frontend/defaults/secrets.yml.example roles/nginx_frontend/defaults/secrets.yml
-# edit roles/nginx_frontend/defaults/secrets.yml
+# Edit: set domain and certbot email
 ansible-vault encrypt roles/nginx_frontend/defaults/secrets.yml --vault-password-file vault_password.txt
 
-# relay (RU VPS)
+# relay (RU) — optional
 cp roles/relay/defaults/secrets.yml.example roles/relay/defaults/secrets.yml
-# edit roles/relay/defaults/secrets.yml
+# Edit: set relay_upstream_host (EU IP) and certbot email
 ansible-vault encrypt roles/relay/defaults/secrets.yml --vault-password-file vault_password.txt
 ```
 
@@ -174,36 +181,33 @@ To edit an encrypted file later:
 ansible-vault edit roles/xray/defaults/secrets.yml --vault-password-file vault_password.txt
 ```
 
-### 4. Generate Reality keys
-
-```bash
-# On any machine with Xray installed:
-xray x25519
-# Output: PrivateKey + PublicKey — put both into roles/xray/defaults/secrets.yml
-
-openssl rand -hex 8   # generates a short_id
-```
-
 ### 5. Deploy
 
+Deploy in this order (EU first, then RU):
+
 ```bash
-# EU server: Xray + system preparation
-ansible-playbook roles/role_xray.yml -i roles/hosts.yml --vault-password-file vault_password.txt
+VP=vault_password.txt
 
-# EU server: nginx TLS frontend + TCP stream relay
-ansible-playbook roles/role_nginx_frontend.yml -i roles/nginx_frontend/inventory.ini --vault-password-file vault_password.txt
+# EU — Xray + system preparation
+ansible-playbook roles/role_xray.yml -i roles/hosts.yml --vault-password-file $VP
 
-# EU server: Raven-subscribe
-ansible-playbook roles/role_raven_subscribe.yml -i roles/hosts.yml --vault-password-file vault_password.txt
+# EU — Raven-subscribe
+ansible-playbook roles/role_raven_subscribe.yml -i roles/hosts.yml --vault-password-file $VP
 
-# RU server: nginx relay
-ansible-playbook roles/role_relay.yml -i roles/relay/inventory.ini --vault-password-file vault_password.txt
+# EU — nginx TLS frontend + SNI stream routing
+ansible-playbook roles/role_nginx_frontend.yml -i roles/hosts.yml --vault-password-file $VP
+
+# RU — xray_bridge (deploy BEFORE relay)
+ansible-playbook roles/role_xray_bridge.yml -i roles/hosts.yml --vault-password-file $VP
+
+# RU — nginx relay
+ansible-playbook roles/role_relay.yml -i roles/hosts.yml --vault-password-file $VP
 ```
 
 Use `--tags` to deploy only a specific part:
 
 ```bash
-ansible-playbook roles/role_xray.yml -i roles/hosts.yml --vault-password-file vault_password.txt \
+ansible-playbook roles/role_xray.yml -i roles/hosts.yml --vault-password-file $VP \
   --tags xray_inbounds
 ```
 
@@ -215,20 +219,18 @@ ansible-playbook roles/role_xray.yml -i roles/hosts.yml --vault-password-file va
 
 Installs and configures Xray-core. Config is split across numbered JSON files in `/etc/xray/config.d/` — Xray loads them in order.
 
-**Task files and tags:**
+**Task tags:**
 
-| Tag | File | What it does |
-|-----|------|--------------|
-| `always` | `validate.yml` | Pre-flight assertions — runs before everything |
-| `xray_install` | `install.yml` | Downloads Xray binary from GitHub releases |
-| `xray_base` | `base.yml` | Writes `000-log.json`, `010-stats.json` |
-| `xray_api` | `api.yml` | Writes `050-api.json` (dokodemo-door on 127.0.0.1:10085) |
-| `xray_inbounds` | `inbounds.yml` | Writes `200-in-vless-reality.json`, `210-in-xhttp.json` |
-| `xray_dns` | `dns.yml` | Writes `100-dns.json` |
-| `xray_outbounds` | `outbounds.yml` | Writes `300-outbounds.json` |
-| `xray_routing` | `routing.yml` | Writes `400-routing.json` |
-| `xray_service` | `service.yml` | Deploys systemd unit, enables service |
-| `grpcurl` | `grpcurl.yml` | Installs grpcurl tool |
+| Tag | What it does |
+|-----|--------------|
+| `xray_install` | Downloads Xray binary from GitHub releases |
+| `xray_base` | Writes `000-log.json`, `010-stats.json` |
+| `xray_api` | Writes `050-api.json` (gRPC API on 127.0.0.1:10085) |
+| `xray_inbounds` | Writes VLESS Reality + XHTTP inbound configs |
+| `xray_dns` | Writes `100-dns.json` |
+| `xray_outbounds` | Writes `300-outbounds.json` (Finalmask fragment anti-DPI) |
+| `xray_routing` | Writes `400-routing.json` |
+| `xray_service` | Deploys systemd unit, enables service |
 
 **Config files layout:**
 
@@ -237,13 +239,15 @@ Installs and configures Xray-core. Config is split across numbered JSON files in
 | `000-log.json` | Log levels, file paths |
 | `010-stats.json` | Traffic statistics |
 | `050-api.json` | gRPC API (127.0.0.1:10085) |
-| `100-dns.json` | DNS servers and query strategy |
-| `200-in-vless-reality.json` | VLESS + XTLS-Reality inbound (TCP :443) |
-| `210-in-xhttp.json` | VLESS + XHTTP inbound (:2053) |
-| `300-outbounds.json` | Freedom + blackhole outbounds |
+| `100-dns.json` | DNS servers |
+| `200-in-vless-reality.json` | Legacy VLESS + Reality inbound (port 4443) |
+| `201-in-vless-reality-v2.json` | V2 VLESS + Reality inbound (port 4444, isolated keys) |
+| `210-in-xhttp.json` | Legacy VLESS + XHTTP inbound (port 2053) |
+| `211-in-xhttp-v2.json` | V2 VLESS + XHTTP inbound (port 2054) |
+| `300-outbounds.json` | Freedom (with Finalmask fragment) + blackhole |
 | `400-routing.json` | Routing rules + ad blocking |
 
-**Handler safety:** `Validate xray` must be defined before `Restart xray` in `handlers/main.yml`. Ansible executes handlers in definition order — this ensures an invalid config never triggers a restart.
+**Handler safety:** `Validate xray` runs before `Restart xray` — invalid config never triggers a restart.
 
 ---
 
@@ -251,7 +255,9 @@ Installs and configures Xray-core. Config is split across numbered JSON files in
 
 Deploys [Raven-subscribe](https://github.com/AlchemyLink/Raven-subscribe) — a Go service that auto-discovers Xray users, syncs them via gRPC API, and serves personal subscription URLs.
 
-Listens on `127.0.0.1:8080`, proxied by nginx_frontend.
+- Listens on `127.0.0.1:8080`, proxied by nginx_frontend
+- Automatically syncs users to the RU bridge via `bridge_transparent_tags` (requires WireGuard tunnel)
+- Watches `/etc/xray/config.d/` via fsnotify — picks up changes within seconds
 
 ---
 
@@ -259,62 +265,81 @@ Listens on `127.0.0.1:8080`, proxied by nginx_frontend.
 
 Deploys nginx on the EU VPS as a TLS frontend and SNI router. Port 443 handles all traffic.
 
-- **Stream SNI routing on :443** — reads SNI from TLS ClientHello, routes by hostname:
-  - SNI `xhttp-dest.com` → Xray XHTTP `:2053`
-  - SNI `your-domain.com` → nginx HTTPS `:8443` (Raven-subscribe)
-  - Default (any other SNI) → Xray VLESS Reality `:4443`
-- **PROXY protocol** — passes real client IP to all upstreams (Xray uses `xver: 2`)
+- **Stream SNI routing on :443** — routes by SNI:
+  - `www.adobe.com` → Xray XHTTP `:2053`
+  - `addons.mozilla.org` → Xray XHTTP v2 `:2054`
+  - `askubuntu.com` → Xray Reality `:4443`
+  - `dl.google.com` → Xray Reality v2 `:4444`
+  - `your-domain.com` → nginx HTTPS `:8443` (Raven-subscribe)
 - **HTTPS on :8443** — proxies `/sub/`, `/c/`, `/api/` → Raven-subscribe `:8080`
-- Obtains Let's Encrypt certificate for `nginx_frontend_domain`
 
-**Important:** When deploying nginx_frontend and Xray inbounds together, always deploy **Xray first** (`--tags xray_inbounds`), then nginx. nginx sends PROXY protocol headers immediately — Xray must be ready to accept them.
+**Important:** Deploy **Xray first**, then nginx. nginx sends PROXY protocol headers immediately — Xray must be ready.
 
 ---
 
 ### `relay` role
 
-Deploys nginx on the RU VPS as an SNI relay. Responsibilities:
+Deploys nginx on the RU VPS as an SNI relay.
 
-- **Stream SNI routing on :443** — forwards all VPN traffic to EU VPS:443 by default
-- Serves a static stub site on `relay_domain` (camouflage, Let's Encrypt cert)
-- Proxies `my.relay_domain` → EU VPS nginx_frontend `:8443` (Raven-subscribe)
+- **Stream SNI routing on :443** — routes EU VPN SNIs to xray_bridge transparent inbounds (when `relay_transparent_enabled: true`), everything else → EU VPS directly
+- Serves a static stub site on `relay_domain` (camouflage)
+- Proxies `my.relay_domain` → EU Raven-subscribe
+
+**Deploy order:** Always deploy `xray_bridge` before `relay`. The relay role checks that bridge ports 5444–5447 are listening before rendering the stream config.
+
+**Emergency rollback:** Set `relay_transparent_enabled: false` in relay secrets and redeploy with `--tags relay_stream`. All traffic goes directly to EU, bypassing the bridge.
+
+---
+
+### `xray_bridge` role
+
+Deploys Xray chain proxy on the RU VPS. Accepts client connections using EU Reality keys (transparent — clients use their existing configs unchanged), then forwards traffic to EU via XHTTP.
+
+- Transparent inbounds on ports 5444–5447 (one per EU inbound)
+- Outbound: VLESS → EU XHTTP v2 (addons.mozilla.org SNI, mlkem768x25519plus)
+- Split routing: `.ru`/`.su`/`.рф` and Russian services → direct, everything else → EU chain
+- Stats API on `bridge_api_address:10086` (accessible via WireGuard from EU for Raven sync)
+
+---
+
+### `wireguard` role
+
+Creates a WireGuard mesh between EU and RU VPS. Required for:
+- Raven-subscribe → bridge gRPC sync (EU pushes users to RU bridge via WireGuard)
+- Monitoring (vmagent on EU pushes metrics to VictoriaMetrics on RU)
 
 ---
 
 ### `monitoring` role
 
-Deploys the full monitoring stack on the EU VPS:
+Deploys the full monitoring stack:
 
-- **[xray-stats-exporter](https://github.com/AlchemyLink/xray-stats-exporter)** — Prometheus exporter for per-user and per-inbound traffic metrics
-- **VictoriaMetrics** — Prometheus-compatible time series database
-- **Grafana** — dashboards for traffic, server health, Raven-subscribe status, and alerting rules
+- **[xray-stats-exporter](https://github.com/AlchemyLink/xray-stats-exporter)** on EU — per-user and per-inbound traffic metrics
+- **VictoriaMetrics** on RU — time series database
+- **Grafana** on RU — dashboards for traffic, server health, Raven-subscribe status, alerting
 
----
-
-### `sing-box-playbook` role
-
-Optional. Deploys [sing-box](https://github.com/SagerNet/sing-box) with a Hysteria2 inbound. When deployed, Raven-subscribe automatically discovers Hysteria2 users and includes them in subscriptions.
+```bash
+ansible-playbook roles/role_monitoring.yml -i roles/hosts.yml --vault-password-file vault_password.txt
+```
 
 ---
 
 ## Secrets
 
-Each role keeps secrets in `defaults/secrets.yml` (ansible-vault encrypted, not committed). Copy from the `.example` file.
+Each role keeps secrets in `defaults/secrets.yml` (ansible-vault encrypted, gitignored). Copy from `.example`.
 
 ### `roles/xray/defaults/secrets.yml`
 
 ```yaml
-# Reality keys — generate with: xray x25519
 xray_reality:
-  private_key: "YOUR_PRIVATE_KEY"
+  private_key: "YOUR_PRIVATE_KEY"    # xray x25519
   public_key: "YOUR_PUBLIC_KEY"
   spiderX: "/"
   short_id:
-    - "a1b2c3d4e5f67890"   # 8-byte hex — generate: openssl rand -hex 8
+    - "a1b2c3d4e5f67890"             # openssl rand -hex 8
 
-# VLESS users
 xray_users:
-  - id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"   # UUID — generate: uuidgen
+  - id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"  # uuidgen
     flow: "xtls-rprx-vision"
     email: "alice@example.com"
 ```
@@ -322,49 +347,57 @@ xray_users:
 ### `roles/raven_subscribe/defaults/secrets.yml`
 
 ```yaml
-# Admin token for Raven API — generate: openssl rand -hex 32
-raven_subscribe_admin_token: "YOUR_ADMIN_TOKEN"
-
-# Public URL used in subscription links
+raven_subscribe_admin_token: "YOUR_ADMIN_TOKEN"   # openssl rand -hex 32
 raven_subscribe_base_url: "https://my.example.com"
-
-# EU VPS public domain or IP
-raven_subscribe_server_host: "media.example.com"
+raven_subscribe_server_host: "example.com"        # EU VPS domain or IP
 
 # Per-inbound host/port overrides (optional)
-# Routes different protocols through different addresses in client configs.
-# Useful when clients connect via relay for some protocols.
 raven_subscribe_inbound_hosts:
-  vless-reality-in: "example.com"    # RU relay domain for Reality
-  vless-xhttp-in: "media.example.com"
+  vless-reality-in: "example.com"
+  vless-xhttp-in: "example.com"
 raven_subscribe_inbound_ports:
-  vless-reality-in: 8444             # RU relay TCP port for Reality
+  vless-reality-in: 443
+  vless-xhttp-in: 443
 ```
 
 ### `roles/nginx_frontend/defaults/secrets.yml`
 
 ```yaml
+nginx_frontend_domain: "your-domain.com"
 nginx_frontend_certbot_email: "admin@example.com"
 ```
 
 ### `roles/relay/defaults/secrets.yml`
 
 ```yaml
-relay_upstream_host: "EU_VPS_IP"       # EU server IP address
+relay_upstream_host: "EU_VPS_IP"
 relay_certbot_email: "admin@example.com"
+relay_domain: "example.com"
+relay_sub_my: "my.example.com"
 ```
 
-### `roles/sing-box-playbook/defaults/secrets.yml`
+### `roles/xray_bridge/defaults/secrets.yml`
 
 ```yaml
-singbox_hysteria2_users:
-  - name: "alice@example.com"
-    password: "STRONG_RANDOM_PASSWORD"
+xray_bridge_reality:
+  private_key: "BRIDGE_PRIVATE_KEY"   # xray x25519 (separate from EU keys)
+  public_key: "BRIDGE_PUBLIC_KEY"
+  spiderX: "/"
+  short_id:
+    - "b1c2d3e4f5a67890"
 
-singbox:
-  tls_server_name: "media.example.com"
-  tls_acme_domain: "media.example.com"
-  tls_acme_email: "admin@example.com"
+xray_bridge_users:                    # same UUIDs as EU xray_users
+  - id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+    flow: "xtls-rprx-vision"
+    email: "alice@example.com"
+
+xray_bridge_eu_host: "EU_VPS_IP"
+xray_bridge_eu_reality_public_key: "EU_V2_PUBLIC_KEY"
+xray_bridge_eu_reality_short_id: "EU_V2_SHORT_ID"
+xray_bridge_eu_user_id: "BRIDGE_USER_UUID"   # dedicated UUID registered on EU XHTTP inbound
+
+xray_bridge_transparent_enabled: true
+xray_bridge_api_address: "10.10.0.2"         # WireGuard IP of RU VPS
 ```
 
 ---
@@ -375,175 +408,145 @@ singbox:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `xray_vless_port` | `443` | VLESS + Reality listen port |
-| `xray_reality_dest` | `askubuntu.com:443` | Reality camouflage destination (must be a real TLS site) |
-| `xray_reality_server_names` | `["askubuntu.com"]` | SNI server names for Reality |
+| `xray_reality_dest` | `askubuntu.com:443` | Reality camouflage destination |
+| `xray_reality_server_names` | `["askubuntu.com"]` | SNI names for Reality |
 | `xray_xhttp.port` | `2053` | XHTTP inbound port |
-| `xray_xhttp.xhttpSettings.path` | `/api/v3/data-sync` | XHTTP path (must match nginx_frontend) |
-| `xray_dns_servers` | `tcp+local://8.8.8.8, ...` | DNS servers — do not use DoH (`https://`) |
-| `xray_dns_query_strategy` | `UseIPv4` | `UseIPv4` if the server has no IPv6, `UseIP` otherwise |
-| `xray_vless_decryption` | `"none"` | VLESS Encryption mode — see [VLESS Encryption](#vless-encryption-optional) |
-| `xray_blocked_domains` | `[]` | Extra domains to block via routing rules |
+| `xray_v2_inbounds_enabled` | `true` | Enable v2 parallel inbounds (ports 4444/2054) |
+| `xray_dns_servers` | `tcp+local://8.8.8.8, ...` | DNS — do not use DoH (`https://`) |
+| `xray_dns_query_strategy` | `UseIPv4` | Use `UseIP` if server has IPv6 |
+| `xray_vless_decryption` | `"none"` | VLESS Encryption — see [VLESS Encryption](#vless-encryption-optional) |
 
 ### Raven-subscribe (`roles/raven_subscribe/defaults/main.yml`)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `raven_subscribe_listen_addr` | `:8080` | Listen address |
 | `raven_subscribe_sync_interval_seconds` | `60` | Xray config rescan interval |
-| `raven_subscribe_api_inbound_tag` | `vless-reality-in` | Default inbound tag for API-created users |
 | `raven_subscribe_xray_api_addr` | `127.0.0.1:10085` | Xray gRPC API address |
-| `raven_subscribe_inbound_hosts` | `{}` | Per-inbound host overrides (set in secrets.yml) |
-| `raven_subscribe_inbound_ports` | `{}` | Per-inbound port overrides (set in secrets.yml) |
-| `raven_subscribe_singbox_enabled` | `false` | Enable sing-box/Hysteria2 sync |
-
-### nginx_frontend (`roles/nginx_frontend/defaults/main.yml`)
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `nginx_frontend_domain` | `media.example.com` | EU VPS domain — used for TLS cert and SNI routing |
-| `nginx_frontend_listen_port` | `8443` | nginx HTTPS internal port (proxied from :443 stream) |
-| `nginx_frontend_raven_port` | `8080` | Raven-subscribe upstream port |
-| `nginx_frontend_stream_xhttp_sni` | `www.adobe.com` | SNI that routes to Xray XHTTP inbound |
-| `nginx_frontend_stream_xhttp_port` | `2053` | Xray XHTTP inbound port |
-| `nginx_frontend_stream_reality_port` | `4443` | Xray VLESS Reality inbound port (default SNI target) |
+| `raven_subscribe_bridge_api_addr` | `""` | Bridge gRPC API (set to WireGuard IP:10086) |
+| `raven_subscribe_bridge_transparent_tags` | `{}` | Maps EU inbound tag → bridge transparent tag |
 
 ### relay (`roles/relay/defaults/main.yml`)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `relay_domain` | `example.com` | RU VPS domain — stub site + SNI routing |
-| `relay_sub_my` | `my.example.com` | Subdomain proxied to EU Raven-subscribe |
-| `relay_upstream_host` | `EU_VPS_IP` | EU server IP (set in secrets.yml) |
-| `relay_upstream_raven_port` | `8443` | EU nginx HTTPS port for Raven-subscribe |
-| `relay_stub_title` | `Welcome` | Stub site page title |
-| `relay_stub_description` | `Personal website` | Stub site meta description |
+| `relay_transparent_enabled` | `false` | Route EU SNIs to xray_bridge transparent inbounds |
+| `relay_bridge_enabled` | `false` | Enable bridge-specific SNI routing (www.wikipedia.org → :5443) |
+| `relay_bridge_sni` | `""` | SNI that routes to xray_bridge main inbound |
 
 ---
 
 ## DNS Setup
 
-Point the following DNS A records to the correct servers:
-
 | Domain | → | Server | Purpose |
 |--------|---|--------|---------|
-| `media.example.com` | → | EU VPS IP | nginx_frontend (SNI routing, TLS cert) |
+| `your-domain.com` | → | EU VPS IP | nginx_frontend TLS cert |
+| `my.your-domain.com` | → | EU VPS IP | Raven-subscribe subscription links (single-server) |
 | `example.com` | → | RU VPS IP | Relay stub site (camouflage) |
-| `my.example.com` | → | RU VPS IP | Relay → Raven-subscribe (subscription links) |
+| `my.example.com` | → | RU VPS IP | Relay → Raven-subscribe |
 
-Clients connect to the RU VPS on port 443 for all protocols — no additional DNS records needed for VPN traffic.
-
----
-
-## Monitoring (optional)
-
-The `monitoring` role deploys a full observability stack on the EU VPS:
-
-```bash
-ansible-playbook roles/role_monitoring.yml -i roles/hosts.yml --vault-password-file vault_password.txt
-```
-
-**Grafana dashboards included:**
-- **Xray — per-user traffic** — upload/download timeseries, top users, per-inbound breakdown (Reality vs XHTTP)
-- **Servers EU/RU — status** — CPU, RAM, network, disk, Xray health, Raven-subscribe latency
-
-**Alerting rules** (Grafana alerts via VictoriaMetrics):
-- Xray down
-- Raven-subscribe down
-- EU/RU server unreachable
-- Disk usage > 85%
-
-To deploy only the binary for [xray-stats-exporter](https://github.com/AlchemyLink/xray-stats-exporter):
-
-```bash
-ansible-playbook roles/role_monitoring.yml -i roles/hosts.yml --vault-password-file vault_password.txt \
-  --tags xray_stats_exporter \
-  -e "xray_stats_exporter_local_binary=/path/to/xray-stats-exporter"
-```
+Clients connect to the RU VPS on port 443 — no extra DNS records needed for VPN traffic.
 
 ---
 
 ## VLESS Encryption (optional)
 
-Xray-core >= 25.x supports post-quantum VLESS Encryption (mlkem768x25519plus). Disabled by default.
+Post-quantum VLESS Encryption (mlkem768x25519plus, Xray-core ≥ 25.x). Disabled by default.
 
-When enabled, all clients connecting to the inbound **must** support it — do not mix encrypted and plain clients on the same inbound.
-
-**Generate keys:**
+All clients on the inbound **must** support it — do not mix encrypted and plain clients.
 
 ```bash
 xray vlessenc
-# Output: decryption string (server private) + encryption string (client public)
+# Output: decryption string (server) + encryption string (client)
 ```
 
-**Add to `roles/xray/defaults/secrets.yml`:**
+Add to `roles/xray/defaults/secrets.yml`:
 
 ```yaml
-xray_vless_decryption: "mlkem768x25519plus.PRIVATE..."    # server — keep secret
-xray_vless_client_encryption: "mlkem768x25519plus.PUBLIC..." # sent to clients via Raven
+xray_vless_decryption: "mlkem768x25519plus.PRIVATE..."
+xray_vless_client_encryption: "mlkem768x25519plus.PUBLIC..."
 ```
 
-Both must be set together or both left as `"none"`. When enabled, `flow` is forced to `xtls-rprx-vision` for all users.
+Both must be set together or both `"none"`. When enabled, `flow` is forced to `xtls-rprx-vision`.
 
 ---
 
 ## Hysteria2 / sing-box (optional)
 
-Deploy sing-box alongside Xray to provide Hysteria2 (QUIC-based protocol with Salamander obfuscation).
-
 ```bash
-# Copy and fill in secrets
 cp roles/sing-box-playbook/defaults/secrets.yml.example roles/sing-box-playbook/defaults/secrets.yml
 ansible-vault encrypt roles/sing-box-playbook/defaults/secrets.yml --vault-password-file vault_password.txt
-
-# Deploy
 ansible-playbook roles/role_sing-box.yml -i roles/hosts.yml --vault-password-file vault_password.txt
 ```
 
-After deployment, set `raven_subscribe_singbox_enabled: true` in `raven_subscribe/defaults/secrets.yml` and redeploy Raven-subscribe. It will discover Hysteria2 users and serve them via `/sub/{token}/singbox` and `/sub/{token}/hysteria2` endpoints.
-
-**Note:** Hysteria2 uses ACME (Let's Encrypt) directly in sing-box. Set `singbox.tls_acme_domain` and `singbox.tls_acme_email` in secrets.
+Then set `raven_subscribe_singbox_enabled: true` and redeploy Raven-subscribe.
 
 ---
 
 ## Testing
 
-Run the full test suite — renders all Ansible templates and validates them with `xray -test` in Docker:
-
 ```bash
-./tests/run.sh
+./tests/run.sh              # full: render templates + xray -test in Docker
+SKIP_XRAY_TEST=1 ./tests/run.sh  # Ansible-only, no Docker
 ```
 
-Ansible-only (no Docker needed):
+CI runs on every push and PR.
+
+---
+
+## Troubleshooting
+
+### `unknown directive "stream"` — nginx fails to start
+
+The `stream` module is not installed. Fix:
 
 ```bash
-SKIP_XRAY_TEST=1 ./tests/run.sh
+sudo apt install libnginx-mod-stream
+sudo systemctl start nginx
 ```
 
-**Pipeline steps:**
-1. Downloads Xray binary (cached in `tests/.cache/`)
-2. Generates ephemeral Reality keys → `tests/fixtures/test_secrets.yml`
-3. Runs `validate.yml` assertions
-4. Renders all `templates/conf/*.j2` → `tests/.output/conf.d/`
-5. Runs `xray -test -confdir` in Docker
+The playbooks install `libnginx-mod-stream` automatically on fresh deploys.
 
-CI runs on every push and PR via `.github/workflows/xray-config-test.yml`.
+### `unknown directive "http2"` — nginx fails to start
 
-**Run individual steps manually:**
+Your nginx version is < 1.25.1 (common on Debian 11 / Ubuntu 20.04 stock packages). The playbooks auto-detect the version and use the correct syntax. If you see this error on an older install, redeploy with:
 
 ```bash
-export ANSIBLE_CONFIG="${PWD}/tests/ansible.cfg"
-tests/scripts/gen-reality-keys.sh > tests/fixtures/test_secrets.yml
-ansible-playbook tests/playbooks/validate_vars.yml
-ansible-playbook tests/playbooks/render_conf.yml
+ansible-playbook roles/role_nginx_frontend.yml -i roles/hosts.yml \
+  --vault-password-file vault_password.txt --tags nginx_frontend_ssl
+```
+
+### `raven_subscribe_admin_token must be set` — validation fails
+
+You haven't created `secrets.yml` for raven_subscribe yet:
+
+```bash
+cp roles/raven_subscribe/defaults/secrets.yml.example roles/raven_subscribe/defaults/secrets.yml
+# Fill in admin_token (openssl rand -hex 32) and server_host
+ansible-vault encrypt roles/raven_subscribe/defaults/secrets.yml --vault-password-file vault_password.txt
+```
+
+### `no hosts matched` — playbook skips all hosts
+
+Check that your `roles/hosts.yml` defines `vm_my_srv` (for EU roles) and `vm_my_ru2` (for RU roles). The playbooks target these specific host names.
+
+### nginx reload fails after config deploy
+
+A previous failed deploy left a broken config file. Remove it and restart:
+
+```bash
+sudo rm /etc/nginx/conf.d/<your-domain>.conf
+sudo systemctl start nginx
+# Then redeploy:
+ansible-playbook roles/role_nginx_frontend.yml -i roles/hosts.yml \
+  --vault-password-file vault_password.txt --tags nginx_frontend_ssl
 ```
 
 ---
 
 ## Related Projects
 
-- [Raven-subscribe](https://github.com/AlchemyLink/Raven-subscribe) — subscription server (Go): auto-discovers users from Xray config, syncs via gRPC API, serves personal subscription URLs in Xray JSON / sing-box JSON / share link formats
-- [xray-stats-exporter](https://github.com/AlchemyLink/xray-stats-exporter) — Prometheus exporter for per-user and per-inbound Xray traffic metrics
+- [Raven-subscribe](https://github.com/AlchemyLink/Raven-subscribe) — subscription server (Go)
+- [xray-stats-exporter](https://github.com/AlchemyLink/xray-stats-exporter) — Prometheus exporter for Xray traffic metrics
 - [Xray-core](https://github.com/XTLS/Xray-core) — the VPN core
 - [sing-box](https://github.com/SagerNet/sing-box) — alternative VPN core (Hysteria2)
 
