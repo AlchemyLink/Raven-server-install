@@ -4,8 +4,14 @@
 
 [![CI](https://github.com/AlchemyLink/Raven-server-install/actions/workflows/xray-config-test.yml/badge.svg)](https://github.com/AlchemyLink/Raven-server-install/actions/workflows/xray-config-test.yml)
 [![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)](LICENSE)
+[![Ansible](https://img.shields.io/badge/Ansible-%3E%3D2.14-red?logo=ansible)](https://docs.ansible.com/)
+[![Platform](https://img.shields.io/badge/Platform-Debian%2011%2B%20%7C%20Ubuntu%2020.04%2B-blue)](https://www.debian.org/)
+[![Status](https://img.shields.io/badge/Status-Alpha%20Testing-orange)](https://github.com/AlchemyLink/Raven-server-install)
 
 Ansible-плейбуки для развёртывания production-ready самохостинг VPN-стека на основе [Xray-core](https://github.com/XTLS/Xray-core) и [Raven-subscribe](https://github.com/AlchemyLink/Raven-subscribe). Весь трафик неотличим от обычного HTTPS.
+
+> [!WARNING]
+> **Альфа-тестирование** — проект находится в активной разработке. Между версиями могут меняться имена переменных, API и порядок деплоя. Тщательно тестируйте перед использованием в продакшне. Пожалуйста, [сообщайте об ошибках](https://github.com/AlchemyLink/Raven-server-install/issues), чтобы помочь улучшить проект.
 
 **Что вы получаете:**
 
@@ -31,11 +37,13 @@ Ansible-плейбуки для развёртывания production-ready са
 - [Описание ролей](#описание-ролей)
 - [Секреты](#секреты)
 - [Конфигурация](#конфигурация)
+- [Примеры](#примеры)
 - [DNS-записи](#dns-записи)
 - [VLESS Encryption (опционально)](#vless-encryption-опционально)
 - [Hysteria2 / sing-box (опционально)](#hysteria2--sing-box-опционально)
 - [Тестирование](#тестирование)
 - [Решение проблем](#решение-проблем)
+- [Как помочь проекту](#как-помочь-проекту)
 - [Связанные проекты](#связанные-проекты)
 - [Лицензия](#лицензия)
 
@@ -250,9 +258,9 @@ ansible-playbook roles/role_xray.yml -i roles/hosts.yml --vault-password-file $V
 | `010-stats.json` | Статистика трафика |
 | `050-api.json` | gRPC API (127.0.0.1:10085) |
 | `100-dns.json` | DNS-серверы |
-| `200-in-vless-reality.json` | Legacy VLESS + Reality inbound (порт 4443) |
+| `200-in-vless-reality.json` | VLESS + Reality inbound (порт 4443) |
 | `201-in-vless-reality-v2.json` | V2 VLESS + Reality inbound (порт 4444, изолированные ключи) |
-| `210-in-xhttp.json` | Legacy VLESS + XHTTP inbound (порт 2053) |
+| `210-in-xhttp.json` | VLESS + XHTTP inbound (порт 2053) |
 | `211-in-xhttp-v2.json` | V2 VLESS + XHTTP inbound (порт 2054) |
 | `300-outbounds.json` | Freedom (с Finalmask fragment) + blackhole |
 | `400-routing.json` | Правила маршрутизации + блокировка рекламы |
@@ -467,6 +475,107 @@ singbox:
 
 ---
 
+## Примеры
+
+### Сгенерировать ключи Reality
+
+```bash
+# Пара ключей x25519 для Reality
+xray x25519
+# PrivateKey: <base64-encoded-private-key>
+# PublicKey:  <base64-encoded-public-key>
+
+# short_id (8 байт hex)
+openssl rand -hex 8
+# a1b2c3d4e5f67890
+
+# UUID для нового пользователя
+uuidgen
+# f47ac10b-58cc-4372-a567-0e02b2c3d479
+```
+
+### Обновить только inbound'ы (без перезапуска если конфиг не изменился)
+
+```bash
+ansible-playbook roles/role_xray.yml -i roles/hosts.yml \
+  --vault-password-file vault_password.txt \
+  --tags xray_inbounds
+# Рендерит новые inbound-конфиги, валидирует, перезапускает только если есть изменения
+```
+
+### Добавить нового пользователя
+
+Откройте файл секретов:
+
+```bash
+ansible-vault edit roles/xray/defaults/secrets.yml --vault-password-file vault_password.txt
+```
+
+Добавьте запись в `xray_users`:
+
+```yaml
+xray_users:
+  - id: "existing-user-uuid"
+    flow: "xtls-rprx-vision"
+    email: "alice@example.com"
+  - id: "f47ac10b-58cc-4372-a567-0e02b2c3d479"   # новый пользователь
+    flow: "xtls-rprx-vision"
+    email: "bob@example.com"
+```
+
+Передеплойте inbound'ы:
+
+```bash
+ansible-playbook roles/role_xray.yml -i roles/hosts.yml \
+  --vault-password-file vault_password.txt \
+  --tags xray_inbounds
+```
+
+Raven-subscribe подхватит нового пользователя через fsnotify в течение `sync_interval_seconds` и автоматически сгенерирует персональную ссылку подписки.
+
+### Проверить статус сервисов на удалённом сервере
+
+```bash
+# Проверить, что Xray запущен
+ansible vm_my_srv -i roles/hosts.yml -m command -a "systemctl status xray" \
+  --vault-password-file vault_password.txt
+
+# Проверить Raven-subscribe
+ansible vm_my_srv -i roles/hosts.yml -m command -a "systemctl status xray-subscription"
+
+# Посмотреть последние логи Xray
+ansible vm_my_srv -i roles/hosts.yml -m command \
+  -a "journalctl -u xray -n 50 --no-pager"
+```
+
+### Экстренный откат: отключить RU-мост
+
+Если мост сломан и VPN не работает у всех клиентов:
+
+```bash
+# 1. Отредактировать секреты relay — отключить прозрачную маршрутизацию
+ansible-vault edit roles/relay/defaults/secrets.yml --vault-password-file vault_password.txt
+# Установить: relay_transparent_enabled: false
+
+# 2. Передеплоить только stream-конфиг (~30 секунд)
+ansible-playbook roles/role_relay.yml -i roles/hosts.yml \
+  --vault-password-file vault_password.txt \
+  --tags relay_stream
+# Весь трафик теперь идёт напрямую на EU VPS
+```
+
+### Запустить тесты валидации конфигов локально
+
+```bash
+# Полный тест: рендер шаблонов + валидация через xray -test в Docker
+./tests/run.sh
+
+# Только Ansible (Docker не нужен)
+SKIP_XRAY_TEST=1 ./tests/run.sh
+```
+
+---
+
 ## DNS-записи
 
 | Домен | → | Сервер | Назначение |
@@ -523,7 +632,7 @@ ansible-playbook roles/role_sing-box.yml -i roles/hosts.yml --vault-password-fil
 SKIP_XRAY_TEST=1 ./tests/run.sh       # только Ansible, без Docker
 ```
 
-CI запускается автоматически на каждый push и PR.
+CI запускается автоматически на каждый push и PR. Подробнее — [tests/README.md](tests/README.md).
 
 ---
 
@@ -574,6 +683,18 @@ sudo systemctl start nginx
 ansible-playbook roles/role_nginx_frontend.yml -i roles/hosts.yml \
   --vault-password-file vault_password.txt --tags nginx_frontend_ssl
 ```
+
+---
+
+## Как помочь проекту
+
+Проект находится в **альфа-тестировании**. Мы рады любым contributions и сообщениям об ошибках.
+
+1. Сделайте fork репозитория и создайте ветку с изменениями
+2. Перед отправкой PR проверьте изменения через `./tests/run.sh`
+3. Откройте pull request с описанием что и почему изменено
+
+**Сообщение об ошибке:** укажите версию Ansible, ОС целевого сервера и полный вывод ошибки.
 
 ---
 
