@@ -3,6 +3,7 @@
   ansible.builtin.apt:
     name:
       - nginx
+      - libnginx-mod-stream
       - certbot
       - python3-certbot-nginx
     state: present
