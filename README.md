@@ -4,8 +4,14 @@ Languages: **English** | [Русский](README.ru.md)
 
 [![CI](https://github.com/AlchemyLink/Raven-server-install/actions/workflows/xray-config-test.yml/badge.svg)](https://github.com/AlchemyLink/Raven-server-install/actions/workflows/xray-config-test.yml)
 [![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)](LICENSE)
+[![Ansible](https://img.shields.io/badge/Ansible-%3E%3D2.14-red?logo=ansible)](https://docs.ansible.com/)
+[![Platform](https://img.shields.io/badge/Platform-Debian%2011%2B%20%7C%20Ubuntu%2020.04%2B-blue)](https://www.debian.org/)
+[![Status](https://img.shields.io/badge/Status-Alpha%20Testing-orange)](https://github.com/AlchemyLink/Raven-server-install)
 
 Ansible playbooks for deploying a production-ready self-hosted VPN server stack based on [Xray-core](https://github.com/XTLS/Xray-core) and [Raven-subscribe](https://github.com/AlchemyLink/Raven-subscribe). Designed for censorship circumvention with traffic indistinguishable from regular HTTPS.
+
+> [!WARNING]
+> **Alpha Testing** — This project is under active development. APIs, variable names, and deployment procedures may change between versions. Test thoroughly before using in production. Please [report issues](https://github.com/AlchemyLink/Raven-server-install/issues) to help us improve.
 
 **What you get:**
 
@@ -31,11 +37,13 @@ Ansible playbooks for deploying a production-ready self-hosted VPN server stack 
 - [Role Reference](#role-reference)
 - [Secrets](#secrets)
 - [Configuration](#configuration)
+- [Examples](#examples)
 - [DNS Setup](#dns-setup)
 - [VLESS Encryption (optional)](#vless-encryption-optional)
 - [Hysteria2 / sing-box (optional)](#hysteria2--sing-box-optional)
 - [Testing](#testing)
 - [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
 - [Related Projects](#related-projects)
 - [License](#license)
 
@@ -95,7 +103,7 @@ Raven-subscribe on EU automatically syncs users to bridge inbounds via WireGuard
 ## Requirements
 
 - **Ansible** >= 2.14 (`ansible-core`)
-- **Target OS**: Debian 11+/Ubuntu 20.04+ with systemd
+- **Target OS**: Debian 11+ / Ubuntu 20.04+ with systemd
 - **Python 3** on the target server
 - **ansible-vault** for secrets management
 - **Docker** (optional, for local config validation tests)
@@ -240,9 +248,9 @@ Installs and configures Xray-core. Config is split across numbered JSON files in
 | `010-stats.json` | Traffic statistics |
 | `050-api.json` | gRPC API (127.0.0.1:10085) |
 | `100-dns.json` | DNS servers |
-| `200-in-vless-reality.json` | Legacy VLESS + Reality inbound (port 4443) |
+| `200-in-vless-reality.json` | VLESS + Reality inbound (port 4443) |
 | `201-in-vless-reality-v2.json` | V2 VLESS + Reality inbound (port 4444, isolated keys) |
-| `210-in-xhttp.json` | Legacy VLESS + XHTTP inbound (port 2053) |
+| `210-in-xhttp.json` | VLESS + XHTTP inbound (port 2053) |
 | `211-in-xhttp-v2.json` | V2 VLESS + XHTTP inbound (port 2054) |
 | `300-outbounds.json` | Freedom (with Finalmask fragment) + blackhole |
 | `400-routing.json` | Routing rules + ad blocking |
@@ -435,6 +443,107 @@ xray_bridge_api_address: "10.10.0.2"         # WireGuard IP of RU VPS
 
 ---
 
+## Examples
+
+### Generate Reality keys
+
+```bash
+# Generate x25519 key pair for Reality
+xray x25519
+# PrivateKey: <base64-encoded-private-key>
+# PublicKey:  <base64-encoded-public-key>
+
+# Generate short_id (8 bytes hex)
+openssl rand -hex 8
+# a1b2c3d4e5f67890
+
+# Generate user UUID
+uuidgen
+# f47ac10b-58cc-4372-a567-0e02b2c3d479
+```
+
+### Update inbounds only (no restart if config is unchanged)
+
+```bash
+ansible-playbook roles/role_xray.yml -i roles/hosts.yml \
+  --vault-password-file vault_password.txt \
+  --tags xray_inbounds
+# Renders new inbound configs, validates, restarts only if changed
+```
+
+### Add a new user
+
+Edit the secrets file:
+
+```bash
+ansible-vault edit roles/xray/defaults/secrets.yml --vault-password-file vault_password.txt
+```
+
+Add to `xray_users`:
+
+```yaml
+xray_users:
+  - id: "existing-user-uuid"
+    flow: "xtls-rprx-vision"
+    email: "alice@example.com"
+  - id: "f47ac10b-58cc-4372-a567-0e02b2c3d479"   # new user
+    flow: "xtls-rprx-vision"
+    email: "bob@example.com"
+```
+
+Redeploy inbounds:
+
+```bash
+ansible-playbook roles/role_xray.yml -i roles/hosts.yml \
+  --vault-password-file vault_password.txt \
+  --tags xray_inbounds
+```
+
+Raven-subscribe picks up the new user via fsnotify within `sync_interval_seconds` and generates a personal subscription URL automatically.
+
+### Check service status on remote server
+
+```bash
+# Check Xray is running
+ansible vm_my_srv -i roles/hosts.yml -m command -a "systemctl status xray" \
+  --vault-password-file vault_password.txt
+
+# Check Raven-subscribe
+ansible vm_my_srv -i roles/hosts.yml -m command -a "systemctl status xray-subscription"
+
+# View recent Xray logs
+ansible vm_my_srv -i roles/hosts.yml -m command \
+  -a "journalctl -u xray -n 50 --no-pager"
+```
+
+### Emergency rollback: disable RU bridge
+
+If the bridge is broken and VPN is down for all clients:
+
+```bash
+# 1. Edit relay secrets — disable transparent routing
+ansible-vault edit roles/relay/defaults/secrets.yml --vault-password-file vault_password.txt
+# Set: relay_transparent_enabled: false
+
+# 2. Redeploy only the stream config (fast, ~30 seconds)
+ansible-playbook roles/role_relay.yml -i roles/hosts.yml \
+  --vault-password-file vault_password.txt \
+  --tags relay_stream
+# All traffic now routes directly to EU VPS
+```
+
+### Run config validation tests locally
+
+```bash
+# Full test: render templates + validate with xray -test in Docker
+./tests/run.sh
+
+# Ansible-only (no Docker required)
+SKIP_XRAY_TEST=1 ./tests/run.sh
+```
+
+---
+
 ## DNS Setup
 
 | Domain | → | Server | Purpose |
@@ -489,7 +598,7 @@ Then set `raven_subscribe_singbox_enabled: true` and redeploy Raven-subscribe.
 SKIP_XRAY_TEST=1 ./tests/run.sh  # Ansible-only, no Docker
 ```
 
-CI runs on every push and PR.
+CI runs on every push and PR. See [tests/README.md](tests/README.md) for details.
 
 ---
 
@@ -540,6 +649,18 @@ sudo systemctl start nginx
 ansible-playbook roles/role_nginx_frontend.yml -i roles/hosts.yml \
   --vault-password-file vault_password.txt --tags nginx_frontend_ssl
 ```
+
+---
+
+## Contributing
+
+This project is in **alpha testing**. Contributions and bug reports are very welcome.
+
+1. Fork the repository and create a feature branch
+2. Test your changes with `./tests/run.sh` before submitting
+3. Open a pull request with a clear description of what changed and why
+
+**Reporting issues:** Please include your Ansible version, target OS version, and the full error output.
 
 ---
 
