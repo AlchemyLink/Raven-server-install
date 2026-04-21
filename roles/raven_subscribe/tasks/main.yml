@@ -107,6 +107,14 @@
     mode: "0640"
   notify: Restart raven-subscribe
 
+- name: Raven-subscribe | Ensure Xray config dir exists (required for systemd namespace mount)
+  ansible.builtin.file:
+    path: "{{ raven_subscribe_xray_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Raven-subscribe | Deploy systemd service
   ansible.builtin.template:
     src: xray-subscription.service.j2
