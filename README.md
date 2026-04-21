@@ -169,7 +169,8 @@ ansible-vault encrypt roles/xray/defaults/secrets.yml --vault-password-file vaul
 
 # Raven-subscribe (EU)
 cp roles/raven_subscribe/defaults/secrets.yml.example roles/raven_subscribe/defaults/secrets.yml
-# Edit: set admin_token (openssl rand -hex 32) and server_host
+# Edit: set admin_token (openssl rand -hex 32), server_host (EU VPS domain/IP),
+#       and base_url (public subscription URL, e.g. https://my.yourdomain.com)
 ansible-vault encrypt roles/raven_subscribe/defaults/secrets.yml --vault-password-file vault_password.txt
 
 # nginx_frontend (EU)
@@ -355,17 +356,30 @@ xray_users:
 ### `roles/raven_subscribe/defaults/secrets.yml`
 
 ```yaml
-raven_subscribe_admin_token: "YOUR_ADMIN_TOKEN"   # openssl rand -hex 32
-raven_subscribe_base_url: "https://my.example.com"
-raven_subscribe_server_host: "example.com"        # EU VPS domain or IP
+raven_subscribe_admin_token: "YOUR_ADMIN_TOKEN"     # openssl rand -hex 32
+raven_subscribe_base_url: "https://my.yourdomain.com"  # relay domain, not direct EU IP
+raven_subscribe_server_host: "yourdomain.com"       # EU VPS domain or IP
 
-# Per-inbound host/port overrides (optional)
-raven_subscribe_inbound_hosts:
-  vless-reality-in: "example.com"
-  vless-xhttp-in: "example.com"
-raven_subscribe_inbound_ports:
-  vless-reality-in: 443
-  vless-xhttp-in: 443
+# Per-inbound host overrides (optional).
+# Falls back to raven_subscribe_server_host when tag is not listed.
+# raven_subscribe_inbound_hosts:
+#   vless-reality-in: "askubuntu.com"
+#   vless-xhttp-in: "www.adobe.com"
+
+# Per-inbound port overrides (optional).
+# With SNI routing all protocols share port 443.
+# raven_subscribe_inbound_ports:
+#   vless-reality-in: 443
+#   vless-xhttp-in: 443
+#   vless-reality-v2-in: 443
+#   vless-xhttp-v2-in: 443
+
+# VLESS Encryption per-inbound key override (optional).
+# Only needed when v1 and v2 inbounds use different encryption keys.
+# If omitted, xray_vless_client_encryption from xray secrets is applied to all inbounds.
+# raven_subscribe_vless_client_encryption:
+#   vless-reality-in: "mlkem768x25519plus.PublicKeyV1..."
+#   vless-reality-v2-in: "mlkem768x25519plus.PublicKeyV2..."
 ```
 
 ### `roles/nginx_frontend/defaults/secrets.yml`
@@ -623,6 +637,16 @@ Your nginx version is < 1.25.1 (common on Debian 11 / Ubuntu 20.04 stock package
 ansible-playbook roles/role_nginx_frontend.yml -i roles/hosts.yml \
   --vault-password-file vault_password.txt --tags nginx_frontend_ssl
 ```
+
+### `chgrp failed: failed to look up group xrayuser` — raven_subscribe deploy fails
+
+The `raven_subscribe` role requires `role_xray.yml` to be deployed first — it creates the `xrayuser` system user via `srv_prepare`. Run this first:
+
+```bash
+ansible-playbook roles/role_xray.yml -i roles/hosts.yml --vault-password-file vault_password.txt
+```
+
+Then retry the raven_subscribe deploy.
 
 ### `raven_subscribe_admin_token must be set` — validation fails
 
