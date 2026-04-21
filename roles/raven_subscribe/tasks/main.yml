@@ -125,13 +125,9 @@
     enabled: true
     state: started
 
-- name: Raven-subscribe | Gather service facts
-  ansible.builtin.service_facts:
-
-- name: Raven-subscribe | Validate service is running
-  ansible.builtin.fail:
-    msg: "xray-subscription service is not running"
-  when:
-    - ansible_facts.services is defined
-    - ansible_facts.services[raven_subscribe_service_name + '.service'] is defined
-    - ansible_facts.services[raven_subscribe_service_name + '.service'].state != 'running'
+- name: Raven-subscribe | Wait for service to be listening
+  ansible.builtin.wait_for:
+    host: "{{ raven_subscribe_listen_addr.split(':')[0] }}"
+    port: "{{ raven_subscribe_listen_addr.split(':')[1] }}"
+    timeout: 20
+    msg: "xray-subscription did not start within 20s — check: journalctl -u {{ raven_subscribe_service_name }}"
