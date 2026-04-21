@@ -14,6 +14,22 @@
         ansible-vault encrypt roles/raven_subscribe/defaults/secrets.yml --vault-password-file vault_password.txt
     success_msg: "Raven-subscribe vars are valid"
 
+- name: Raven-subscribe | Ensure xrayuser group exists
+  ansible.builtin.group:
+    name: "{{ raven_subscribe_group }}"
+    system: true
+    state: present
+
+- name: Raven-subscribe | Ensure xrayuser system user exists
+  ansible.builtin.user:
+    name: "{{ raven_subscribe_user }}"
+    group: "{{ raven_subscribe_group }}"
+    system: true
+    shell: /usr/sbin/nologin
+    home: /var/lib/xrayuser
+    create_home: false
+    state: present
+
 - name: Raven-subscribe | Get latest release info
   ansible.builtin.uri:
     url: "https://api.github.com/repos/{{ raven_subscribe_github_repo }}/releases/latest"
