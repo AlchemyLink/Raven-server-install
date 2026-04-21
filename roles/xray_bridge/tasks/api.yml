@@ -11,6 +11,11 @@
     - Validate xray-bridge
     - Restart xray-bridge
 
+- name: Xray Bridge | Check if ufw is available
+  ansible.builtin.stat:
+    path: /usr/sbin/ufw
+  register: _ufw_bin
+
 - name: Xray Bridge | Allow gRPC API from WireGuard subnet
   community.general.ufw:
     rule: allow
@@ -18,4 +23,4 @@
     port: "{{ xray_bridge_api_port | string }}"
     proto: tcp
     comment: "xray-bridge gRPC API via WireGuard"
-  when: xray_bridge_api_enabled | default(false)
+  when: xray_bridge_api_enabled | default(false) and _ufw_bin.stat.exists
