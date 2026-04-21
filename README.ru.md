@@ -674,13 +674,18 @@ ansible-playbook roles/role_nginx_frontend.yml -i roles/hosts.yml \
 
 ### `chgrp failed: failed to look up group xrayuser` — деплой raven_subscribe падает
 
-Роль `raven_subscribe` требует, чтобы `role_xray.yml` был задеплоен первым — он создаёт системного пользователя `xrayuser` через `srv_prepare`. Запустите сначала:
+Обновите репозиторий — начиная с текущей версии роль `raven_subscribe` создаёт пользователя и группу `xrayuser` самостоятельно:
+
+```bash
+git pull
+ansible-playbook roles/role_raven_subscribe.yml -i roles/hosts.yml --vault-password-file vault_password.txt
+```
+
+Если обновить невозможно — сначала задеплойте Xray, который создаёт `xrayuser` через `srv_prepare`:
 
 ```bash
 ansible-playbook roles/role_xray.yml -i roles/hosts.yml --vault-password-file vault_password.txt
 ```
-
-После успешного деплоя Xray повторите деплой raven_subscribe.
 
 ### `raven_subscribe_admin_token must be set` — валидация не проходит
 

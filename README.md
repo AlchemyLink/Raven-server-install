@@ -640,13 +640,18 @@ ansible-playbook roles/role_nginx_frontend.yml -i roles/hosts.yml \
 
 ### `chgrp failed: failed to look up group xrayuser` — raven_subscribe deploy fails
 
-The `raven_subscribe` role requires `role_xray.yml` to be deployed first — it creates the `xrayuser` system user via `srv_prepare`. Run this first:
+Update the repository — current version of `raven_subscribe` creates the `xrayuser` group and user automatically:
+
+```bash
+git pull
+ansible-playbook roles/role_raven_subscribe.yml -i roles/hosts.yml --vault-password-file vault_password.txt
+```
+
+If updating is not possible, deploy Xray first — it creates `xrayuser` via `srv_prepare`:
 
 ```bash
 ansible-playbook roles/role_xray.yml -i roles/hosts.yml --vault-password-file vault_password.txt
 ```
-
-Then retry the raven_subscribe deploy.
 
 ### `raven_subscribe_admin_token must be set` — validation fails
 
