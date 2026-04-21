@@ -6,22 +6,23 @@
   ansible.builtin.debug:
     var: ansible_facts
 
-# - name: Apt update Debian
-#   ansible.builtin.apt:
-#     upgrade: true
-#     update_cache: true
-#   when: ansible_facts['os_family'] == "Debian"
+- name: Apt update Debian
+  ansible.builtin.apt:
+    update_cache: true
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  when: ansible_facts['os_family'] == "Debian"
 
-# - name: Rpm update
-#   ansible.builtin.dnf:
-#     update_cache: true
-#   when: ansible_facts['os_family'] == "RedHat"
+- name: Rpm update
+  ansible.builtin.dnf:
+    update_cache: true
+  when: ansible_facts['os_family'] == "RedHat"
 
-# - name: Apk update Alpine
-#   community.general.apk:
-#     update_cache: true
-#     upgrade: true
-#   when: ansible_facts['os_family'] == "Alpine"
+- name: Apk update Alpine
+  community.general.apk:
+    update_cache: true
+    upgrade: true
+  when: ansible_facts['os_family'] == "Alpine"
 
 - name: Apt install pkg
   ansible.builtin.apt:
@@ -40,6 +41,22 @@
     name: "{{ srv_prepare_apps_list_alpine }}"
     state: present
   when: ansible_facts['os_family'] == "Alpine"
+
+- name: Ensure xrayuser group exists
+  ansible.builtin.group:
+    name: xrayuser
+    system: true
+    state: present
+
+- name: Ensure xrayuser system user exists
+  ansible.builtin.user:
+    name: xrayuser
+    group: xrayuser
+    system: true
+    shell: /usr/sbin/nologin
+    home: /var/lib/xrayuser
+    create_home: false
+    state: present
 
 - name: Enable and persist ip forwarding
   ansible.posix.sysctl:

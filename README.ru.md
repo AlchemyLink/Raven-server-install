@@ -169,7 +169,8 @@ ansible-vault encrypt roles/xray/defaults/secrets.yml --vault-password-file vaul
 
 # Raven-subscribe (EU)
 cp roles/raven_subscribe/defaults/secrets.yml.example roles/raven_subscribe/defaults/secrets.yml
-# Заполнить: admin_token (openssl rand -hex 32) и server_host
+# Заполнить: admin_token (openssl rand -hex 32), server_host (домен/IP EU VPS),
+#            base_url (публичный URL подписок, например https://my.yourdomain.com)
 ansible-vault encrypt roles/raven_subscribe/defaults/secrets.yml --vault-password-file vault_password.txt
 
 # nginx_frontend (EU)
@@ -370,19 +371,32 @@ xray_users:
 # Токен admin API — генерация: openssl rand -hex 32
 raven_subscribe_admin_token: "ВАШ_ADMIN_ТОКЕН"
 
-# Публичный URL для ссылок подписки
-raven_subscribe_base_url: "https://my.example.com"
+# Публичный URL для ссылок подписки — должен быть доменом relay, не прямым IP EU
+raven_subscribe_base_url: "https://my.yourdomain.com"
 
 # Публичный домен или IP EU VPS
-raven_subscribe_server_host: "example.com"
+raven_subscribe_server_host: "yourdomain.com"
 
-# Переопределение host/port по inbound (опционально)
-raven_subscribe_inbound_hosts:
-  vless-reality-in: "example.com"
-  vless-xhttp-in: "example.com"
-raven_subscribe_inbound_ports:
-  vless-reality-in: 443
-  vless-xhttp-in: 443
+# Переопределение хоста по inbound (опционально).
+# Если не указано — используется raven_subscribe_server_host.
+# raven_subscribe_inbound_hosts:
+#   vless-reality-in: "askubuntu.com"
+#   vless-xhttp-in: "www.adobe.com"
+
+# Переопределение порта по inbound (опционально).
+# При SNI-маршрутизации все протоколы идут через порт 443.
+# raven_subscribe_inbound_ports:
+#   vless-reality-in: 443
+#   vless-xhttp-in: 443
+#   vless-reality-v2-in: 443
+#   vless-xhttp-v2-in: 443
+
+# VLESS Encryption — переопределение ключей по inbound (опционально).
+# Нужно только если у v1 и v2 inbound'ов разные ключи шифрования.
+# Если не задано — xray_vless_client_encryption из xray secrets применяется ко всем inbound'ам.
+# raven_subscribe_vless_client_encryption:
+#   vless-reality-in: "mlkem768x25519plus.PublicKeyV1..."
+#   vless-reality-v2-in: "mlkem768x25519plus.PublicKeyV2..."
 ```
 
 ### `roles/nginx_frontend/defaults/secrets.yml`
@@ -657,6 +671,16 @@ sudo systemctl start nginx
 ansible-playbook roles/role_nginx_frontend.yml -i roles/hosts.yml \
   --vault-password-file vault_password.txt --tags nginx_frontend_ssl
 ```
+
+### `chgrp failed: failed to look up group xrayuser` — деплой raven_subscribe падает
+
+Роль `raven_subscribe` требует, чтобы `role_xray.yml` был задеплоен первым — он создаёт системного пользователя `xrayuser` через `srv_prepare`. Запустите сначала:
+
+```bash
+ansible-playbook roles/role_xray.yml -i roles/hosts.yml --vault-password-file vault_password.txt
+```
+
+После успешного деплоя Xray повторите деплой raven_subscribe.
 
 ### `raven_subscribe_admin_token must be set` — валидация не проходит
 
