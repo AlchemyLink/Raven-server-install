@@ -42,25 +42,25 @@ upstream local_https {
 
 {% if relay_bridge_enabled | default(false) and relay_bridge_sni != '' %}
 upstream xray_bridge {
-    server 127.0.0.1:{{ relay_bridge_port }} proxy_protocol;
+    server 127.0.0.1:{{ relay_bridge_port }};
 }
 
 {% endif %}
 {% if relay_transparent_enabled | default(false) %}
 upstream xray_bridge_reality {
-    server 127.0.0.1:{{ relay_transparent_reality_port }} proxy_protocol;
+    server 127.0.0.1:{{ relay_transparent_reality_port }};
 }
 
 upstream xray_bridge_xhttp {
-    server 127.0.0.1:{{ relay_transparent_xhttp_port }} proxy_protocol;
+    server 127.0.0.1:{{ relay_transparent_xhttp_port }};
 }
 
 upstream xray_bridge_reality_v2 {
-    server 127.0.0.1:{{ relay_transparent_reality_v2_port }} proxy_protocol;
+    server 127.0.0.1:{{ relay_transparent_reality_v2_port }};
 }
 
 upstream xray_bridge_xhttp_v2 {
-    server 127.0.0.1:{{ relay_transparent_xhttp_v2_port }} proxy_protocol;
+    server 127.0.0.1:{{ relay_transparent_xhttp_v2_port }};
 }
 
 {% endif %}
