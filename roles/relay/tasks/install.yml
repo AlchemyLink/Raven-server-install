@@ -3,10 +3,18 @@
   ansible.builtin.apt:
     name:
       - nginx
-      - libnginx-mod-stream
       - snapd
     state: present
     update_cache: true
+
+# libnginx-mod-stream is needed only when nginx comes from Ubuntu distro repos.
+# nginx.org packages bundle stream support in the main package — install attempt
+# will fail with ABI mismatch in that case, which is expected and harmless.
+- name: Relay | Install libnginx-mod-stream (Ubuntu nginx only)
+  ansible.builtin.apt:
+    name: libnginx-mod-stream
+    state: present
+  ignore_errors: true
 
 - name: Relay | Remove apt certbot (incompatible with Python 3.11+)
   ansible.builtin.apt:
