@@ -15,9 +15,8 @@
 {% endif %}
 #   everything else (VPN)  → EU server ({{ relay_upstream_host }}:{{ relay_upstream_port }})
 #
-# PROXY protocol: only on upstreams to local Xray (127.0.0.1). Real client IP in
-# access.log → xray-stats-exporter geo / Grafana map. Do NOT add proxy_protocol
-# to eu_vpn — EU expects raw TCP without PROXY.
+# PROXY protocol: only on upstreams to local Xray (127.0.0.1).
+# Do NOT add proxy_protocol to eu_vpn — EU expects raw TCP without PROXY.
 #
 # This file is included inside stream {} block in nginx.conf
 
@@ -75,5 +74,8 @@ server {
     ssl_preread on;
     proxy_connect_timeout 10s;
     proxy_timeout 600s;
+{% if not relay_access_log | default(false) %}
+    access_log off;
+{% endif %}
 }
 {% endif %}
