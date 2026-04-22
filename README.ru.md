@@ -202,24 +202,32 @@ openssl rand -hex 8   # short_id
 
 ### 6. Задеплоить
 
-Деплоить в таком порядке (сначала EU, потом RU):
+Деплоить строго в указанном порядке — каждый шаг зависит от предыдущего:
+
+| # | Роль | Почему этот порядок |
+|---|------|---------------------|
+| 1 | `role_xray` | Создаёт `/etc/xray/config.d/`, системного пользователя `xrayuser`, запускает Xray с gRPC API на `:10085` |
+| 2 | `role_raven_subscribe` | Читает конфиги из `/etc/xray/config.d/` и обращается к gRPC API — без шага 1 не запустится |
+| 3 | `role_nginx_frontend` | Проксирует трафик на Xray и Raven-subscribe — без шагов 1–2 некуда форвардить |
+| 4 | `role_xray_bridge` | (RU) Цепочечный прокси — нужны EU Reality-ключи из шага 1 |
+| 5 | `role_relay` | (RU) nginx relay — маршрутизирует на EU; если включён transparent bridge, xray_bridge из шага 4 должен уже слушать |
 
 ```bash
 VP=vault_password.txt
 
-# EU — Xray + системная подготовка
+# 1. EU — Xray + системная подготовка (ПЕРВЫМ — создаёт xrayuser и config.d)
 ansible-playbook roles/role_xray.yml -i roles/hosts.yml --vault-password-file $VP
 
-# EU — Raven-subscribe
+# 2. EU — Raven-subscribe (требует Xray из шага 1)
 ansible-playbook roles/role_raven_subscribe.yml -i roles/hosts.yml --vault-password-file $VP
 
-# EU — nginx TLS frontend + SNI stream routing
+# 3. EU — nginx TLS frontend + SNI stream routing
 ansible-playbook roles/role_nginx_frontend.yml -i roles/hosts.yml --vault-password-file $VP
 
-# RU — xray_bridge (деплоить ДО relay)
+# 4. RU — xray_bridge (деплоить ДО relay)
 ansible-playbook roles/role_xray_bridge.yml -i roles/hosts.yml --vault-password-file $VP
 
-# RU — nginx relay
+# 5. RU — nginx relay
 ansible-playbook roles/role_relay.yml -i roles/hosts.yml --vault-password-file $VP
 ```
 
