@@ -523,6 +523,35 @@ ansible-playbook roles/role_xray.yml -i roles/hosts.yml \
 
 Raven-subscribe picks up the new user via fsnotify within `sync_interval_seconds` and generates a personal subscription URL automatically.
 
+### Get subscription URLs
+
+After deploy, each user gets a personal token. Subscription URL templates:
+
+```
+# Full Xray JSON client config (for V2RayNG, NekoBox, Hiddify)
+https://my.your-domain.com/sub/{token}
+
+# VLESS:// share links (plain text list)
+https://my.your-domain.com/sub/{token}/links.txt
+
+# sing-box format
+https://my.your-domain.com/sub/{token}/singbox
+```
+
+Where to get the user token:
+
+```bash
+# Via Raven-subscribe API (admin_token from secrets.yml)
+curl -H "Authorization: Bearer <admin_token>" \
+  https://my.your-domain.com/api/users
+
+# Or directly from SQLite on the server
+sqlite3 /var/lib/xray-subscription/db.sqlite \
+  "SELECT username, token FROM users;"
+```
+
+Share the token as a URL or QR code — the client app (V2RayNG, NekoBox, Hiddify) imports the config automatically.
+
 ### Check service status on remote server
 
 ```bash
