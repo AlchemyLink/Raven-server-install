@@ -24,17 +24,38 @@
     state: absent
     purge: true
 
+- name: Relay | Check if certbot is already installed
+  ansible.builtin.command: certbot --version
+  register: relay_certbot_check
+  changed_when: false
+  failed_when: false
+
 - name: Relay | Install certbot via snap
   ansible.builtin.command:
     cmd: snap install --classic certbot
     creates: /snap/bin/certbot
+  register: relay_certbot_snap
+  failed_when: false
+  when: relay_certbot_check.rc != 0
 
-- name: Relay | Ensure certbot symlink
+- name: Relay | Install certbot via pip (fallback if snap unavailable)
+  ansible.builtin.pip:
+    name: certbot
+    state: present
+    extra_args: "--break-system-packages"
+  when:
+    - relay_certbot_check.rc != 0
+    - relay_certbot_snap is defined
+    - relay_certbot_snap.rc is defined
+    - relay_certbot_snap.rc != 0
+
+- name: Relay | Ensure certbot symlink (snap)
   ansible.builtin.file:
     src: /snap/bin/certbot
     dest: /usr/bin/certbot
     state: link
     force: true
+  when: relay_certbot_snap is defined and relay_certbot_snap.rc is defined and relay_certbot_snap.rc == 0
 
 - name: Relay | Ensure nginx is enabled
   ansible.builtin.service:
