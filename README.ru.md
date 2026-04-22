@@ -555,6 +555,35 @@ ansible-playbook roles/role_xray.yml -i roles/hosts.yml \
 
 Raven-subscribe подхватит нового пользователя через fsnotify в течение `sync_interval_seconds` и автоматически сгенерирует персональную ссылку подписки.
 
+### Получить ссылки подписки
+
+После деплоя каждый пользователь получает персональный токен. Ссылки подписки строятся по шаблону:
+
+```
+# Полный Xray JSON client config (для V2RayNG, NekoBox, Hiddify)
+https://my.ваш-домен.com/sub/{token}
+
+# VLESS:// share-ссылки (текстовый список)
+https://my.ваш-домен.com/sub/{token}/links.txt
+
+# sing-box формат
+https://my.ваш-домен.com/sub/{token}/singbox
+```
+
+Где взять токен пользователя:
+
+```bash
+# Через API Raven-subscribe (admin_token из secrets.yml)
+curl -H "Authorization: Bearer <admin_token>" \
+  https://my.ваш-домен.com/api/users
+
+# Или напрямую в SQLite на сервере
+sqlite3 /var/lib/xray-subscription/db.sqlite \
+  "SELECT username, token FROM users;"
+```
+
+Токен можно передать пользователю в виде ссылки или QR-кода — клиент (V2RayNG, NekoBox, Hiddify) импортирует конфиг автоматически.
+
 ### Проверить статус сервисов на удалённом сервере
 
 ```bash
