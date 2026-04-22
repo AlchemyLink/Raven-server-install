@@ -1,0 +1,29 @@
+---
+- name: Raven-dashboard | Ensure frontend directory exists
+  ansible.builtin.file:
+    path: "{{ raven_dashboard_frontend_dir }}"
+    state: directory
+    owner: root
+    group: www-data
+    mode: "0755"
+
+- name: Raven-dashboard | Download frontend archive from GitHub releases
+  ansible.builtin.get_url:
+    url: "https://github.com/{{ raven_dashboard_github_repo }}/releases/download/\
+          {{ _raven_dashboard_version }}/raven-dashboard-frontend.tar.gz"
+    dest: "/tmp/raven-dashboard-frontend.tar.gz"
+    mode: "0644"
+  when: raven_dashboard_local_frontend_tar is not defined
+
+- name: Raven-dashboard | Copy local frontend archive
+  ansible.builtin.copy:
+    src: "{{ raven_dashboard_local_frontend_tar }}"
+    dest: "/tmp/raven-dashboard-frontend.tar.gz"
+    mode: "0644"
+  when: raven_dashboard_local_frontend_tar is defined
+
+- name: Raven-dashboard | Extract frontend archive
+  ansible.builtin.unarchive:
+    src: "/tmp/raven-dashboard-frontend.tar.gz"
+    dest: "{{ raven_dashboard_frontend_dir }}"
+    remote_src: true

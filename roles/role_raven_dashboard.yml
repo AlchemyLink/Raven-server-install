@@ -1,0 +1,34 @@
+---
+# Deploy Raven Dashboard to EU VPS.
+#
+# Prerequisites:
+#   1. raven_dashboard/defaults/secrets.yml must exist and be vault-encrypted.
+#   2. nginx_frontend already deployed (shares nginx instance on EU VPS).
+#   3. raven_subscribe already deployed (dashboard proxies to it on :8080).
+#   4. GitHub release tagged and published (or use raven_dashboard_local_binary +
+#      raven_dashboard_local_frontend_tar for a local build deploy).
+#
+# First deploy — migrate existing dashboard.db from laptop:
+#   ansible-playbook roles/role_raven_dashboard.yml -i roles/hosts.yml \
+#     --vault-password-file vault_password.txt \
+#     -e "raven_dashboard_db_migrate_src=/home/konkov/Documents/projects/AlchemyLink/raven-dashboard/backend/dashboard.db"
+#
+# Subsequent deploys (no migration):
+#   ansible-playbook roles/role_raven_dashboard.yml -i roles/hosts.yml \
+#     --vault-password-file vault_password.txt
+#
+# After first deploy — enable dashboard SNI in nginx_frontend:
+#   Set nginx_frontend_dashboard_enabled: true in nginx_frontend/defaults/secrets.yml
+#   ansible-playbook roles/role_nginx_frontend.yml -i roles/nginx_frontend/inventory.ini \
+#     --vault-password-file vault_password.txt --tags nginx_frontend_ssl,nginx_frontend_stream
+
+- name: Deploy Raven Dashboard
+  hosts: vm_my_srv
+  become: true
+
+  vars_files:
+    - "raven_dashboard/defaults/secrets.yml"
+
+  roles:
+    - role: raven_dashboard
+      tags: raven_dashboard

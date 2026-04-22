@@ -30,3 +30,15 @@ nginx_frontend_stream_v2_reality_sni: "dl.google.com"        # Must match xray_v
 nginx_frontend_stream_v2_reality_port: 4444                  # Must match xray_v2_vless.port
 nginx_frontend_stream_v2_xhttp_sni: "addons.mozilla.org"     # Must match xray_v2_xhttp.reality.server_names[0]
 nginx_frontend_stream_v2_xhttp_port: 2054                    # Must match xray_v2_xhttp.port
+
+# ── Raven Dashboard SNI integration ──────────────────────────────────────────
+# Routes SNI dash.zirgate.com → separate nginx HTTPS server on dashboard_port.
+# Requires raven_dashboard role deployed and listening on dashboard_backend_port.
+nginx_frontend_dashboard_enabled: true
+nginx_frontend_dashboard_port: 8444          # nginx HTTPS listen port for dashboard
+nginx_frontend_dashboard_backend_port: 8090  # raven-dashboard listen port (must match raven_dashboard_listen_addr)
+nginx_frontend_dashboard_frontend_dir: "/var/www/raven-dashboard"  # must match raven_dashboard_frontend_dir
+# Cloudflare origin secret — rejects requests not arriving via Cloudflare.
+# Must match the value injected by Cloudflare Transform Rule as X-Origin-Secret header.
+# Generate: openssl rand -hex 32
+# Set in roles/nginx_frontend/defaults/secrets.yml (vault-encrypted).

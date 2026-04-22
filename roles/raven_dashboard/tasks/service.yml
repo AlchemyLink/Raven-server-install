@@ -1,0 +1,25 @@
+---
+- name: Raven-dashboard | Deploy systemd service unit
+  ansible.builtin.template:
+    src: raven-dashboard.service.j2
+    dest: "/etc/systemd/system/{{ raven_dashboard_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts.service_mgr == "systemd"
+  notify:
+    - Reload systemd
+    - Restart raven-dashboard
+
+- name: Raven-dashboard | Enable and start service
+  ansible.builtin.service:
+    name: "{{ raven_dashboard_service_name }}"
+    enabled: true
+    state: started
+
+- name: Raven-dashboard | Wait for service to be listening
+  ansible.builtin.wait_for:
+    host: "{{ raven_dashboard_listen_addr.split(':')[0] }}"
+    port: "{{ raven_dashboard_listen_addr.split(':')[1] }}"
+    timeout: 20
+    msg: "raven-dashboard did not start in 20s — check: journalctl -u {{ raven_dashboard_service_name }}"

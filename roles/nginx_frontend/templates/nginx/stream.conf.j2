@@ -18,6 +18,9 @@ map $ssl_preread_server_name $sni_backend {
     {{ nginx_frontend_stream_v2_xhttp_sni }}    xhttp_reality_v2;
     {{ nginx_frontend_stream_v2_reality_sni }}  vless_reality_v2;
 {% endif %}
+{% if nginx_frontend_dashboard_enabled | default(false) %}
+    {{ nginx_frontend_dashboard_sni }}      dashboard_https;
+{% endif %}
     {{ nginx_frontend_domain }}             nginx_https;
     default                                 vless_reality;
 }
@@ -39,6 +42,13 @@ upstream vless_reality_v2 {
 upstream nginx_https {
     server 127.0.0.1:{{ nginx_frontend_listen_port }};
 }
+
+{% if nginx_frontend_dashboard_enabled | default(false) %}
+upstream dashboard_https {
+    server 127.0.0.1:{{ nginx_frontend_dashboard_port }};
+}
+
+{% endif %}
 
 upstream vless_reality {
     server 127.0.0.1:{{ nginx_frontend_stream_reality_port }};

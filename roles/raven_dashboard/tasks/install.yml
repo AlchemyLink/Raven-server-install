@@ -1,0 +1,37 @@
+---
+- name: Raven-dashboard | Ensure system group exists
+  ansible.builtin.group:
+    name: "{{ raven_dashboard_group }}"
+    system: true
+    state: present
+
+- name: Raven-dashboard | Ensure system user exists
+  ansible.builtin.user:
+    name: "{{ raven_dashboard_user }}"
+    group: "{{ raven_dashboard_group }}"
+    system: true
+    shell: /usr/sbin/nologin
+    home: "{{ raven_dashboard_data_dir }}"
+    create_home: false
+    state: present
+
+- name: Raven-dashboard | Download binary from GitHub releases
+  ansible.builtin.get_url:
+    url: "https://github.com/{{ raven_dashboard_github_repo }}/releases/download/\
+          {{ _raven_dashboard_version }}/raven-dashboard-{{ _raven_dashboard_arch }}"
+    dest: "{{ raven_dashboard_install_dir }}/raven-dashboard"
+    mode: "0755"
+    owner: root
+    group: root
+  notify: Restart raven-dashboard
+  when: raven_dashboard_local_binary is not defined
+
+- name: Raven-dashboard | Copy local binary
+  ansible.builtin.copy:
+    src: "{{ raven_dashboard_local_binary }}"
+    dest: "{{ raven_dashboard_install_dir }}/raven-dashboard"
+    mode: "0755"
+    owner: root
+    group: root
+  notify: Restart raven-dashboard
+  when: raven_dashboard_local_binary is defined

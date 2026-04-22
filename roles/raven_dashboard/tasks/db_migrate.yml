@@ -1,0 +1,31 @@
+---
+# One-shot migration: copies dashboard.db from Ansible control node to EU VPS.
+# Protected by a marker file — re-running the playbook never overwrites the live DB.
+# To re-migrate: remove {{ raven_dashboard_data_dir }}/.migrated on the remote host first.
+
+- name: Raven-dashboard | Check migration marker
+  ansible.builtin.stat:
+    path: "{{ raven_dashboard_data_dir }}/.migrated"
+  register: _raven_dashboard_migrate_marker
+
+- name: Raven-dashboard | Copy database from control node
+  ansible.builtin.copy:
+    src: "{{ raven_dashboard_db_migrate_src }}"
+    dest: "{{ raven_dashboard_db_path }}"
+    owner: "{{ raven_dashboard_user }}"
+    group: "{{ raven_dashboard_group }}"
+    mode: "0600"
+  when:
+    - raven_dashboard_db_migrate_src != ''
+    - not _raven_dashboard_migrate_marker.stat.exists
+
+- name: Raven-dashboard | Write migration marker
+  ansible.builtin.file:
+    path: "{{ raven_dashboard_data_dir }}/.migrated"
+    state: touch
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - raven_dashboard_db_migrate_src != ''
+    - not _raven_dashboard_migrate_marker.stat.exists

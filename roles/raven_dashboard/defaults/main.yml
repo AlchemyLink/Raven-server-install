@@ -1,0 +1,50 @@
+---
+raven_dashboard_github_repo: "alchemylink/raven-dashboard"
+raven_dashboard_install_dir: "/usr/local/bin"
+raven_dashboard_config_dir: "/etc/raven-dashboard"
+raven_dashboard_data_dir: "/var/lib/raven-dashboard"
+raven_dashboard_frontend_dir: "/var/www/raven-dashboard"
+raven_dashboard_user: "raven-dashboard"
+raven_dashboard_group: "raven-dashboard"
+raven_dashboard_service_name: "raven-dashboard"
+
+raven_dashboard_listen_addr: "127.0.0.1:8090"
+raven_dashboard_db_path: "{{ raven_dashboard_data_dir }}/dashboard.db"
+
+# Raven-subscribe API — local, same host
+raven_dashboard_raven_api_url: "http://127.0.0.1:8080"
+
+# VictoriaMetrics on RU VPS via WireGuard (must match monitoring role)
+raven_dashboard_prometheus_url: "http://10.10.0.2:8428"
+raven_dashboard_prometheus_addr: "127.0.0.1:9090"
+
+raven_dashboard_jwt_expiration_seconds: 900
+raven_dashboard_refresh_token_expiry_seconds: 604800
+raven_dashboard_rate_limit_per_min: 100
+raven_dashboard_max_request_body_bytes: 1048576
+
+raven_dashboard_cors_allowed_origins:
+  - "https://dash.zirgate.com"
+
+raven_dashboard_enable_websocket: true
+raven_dashboard_websocket_auth_enabled: true
+
+# One-shot DB migration from Ansible control node.
+# Set to local path of dashboard.db before first deploy; leave empty afterwards.
+# Migration is skipped if {{ raven_dashboard_data_dir }}/.migrated exists.
+raven_dashboard_db_migrate_src: ""
+
+# Override to deploy a locally-built binary instead of fetching from GitHub releases.
+# Example: raven_dashboard_local_binary: "backend/bin/raven-dashboard"
+# raven_dashboard_local_binary: ""
+
+# Override to deploy a locally-built frontend instead of fetching from GitHub releases.
+# Example: raven_dashboard_local_frontend_tar: "/tmp/raven-dashboard-frontend.tar.gz"
+# raven_dashboard_local_frontend_tar: ""
+
+##### Set these in secrets.yml (ansible-vault encrypted) #####
+# raven_dashboard_jwt_secret: ""           # openssl rand -hex 32 (min 32 chars)
+# raven_dashboard_raven_admin_token: ""    # same as raven_subscribe_admin_token
+# raven_dashboard_raven_origin_secret: "" # X-Origin-Secret for calls to Cloudflare-proxied Raven
+# raven_dashboard_prometheus_user: ""
+# raven_dashboard_prometheus_password: ""

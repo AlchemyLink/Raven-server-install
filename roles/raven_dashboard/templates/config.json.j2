@@ -1,0 +1,19 @@
+{
+  "listen_addr": "{{ raven_dashboard_listen_addr }}",
+  "db_path": "{{ raven_dashboard_db_path }}",
+  "raven_api_url": "{{ raven_dashboard_raven_api_url }}",
+  "raven_admin_token": "{{ raven_dashboard_raven_admin_token }}",
+  "raven_origin_secret": "{{ raven_dashboard_raven_origin_secret | default('') }}",
+  "jwt_secret": "{{ raven_dashboard_jwt_secret }}",
+  "jwt_expiration_seconds": {{ raven_dashboard_jwt_expiration_seconds }},
+  "refresh_token_expiry_seconds": {{ raven_dashboard_refresh_token_expiry_seconds }},
+  "rate_limit_per_min": {{ raven_dashboard_rate_limit_per_min }},
+  "prometheus_url": "{{ raven_dashboard_prometheus_url }}",
+  "prometheus_user": "{{ raven_dashboard_prometheus_user | default('') }}",
+  "prometheus_password": "{{ raven_dashboard_prometheus_password | default('') }}",
+  "prometheus_addr": "{{ raven_dashboard_prometheus_addr }}",
+  "enable_websocket": {{ raven_dashboard_enable_websocket | lower }},
+  "websocket_auth_enabled": {{ raven_dashboard_websocket_auth_enabled | lower }},
+  "cors_allowed_origins": {{ raven_dashboard_cors_allowed_origins | to_json }},
+  "max_request_body_bytes": {{ raven_dashboard_max_request_body_bytes }}
+}
