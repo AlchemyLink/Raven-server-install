@@ -1,6 +1,26 @@
 ---
 # Initial HTTP-only config — needed for certbot HTTP-01 challenge
 
+# Deploy stream config early so any existing stale config on disk is fixed
+# before the first flush_handlers reload. Prevents "invalid parameter" errors
+# from old configs when nginx reloads during this task file.
+- name: Relay | Ensure stream.d directory exists (pre-certbot)
+  ansible.builtin.file:
+    path: /etc/nginx/stream.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Relay | Pre-deploy nginx stream config (fixes stale config before reload)
+  ansible.builtin.template:
+    src: nginx/stream.conf.j2
+    dest: "/etc/nginx/stream.d/{{ relay_domain }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  when: relay_stream_enabled
+
 - name: Relay | Deploy HTTP nginx config (pre-certbot)
   ansible.builtin.template:
     src: nginx/http.conf.j2
