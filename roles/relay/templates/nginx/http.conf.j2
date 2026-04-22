@@ -4,6 +4,9 @@
 server {
     listen 80;
     server_name {{ relay_domain }} {{ relay_sub_my }};
+{% if not relay_access_log | default(false) %}
+    access_log off;
+{% endif %}
 
     root {{ relay_webroot }};
     index index.html;

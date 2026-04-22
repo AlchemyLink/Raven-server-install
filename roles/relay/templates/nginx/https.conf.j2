@@ -20,6 +20,9 @@ server {
     ssl_session_cache   shared:SSL:10m;
     ssl_session_timeout 1d;
     ssl_session_tickets off;
+{% if not relay_access_log | default(false) %}
+    access_log off;
+{% endif %}
 
     root  {{ relay_webroot }};
     index index.html;
@@ -45,6 +48,9 @@ server {
     ssl_session_cache   shared:SSL:10m;
     ssl_session_timeout 1d;
     ssl_session_tickets off;
+{% if not relay_access_log | default(false) %}
+    access_log off;
+{% endif %}
 
 {% if relay_cloudflare_proxy | default(false) %}
     # ── Cloudflare Proxy mode ────────────────────────────────────────────────

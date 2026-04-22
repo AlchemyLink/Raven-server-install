@@ -36,6 +36,11 @@ relay_https_port: 8443                 # Local HTTPS port (behind stream, stub +
 relay_nginx_user: "www-data"
 relay_webroot: "/var/www/{{ relay_domain }}"
 
+# Disable nginx access logs on RU relay for client privacy.
+# When false: nginx does not log client IPs, timing, or traffic volume.
+# Set to true only if you need RU-side traffic analysis and accept the privacy tradeoff.
+relay_access_log: false
+
 # ── Certbot ───────────────────────────────────────────────────────────────────
 relay_certbot_email: "" # Set in secrets.yml: relay_certbot_email: "admin@example.com"
 
