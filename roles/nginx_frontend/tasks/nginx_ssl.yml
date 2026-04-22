@@ -18,3 +18,20 @@
     group: root
     mode: "0644"
   notify: Reload nginx
+
+- name: Nginx frontend | Deploy dashboard HTTPS config
+  ansible.builtin.template:
+    src: nginx/dashboard.conf.j2
+    dest: "/etc/nginx/sites-enabled/raven-dashboard.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+  when: nginx_frontend_dashboard_enabled | default(false)
+
+- name: Nginx frontend | Remove dashboard HTTPS config (disabled)
+  ansible.builtin.file:
+    path: "/etc/nginx/sites-enabled/raven-dashboard.conf"
+    state: absent
+  notify: Reload nginx
+  when: not (nginx_frontend_dashboard_enabled | default(false))

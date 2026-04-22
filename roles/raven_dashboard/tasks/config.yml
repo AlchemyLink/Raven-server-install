@@ -1,0 +1,32 @@
+---
+- name: Raven-dashboard | Ensure config directory exists
+  ansible.builtin.file:
+    path: "{{ raven_dashboard_config_dir }}"
+    state: directory
+    owner: root
+    group: "{{ raven_dashboard_group }}"
+    mode: "0750"
+
+- name: Raven-dashboard | Ensure data directory exists
+  ansible.builtin.file:
+    path: "{{ raven_dashboard_data_dir }}"
+    state: directory
+    owner: "{{ raven_dashboard_user }}"
+    group: "{{ raven_dashboard_group }}"
+    mode: "0750"
+
+- name: Raven-dashboard | Backup existing config
+  ansible.builtin.copy:
+    src: "{{ raven_dashboard_config_dir }}/config.json"
+    dest: "{{ raven_dashboard_config_dir }}/config.json.bak"
+    remote_src: true
+  ignore_errors: true
+
+- name: Raven-dashboard | Deploy config.json
+  ansible.builtin.template:
+    src: config.json.j2
+    dest: "{{ raven_dashboard_config_dir }}/config.json"
+    owner: root
+    group: "{{ raven_dashboard_group }}"
+    mode: "0640"
+  notify: Restart raven-dashboard

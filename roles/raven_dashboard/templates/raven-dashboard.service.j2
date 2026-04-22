@@ -1,0 +1,22 @@
+[Unit]
+Description=Raven Dashboard (AlchemyLink admin panel)
+Documentation=https://github.com/alchemylink/raven-dashboard
+After=network.target xray-subscription.service
+
+[Service]
+Type=simple
+User={{ raven_dashboard_user }}
+Group={{ raven_dashboard_group }}
+ExecStart={{ raven_dashboard_install_dir }}/raven-dashboard -config {{ raven_dashboard_config_dir }}/config.json
+Restart=on-failure
+RestartSec=5s
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths={{ raven_dashboard_data_dir }}
+ReadOnlyPaths={{ raven_dashboard_config_dir }}
+PrivateTmp=yes
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target

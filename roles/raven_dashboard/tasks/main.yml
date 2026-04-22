@@ -1,0 +1,61 @@
+---
+- name: Raven-dashboard | Validate required vars
+  ansible.builtin.assert:
+    that:
+      - raven_dashboard_jwt_secret is defined
+      - raven_dashboard_jwt_secret | length >= 32
+      - raven_dashboard_raven_admin_token is defined
+      - raven_dashboard_raven_admin_token != ''
+    fail_msg: >-
+      raven_dashboard_jwt_secret (min 32 chars) and raven_dashboard_raven_admin_token must be
+      set in secrets.yml. Copy the example and fill values:
+        cp roles/raven_dashboard/defaults/secrets.yml.example roles/raven_dashboard/defaults/secrets.yml
+        ansible-vault encrypt roles/raven_dashboard/defaults/secrets.yml --vault-password-file vault_password.txt
+    success_msg: "Raven-dashboard vars are valid"
+
+- name: Raven-dashboard | Resolve latest GitHub release
+  when: raven_dashboard_local_binary is not defined or raven_dashboard_local_frontend_tar is not defined
+  block:
+    - name: Raven-dashboard | Query GitHub releases API
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/{{ raven_dashboard_github_repo }}/releases/latest"
+        method: GET
+        return_content: true
+        headers:
+          Accept: "application/vnd.github.v3+json"
+        status_code: 200
+      register: _raven_dashboard_release_info
+      run_once: true
+      retries: 3
+      delay: 3
+      until: _raven_dashboard_release_info.status == 200
+
+    - name: Raven-dashboard | Set release version and arch facts
+      ansible.builtin.set_fact:
+        _raven_dashboard_version: "{{ _raven_dashboard_release_info.json.tag_name }}"
+        _raven_dashboard_arch: >-
+          {{
+            'linux-amd64' if ansible_architecture in ['x86_64', 'amd64']
+            else 'linux-arm64' if ansible_architecture in ['aarch64', 'arm64']
+            else 'linux-arm'
+          }}
+
+- name: Raven-dashboard | Install binary
+  ansible.builtin.import_tasks: install.yml
+  tags: raven_dashboard_install
+
+- name: Raven-dashboard | Deploy frontend static files
+  ansible.builtin.import_tasks: frontend.yml
+  tags: raven_dashboard_frontend
+
+- name: Raven-dashboard | Configure directories and config.json
+  ansible.builtin.import_tasks: config.yml
+  tags: raven_dashboard_config
+
+- name: Raven-dashboard | Migrate database (one-shot)
+  ansible.builtin.import_tasks: db_migrate.yml
+  tags: raven_dashboard_db
+
+- name: Raven-dashboard | Deploy and start systemd service
+  ansible.builtin.import_tasks: service.yml
+  tags: raven_dashboard_service
