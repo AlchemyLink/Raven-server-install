@@ -1,13 +1,32 @@
 ---
-- name: Relay | Install nginx and certbot
+- name: Relay | Install nginx and snapd
   ansible.builtin.apt:
     name:
       - nginx
       - libnginx-mod-stream
-      - certbot
-      - python3-certbot-nginx
+      - snapd
     state: present
     update_cache: true
+
+- name: Relay | Remove apt certbot (incompatible with Python 3.11+)
+  ansible.builtin.apt:
+    name:
+      - certbot
+      - python3-certbot-nginx
+    state: absent
+    purge: true
+
+- name: Relay | Install certbot via snap
+  ansible.builtin.command:
+    cmd: snap install --classic certbot
+    creates: /snap/bin/certbot
+
+- name: Relay | Ensure certbot symlink
+  ansible.builtin.file:
+    src: /snap/bin/certbot
+    dest: /usr/bin/certbot
+    state: link
+    force: true
 
 - name: Relay | Ensure nginx is enabled
   ansible.builtin.service:

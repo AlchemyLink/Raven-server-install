@@ -19,6 +19,6 @@
 
 - name: Relay | Ensure certbot renewal timer is enabled
   ansible.builtin.service:
-    name: certbot.timer
+    name: snap.certbot.renew.timer
     enabled: true
     state: started
