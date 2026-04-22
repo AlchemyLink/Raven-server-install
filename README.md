@@ -192,24 +192,32 @@ ansible-vault edit roles/xray/defaults/secrets.yml --vault-password-file vault_p
 
 ### 5. Deploy
 
-Deploy in this order (EU first, then RU):
+Deploy strictly in this order — each step depends on the previous one:
+
+| # | Role | Why this order |
+|---|------|----------------|
+| 1 | `role_xray` | Creates `/etc/xray/config.d/`, the `xrayuser` system user, starts Xray with gRPC API on `:10085` |
+| 2 | `role_raven_subscribe` | Reads configs from `/etc/xray/config.d/` and calls gRPC API — won't start without step 1 |
+| 3 | `role_nginx_frontend` | Proxies traffic to Xray and Raven-subscribe — nothing to forward without steps 1–2 |
+| 4 | `role_xray_bridge` | (RU) Chain proxy — requires EU Reality keys from step 1 |
+| 5 | `role_relay` | (RU) nginx relay — routes to EU; if transparent bridge is enabled, xray_bridge from step 4 must already be listening |
 
 ```bash
 VP=vault_password.txt
 
-# EU — Xray + system preparation
+# 1. EU — Xray + system preparation (FIRST — creates xrayuser and config.d)
 ansible-playbook roles/role_xray.yml -i roles/hosts.yml --vault-password-file $VP
 
-# EU — Raven-subscribe
+# 2. EU — Raven-subscribe (requires Xray from step 1)
 ansible-playbook roles/role_raven_subscribe.yml -i roles/hosts.yml --vault-password-file $VP
 
-# EU — nginx TLS frontend + SNI stream routing
+# 3. EU — nginx TLS frontend + SNI stream routing
 ansible-playbook roles/role_nginx_frontend.yml -i roles/hosts.yml --vault-password-file $VP
 
-# RU — xray_bridge (deploy BEFORE relay)
+# 4. RU — xray_bridge (deploy BEFORE relay)
 ansible-playbook roles/role_xray_bridge.yml -i roles/hosts.yml --vault-password-file $VP
 
-# RU — nginx relay
+# 5. RU — nginx relay
 ansible-playbook roles/role_relay.yml -i roles/hosts.yml --vault-password-file $VP
 ```
 
