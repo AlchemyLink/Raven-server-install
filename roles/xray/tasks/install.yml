@@ -143,14 +143,15 @@
     state: link
     force: true
 
-# ── Geo data (runetfreedom/russia-v2ray-rules-dat) ───────────────────────────
-# runetfreedom is a superset of Loyalsoldier with Russian-specific tags:
-# geosite:ru-blocked, geosite:ru-blocked-all, geoip:ru-blocked, etc.
-# These are required both for server-side routing and client config generation.
+# ── Geo data (Loyalsoldier enhanced build) ────────────────────────────────────
+# Server-side routing uses geosite:category-gov-ru, geoip:ru, geoip:private —
+# all present in Loyalsoldier (11 MB). Runetfreedom (64 MB) is not used here:
+# ru-blocked tags are only relevant for client-side routing in Raven-subscribe,
+# and client apps use their own geodata, not the server's.
 # Download unconditionally to keep assets fresh.
-- name: Download runetfreedom geosite.dat
+- name: Download Loyalsoldier geosite.dat
   ansible.builtin.get_url:
-    url: "https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download/geosite.dat"
+    url: "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
     dest: "{{ xray_install_dir }}/geosite.dat"
     mode: "0644"
     owner: "{{ xray_user }}"
@@ -158,9 +159,9 @@
   retries: 3
   delay: 3
 
-- name: Download runetfreedom geoip.dat
+- name: Download Loyalsoldier geoip.dat
   ansible.builtin.get_url:
-    url: "https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download/geoip.dat"
+    url: "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat"
     dest: "{{ xray_install_dir }}/geoip.dat"
     mode: "0644"
     owner: "{{ xray_user }}"
