@@ -192,6 +192,12 @@ xray_bridge_log_level: "warning"
 # ── Install ───────────────────────────────────────────────────────────────────
 xray_github_repo: "XTLS/Xray-core"   # shared with xray role
 
+# Geodata sources:
+# - geosite.dat: Loyalsoldier (has geosite:category-gov-ru needed by direct rules)
+# - geoip.dat: runetfreedom (RIPE-based, more complete geoip:ru than MaxMind)
+xray_bridge_geosite_url: "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
+xray_bridge_geoip_url: "https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download/geoip.dat"
+
 ##### !!!!! Set these in secrets.yml (ansible-vault encrypted) !!!!!#####
 
 # xray_bridge_reality:

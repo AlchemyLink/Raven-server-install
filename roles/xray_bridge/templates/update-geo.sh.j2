@@ -1,0 +1,36 @@
+#!/bin/sh
+# Updates xray-bridge geodata and reloads the service if files changed.
+set -eu
+
+INSTALL_DIR="{{ xray_bridge_install_dir }}"
+GEOSITE_URL="{{ xray_bridge_geosite_url }}"
+GEOIP_URL="{{ xray_bridge_geoip_url }}"
+SERVICE="{{ xray_bridge_service_name }}"
+
+download() {
+    local url="$1" dest="$2"
+    local tmp="${dest}.tmp"
+    if curl -fsSL --retry 3 --retry-delay 3 -o "$tmp" "$url"; then
+        if ! cmp -s "$tmp" "$dest"; then
+            mv "$tmp" "$dest"
+            echo "updated: $dest"
+            return 0
+        else
+            rm -f "$tmp"
+            echo "unchanged: $dest"
+            return 1
+        fi
+    else
+        rm -f "$tmp"
+        echo "failed: $url" >&2
+        return 1
+    fi
+}
+
+changed=0
+download "$GEOSITE_URL" "$INSTALL_DIR/geosite.dat" && changed=1 || true
+download "$GEOIP_URL"   "$INSTALL_DIR/geoip.dat"   && changed=1 || true
+
+if [ "$changed" -eq 1 ]; then
+    systemctl reload-or-restart "$SERVICE" && echo "restarted: $SERVICE"
+fi
