@@ -17,5 +17,34 @@ TimeoutStopSec=30s
 LimitNPROC=2000
 LimitNOFILE=1000000
 
+# Filesystem hardening
+# ProtectSystem=strict makes /usr /boot /efi /etc /var read-only by default.
+# ReadWritePaths carves out the log directory.
+# Config in /etc/xray/ is intentionally read-only for the process.
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths={{ xray_log_dir }}
+
+# Device and kernel hardening
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectHostname=true
+ProtectClock=true
+
+# Process hardening
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+# Syscall filter — @system-service covers all syscalls a well-behaved
+# Go service needs; @network-io adds socket/recv/send calls.
+SystemCallFilter=@system-service @network-io
+SystemCallArchitectures=native
+SystemCallErrorNumber=EPERM
+
 [Install]
 WantedBy=multi-user.target
