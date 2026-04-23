@@ -143,13 +143,14 @@
     state: link
     force: true
 
-# ── Geo data (ensure Loyalsoldier enhanced build is present) ─────────────────
-# The Xray-core zip includes basic v2fly geoip/geosite, but routing config uses
-# categories like geosite:category-gov-ru that require the enhanced Loyalsoldier
-# build. Download unconditionally to keep assets fresh.
-- name: Download Loyalsoldier geosite.dat
+# ── Geo data (runetfreedom/russia-v2ray-rules-dat) ───────────────────────────
+# runetfreedom is a superset of Loyalsoldier with Russian-specific tags:
+# geosite:ru-blocked, geosite:ru-blocked-all, geoip:ru-blocked, etc.
+# These are required both for server-side routing and client config generation.
+# Download unconditionally to keep assets fresh.
+- name: Download runetfreedom geosite.dat
   ansible.builtin.get_url:
-    url: "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
+    url: "https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download/geosite.dat"
     dest: "{{ xray_install_dir }}/geosite.dat"
     mode: "0644"
     owner: "{{ xray_user }}"
@@ -157,9 +158,9 @@
   retries: 3
   delay: 3
 
-- name: Download Loyalsoldier geoip.dat
+- name: Download runetfreedom geoip.dat
   ansible.builtin.get_url:
-    url: "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat"
+    url: "https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download/geoip.dat"
     dest: "{{ xray_install_dir }}/geoip.dat"
     mode: "0644"
     owner: "{{ xray_user }}"
