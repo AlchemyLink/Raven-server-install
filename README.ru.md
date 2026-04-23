@@ -231,6 +231,8 @@ ansible-playbook roles/role_xray_bridge.yml -i roles/hosts.yml --vault-password-
 ansible-playbook roles/role_relay.yml -i roles/hosts.yml --vault-password-file $VP
 ```
 
+После завершения деплоя получите ссылки подписки для клиентов → [Получить ссылки подписки](#получить-ссылки-подписки).
+
 Деплой только конкретной части через теги:
 
 ```bash
@@ -583,6 +585,32 @@ sqlite3 /var/lib/xray-subscription/db.sqlite \
 ```
 
 Токен можно передать пользователю в виде ссылки или QR-кода — клиент (V2RayNG, NekoBox, Hiddify) импортирует конфиг автоматически.
+
+### Геоданные на клиентском устройстве
+
+Генерируемый клиентский конфиг использует теги `geosite:ru-blocked` и `geoip:ru-blocked` для корректного разделения трафика (заблокированные сайты — через VPN, остальные российские — напрямую). Эти теги присутствуют только в базе [runetfreedom/russia-v2ray-rules-dat](https://github.com/runetfreedom/russia-v2ray-rules-dat), а не в стандартных геодата-файлах.
+
+Без установки runetfreedom правила `ru-blocked` молча пропускаются — заблокированные сайты всё равно идут через VPN (работает корректно), но сайты, которые заблокированы и при этом попадают в `geosite:category-ru`, пойдут напрямую.
+
+**V2RayNG (Android)**
+
+Настройки → Настройки геоданных → введите URL и нажмите «Обновить»:
+```
+Geoip URL:   https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download/geoip.dat
+Geosite URL: https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download/geosite.dat
+```
+
+**NekoBox (Android / Desktop)**
+
+Настройки → Основные → Geo asset update URL — задать те же два URL, затем «Обновить геоданные».
+
+**v2rayN (Windows)**
+
+Настройки → Настройки геоданных → задать URL для `geoip.dat` и `geosite.dat` из списка выше, нажать «Обновить».
+
+**Hiddify**
+
+Настройки → Геоданные → обновить из URL (поддерживает кастомные источники).
 
 ### Проверить статус сервисов на удалённом сервере
 
