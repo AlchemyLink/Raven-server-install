@@ -554,32 +554,6 @@ sqlite3 /var/lib/xray-subscription/db.sqlite \
 
 Share the token as a URL or QR code — the client app (V2RayNG, NekoBox, Hiddify) imports the config automatically.
 
-### Client geodata setup
-
-The generated client config uses `geosite:ru-blocked` and `geoip:ru-blocked` tags for correct split-tunneling (blocked sites → VPN, other Russian sites → direct). These tags are only present in [runetfreedom/russia-v2ray-rules-dat](https://github.com/runetfreedom/russia-v2ray-rules-dat), not in the default geodata files.
-
-Without runetfreedom the `ru-blocked` rules are silently skipped — blocked sites still route through VPN (correct behaviour), but sites that are both blocked and in `geosite:category-ru` will go direct.
-
-**V2RayNG (Android)**
-
-Settings → Geo asset settings → enter URLs and tap Update:
-```
-Geoip URL:   https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download/geoip.dat
-Geosite URL: https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download/geosite.dat
-```
-
-**NekoBox (Android / Desktop)**
-
-Settings → Core → Geo asset update URL — set both URLs above, then tap Update geo assets.
-
-**v2rayN (Windows)**
-
-Settings → Geo asset settings → set URLs for `geoip.dat` and `geosite.dat`, click Update.
-
-**Hiddify**
-
-Settings → Geo assets → update from URL (supports custom sources).
-
 ### Check service status on remote server
 
 ```bash
