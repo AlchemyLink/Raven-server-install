@@ -11,10 +11,9 @@
       "settings": {
         "clients": [
           {% for user in xray_users %}
-          {% set _flow = user.flow | default('') %}
           {
             "id": "{{ user.id }}",
-            "flow": "{{ 'xtls-rprx-vision' if _pq else _flow }}",
+            "flow": "{{ 'xtls-rprx-vision' if _pq else '' }}",
             "email": "{{ (user.email | default('') | trim) or user.id }}",
             "level": 0
           }{{ "," if not loop.last }}
