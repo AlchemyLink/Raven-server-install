@@ -22,17 +22,8 @@
 - name: Raven-dashboard | Checkpoint WAL before restart
   ansible.builtin.command:
     cmd: >-
-      python3 -c "
-      import sqlite3, os
-      db = '{{ raven_dashboard_db_path }}'
-      if os.path.exists(db):
-          conn = sqlite3.connect(db)
-          conn.execute('PRAGMA wal_checkpoint(TRUNCATE)')
-          conn.commit()
-          conn.close()
-      "
-  become: true
-  become_user: "{{ raven_dashboard_user }}"
+      sudo -u {{ raven_dashboard_user }} python3 -c
+      "import sqlite3,os; db='{{ raven_dashboard_db_path }}'; conn=sqlite3.connect(db) if os.path.exists(db) else None; conn and (conn.execute('PRAGMA wal_checkpoint(TRUNCATE)'),conn.commit(),conn.close())"
   changed_when: false
 
 - name: Raven-dashboard | Enable and start service
