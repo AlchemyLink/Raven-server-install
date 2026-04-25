@@ -11,6 +11,14 @@
     - Reload systemd
     - Restart raven-dashboard
 
+- name: Raven-dashboard | Fix data directory ownership (WAL files)
+  ansible.builtin.file:
+    path: "{{ raven_dashboard_data_dir }}"
+    state: directory
+    owner: "{{ raven_dashboard_user }}"
+    group: "{{ raven_dashboard_group }}"
+    recurse: true
+
 - name: Raven-dashboard | Enable and start service
   ansible.builtin.service:
     name: "{{ raven_dashboard_service_name }}"
