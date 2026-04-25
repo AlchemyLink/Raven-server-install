@@ -20,13 +20,14 @@ raven_subscribe_rate_limit_admin_per_min: 30
 #   expectIPs     — discard responses whose IPs don't match (geoip: syntax); anti-spoofing
 # Empty list = use built-in default (1.1.1.1, 8.8.8.8, 8.8.4.4).
 #
-# Recommended RU setup (Yandex validates blocked-domain IPs, Quad9 as fallback):
+# Example: Yandex DNS for Russian domestic domains (direct traffic), Cloudflare as fallback.
+# expectIPs: geoip:ru ensures Yandex returns real Russian CDN IPs (anti-spoofing).
+# Use category-ru (domestic) here — NOT ru-blocked (those go through proxy via foreign DNS).
 #   - address: "77.88.8.8"
-#     domains: ["geosite:ru-blocked"]
+#     domains: ["geosite:category-ru"]
 #     skipFallback: true
 #     expectIPs: ["geoip:ru"]
 #   - "1.1.1.1"
-#   - "9.9.9.9"
 raven_subscribe_client_dns_servers: []
 
 # Balancer settings (used in generated client subscription configs)
