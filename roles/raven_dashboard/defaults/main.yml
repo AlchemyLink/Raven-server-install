@@ -43,8 +43,9 @@ raven_dashboard_db_migrate_src: ""
 # raven_dashboard_local_frontend_tar: ""
 
 ##### Set these in secrets.yml (ansible-vault encrypted) #####
-# raven_dashboard_jwt_secret: ""           # openssl rand -hex 32 (min 32 chars)
-# raven_dashboard_raven_admin_token: ""    # same as raven_subscribe_admin_token
-# raven_dashboard_raven_origin_secret: "" # X-Origin-Secret for calls to Cloudflare-proxied Raven
+# raven_dashboard_jwt_secret: ""              # openssl rand -hex 32 (min 32 chars)
+# raven_dashboard_raven_admin_token: ""       # same as raven_subscribe_admin_token
+# raven_dashboard_raven_origin_secret: ""     # X-Origin-Secret for Cloudflare-proxied Raven
 # raven_dashboard_prometheus_user: ""
 # raven_dashboard_prometheus_password: ""
+# raven_dashboard_telegram_bot_token: ""      # optional — create via @BotFather; empty = bot disabled

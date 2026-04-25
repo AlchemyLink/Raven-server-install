@@ -15,5 +15,7 @@
   "enable_websocket": {{ raven_dashboard_enable_websocket | lower }},
   "websocket_auth_enabled": {{ raven_dashboard_websocket_auth_enabled | lower }},
   "cors_allowed_origins": {{ raven_dashboard_cors_allowed_origins | to_json }},
-  "max_request_body_bytes": {{ raven_dashboard_max_request_body_bytes }}
+  "max_request_body_bytes": {{ raven_dashboard_max_request_body_bytes }}{% if raven_dashboard_telegram_bot_token | default('') %},
+  "telegram_bot_token": "{{ raven_dashboard_telegram_bot_token }}"{% endif %}
+
 }
