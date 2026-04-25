@@ -19,6 +19,22 @@
     group: "{{ raven_dashboard_group }}"
     recurse: true
 
+- name: Raven-dashboard | Checkpoint WAL before restart
+  ansible.builtin.command:
+    cmd: >-
+      python3 -c "
+      import sqlite3, os
+      db = '{{ raven_dashboard_db_path }}'
+      if os.path.exists(db):
+          conn = sqlite3.connect(db)
+          conn.execute('PRAGMA wal_checkpoint(TRUNCATE)')
+          conn.commit()
+          conn.close()
+      "
+  become: true
+  become_user: "{{ raven_dashboard_user }}"
+  changed_when: false
+
 - name: Raven-dashboard | Enable and start service
   ansible.builtin.service:
     name: "{{ raven_dashboard_service_name }}"
