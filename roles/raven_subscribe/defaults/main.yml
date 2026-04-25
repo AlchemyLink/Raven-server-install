@@ -11,6 +11,24 @@ raven_subscribe_sync_interval_seconds: 60
 raven_subscribe_rate_limit_sub_per_min: 60
 raven_subscribe_rate_limit_admin_per_min: 30
 
+# DNS servers injected into generated client subscription configs.
+# Each entry is a plain IP string or an object with Xray DNS server fields:
+#   address       — IP address (required)
+#   domains       — use this server only for matching domains (geosite:/domain: syntax)
+#   skipFallback  — true: exclude from fallback list; prevents this server handling
+#                   non-matching domains (pair with "domains" to scope it properly)
+#   expectIPs     — discard responses whose IPs don't match (geoip: syntax); anti-spoofing
+# Empty list = use built-in default (1.1.1.1, 8.8.8.8, 8.8.4.4).
+#
+# Recommended RU setup (Yandex validates blocked-domain IPs, Quad9 as fallback):
+#   - address: "77.88.8.8"
+#     domains: ["geosite:ru-blocked"]
+#     skipFallback: true
+#     expectIPs: ["geoip:ru"]
+#   - "1.1.1.1"
+#   - "9.9.9.9"
+raven_subscribe_client_dns_servers: []
+
 # Balancer settings (used in generated client subscription configs)
 # Strategy: random, roundRobin, leastPing, leastLoad
 raven_subscribe_balancer_strategy: "leastPing"
