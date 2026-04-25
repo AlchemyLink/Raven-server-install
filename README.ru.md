@@ -407,6 +407,14 @@ raven_subscribe_server_host: "yourdomain.com"
 # raven_subscribe_vless_client_encryption:
 #   vless-reality-in: "mlkem768x25519plus.PublicKeyV1..."
 #   vless-reality-v2-in: "mlkem768x25519plus.PublicKeyV2..."
+
+# DNS-серверы, добавляемые в генерируемые клиентские конфиги (опционально).
+# Каждая запись — строка с IP-адресом или объект с полями "address" и "domains".
+# Если не задано — используется 1.1.1.1, 8.8.8.8, 8.8.4.4.
+# raven_subscribe_client_dns_servers:
+#   - address: "77.88.8.8"
+#     domains: ["geosite:yandex"]
+#   - "1.1.1.1"
 ```
 
 ### `roles/nginx_frontend/defaults/secrets.yml`
