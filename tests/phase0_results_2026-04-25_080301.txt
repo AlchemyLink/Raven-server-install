@@ -1,0 +1,59 @@
+C5 Phase 0 — Validation Baseline
+==================================
+Timestamp : 2026-04-25T05:03:01Z
+EU VPS    : vm_my_srv (64.226.79.239)
+
+=== WireGuard Tunnel ===
+Peer         : 10.10.0.2 (RU VPS)
+Status       : DOWN — tunnel needs attention
+Ping output  :
+PING 10.10.0.2 (10.10.0.2) 56(84) bytes of data.
+
+  --- 10.10.0.2 ping statistics ---
+  4 packets transmitted, 0 received, 100% packet loss, time 3005ms
+Stderr: 
+
+WG interface:
+WG_INTERFACE_MISSING
+
+=== .ru Domain Reachability from EU IP (no bridge, direct) ===
+Format: domain | dns_s | connect_s | total_s | http_code
+(http_code 000 = failed to connect; >3s connect = likely geo-blocked or high latency)
+
+2gis.ru|0.169737|0.207661|3.257128|200
+  avito.ru|0.642272|0.644750|4.929140|200
+  dns-shop.ru|0.083538|0.091159|2.589412|401
+  dzen.ru|0.197791|0.314754|4.403504|200
+  gazeta.ru|0.106597|0.188438|4.491362|200
+  gosuslugi.ru|0.109585|0.146022|2.817628|200
+  hh.ru|0.122122|0.129712|3.403507|200
+  interfax.ru|0.147652|0.178824|4.471295|200
+  ivi.ru|0.246121|0.248139|5.565719|200
+  kinopoisk.ru|0.130017|0.184214|2.686427|403
+  kommersant.ru|0.192081|0.226599|4.792718|200
+  lenta.ru|0.120886|0.160384|3.062984|200
+  magnit.ru|0.088886|0.103291|3.972330|200
+  mail.ru|0.188645|0.317243|4.743598|200
+  ok.ru|0.158011|0.203747|3.052010|200
+  online.sberbank.ru|0.049481|0.094414|2.881568|200
+  ozon.ru|0.106279|0.144367|4.783113|307
+  perekrestok.ru|0.386238|0.422988|2.947307|403
+  raiffeisen.ru|0.273730|0.365389|4.758102|200
+  rbc.ru|0.141026|0.172476|4.348348|401
+  ria.ru|0.097630|0.099323|3.010666|200
+  rutube.ru|0.123557|0.164215|3.049603|200
+  sber.ru|0.075905|0.116269|2.687364|200
+  tinkoff.ru|0.200123|0.322838|5.088723|200
+  vedomosti.ru|0.175122|0.197225|5.926722|200
+  vk.com|0.120735|0.153255|3.470114|200
+  vtb.ru|0.208234|0.281610|5.229369|200
+  wildberries.ru|0.188742|0.268592|4.439430|498
+  ya.ru|0.104276|0.148141|3.124335|200
+  yandex.ru|0.097463|0.278746|4.773441|200
+
+=== Decision Gate ===
+Domains with http_code NOT in [200,301,302,303] or connect_time >2.0s
+require manual review for RU-exit routing.
+
+Run the companion analysis script locally:
+  python3 tests/scripts/c5_phase0_analyze.py tests/phase0_results_YYYYMMDD_HHMMSS.txt

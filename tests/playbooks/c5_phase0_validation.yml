@@ -1,0 +1,148 @@
+---
+# C5 Migration — Phase 0: Validation baseline
+#
+# Runs on EU VPS. Measures:
+#   1. WireGuard tunnel health (ping 10.10.0.2)
+#   2. HTTP latency + reachability for top-30 .ru domains from EU IP (direct, no bridge)
+#
+# Decision gate: domains with http_code=000/403 or latency >3x RU-baseline need RU-exit.
+#
+# Usage:
+#   cd Raven-server-install
+#   ansible-playbook tests/playbooks/c5_phase0_validation.yml \
+#     -i roles/hosts.yml --vault-password-file vault_password.txt
+#
+# Output: tests/phase0_results_YYYYMMDD_HHMMSS.txt (local)
+
+- name: C5 Phase 0 — validation baseline
+  hosts: vm_my_srv
+  gather_facts: true
+
+  vars:
+    wg_ru_ip: "10.10.0.2"
+    results_local_dir: "{{ playbook_dir }}/../../tests"
+    ru_domains:
+      - vk.com
+      - ok.ru
+      - yandex.ru
+      - mail.ru
+      - sber.ru
+      - online.sberbank.ru
+      - gosuslugi.ru
+      - ozon.ru
+      - wildberries.ru
+      - avito.ru
+      - rbc.ru
+      - ria.ru
+      - gazeta.ru
+      - lenta.ru
+      - interfax.ru
+      - vedomosti.ru
+      - kommersant.ru
+      - hh.ru
+      - 2gis.ru
+      - kinopoisk.ru
+      - ivi.ru
+      - rutube.ru
+      - dzen.ru
+      - ya.ru
+      - tinkoff.ru
+      - vtb.ru
+      - raiffeisen.ru
+      - perekrestok.ru
+      - magnit.ru
+      - dns-shop.ru
+
+  tasks:
+    - name: Check WireGuard tunnel (ping RU peer)
+      command: ping -c 4 -W 2 {{ wg_ru_ip }}
+      register: wg_ping
+      failed_when: false
+      changed_when: false
+
+    - name: Check WireGuard interface status
+      shell: wg show wg0 2>/dev/null || echo "WG_INTERFACE_MISSING"
+      register: wg_status_raw
+      failed_when: false
+      changed_when: false
+
+    - name: Run parallel HTTP latency tests against .ru domains from EU IP
+      # Each domain: curl with timing fields; all run in background, wait collects output.
+      # Format per line: domain|dns_s|connect_s|total_s|http_code
+      # http_code 000 = connection failed; total_s 0.000 = timeout/refused
+      shell: |
+        run_domain() {
+          domain="$1"
+          out=$(curl -s -o /dev/null \
+            -w "%{time_namelookup}|%{time_connect}|%{time_total}|%{http_code}" \
+            --max-time 10 --connect-timeout 5 \
+            -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36" \
+            -L "https://${domain}" 2>/dev/null)
+          if [ $? -ne 0 ] && [ -z "$out" ]; then
+            out="ERR|ERR|ERR|000"
+          fi
+          echo "${domain}|${out}"
+        }
+        {
+        {% for domain in ru_domains %}
+          run_domain {{ domain }} &
+        {% endfor %}
+          wait
+        } | sort
+      register: latency_raw
+      changed_when: false
+      args:
+        executable: /bin/bash
+
+    - name: Parse results and identify blocked/slow domains
+      set_fact:
+        wg_alive: "{{ wg_ping.rc == 0 }}"
+        domain_results: "{{ latency_raw.stdout_lines }}"
+
+    - name: Build human-readable report
+      set_fact:
+        report_content: |
+          C5 Phase 0 — Validation Baseline
+          ==================================
+          Timestamp : {{ ansible_date_time.iso8601 }}
+          EU VPS    : {{ inventory_hostname }} ({{ ansible_host }})
+
+          === WireGuard Tunnel ===
+          Peer         : {{ wg_ru_ip }} (RU VPS)
+          Status       : {{ 'ALIVE' if wg_alive else 'DOWN — tunnel needs attention' }}
+          Ping output  :
+          {{ wg_ping.stdout | indent(2) }}
+          {% if wg_ping.rc != 0 %}
+          Stderr: {{ wg_ping.stderr }}
+          {% endif %}
+
+          WG interface:
+          {{ wg_status_raw.stdout | indent(2) }}
+
+          === .ru Domain Reachability from EU IP (no bridge, direct) ===
+          Format: domain | dns_s | connect_s | total_s | http_code
+          (http_code 000 = failed to connect; >3s connect = likely geo-blocked or high latency)
+
+          {{ latency_raw.stdout | indent(2) }}
+
+          === Decision Gate ===
+          Domains with http_code NOT in [200,301,302,303] or connect_time >2.0s
+          require manual review for RU-exit routing.
+
+          Run the companion analysis script locally:
+            python3 tests/scripts/c5_phase0_analyze.py tests/phase0_results_YYYYMMDD_HHMMSS.txt
+
+    - name: Save report locally
+      local_action:
+        module: copy
+        content: "{{ report_content }}"
+        dest: "{{ results_local_dir }}/phase0_results_{{ ansible_date_time.date }}_{{ ansible_date_time.time | replace(':', '') }}.txt"
+      changed_when: false
+
+    - name: Print summary
+      debug:
+        msg: |
+          WireGuard: {{ 'ALIVE' if wg_alive else 'DOWN' }}
+          Tested {{ ru_domains | length }} .ru domains from EU IP.
+          Results saved to tests/phase0_results_{{ ansible_date_time.date }}_{{ ansible_date_time.time | replace(':', '') }}.txt
+          Review blocked/slow domains to determine if VLESS tunnel (Phase 6-7) is needed.
