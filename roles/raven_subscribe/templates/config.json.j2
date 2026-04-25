@@ -19,6 +19,9 @@
 {% if raven_subscribe_client_dns_servers | default([]) | length > 0 %}
   "client_dns_servers": {{ raven_subscribe_client_dns_servers | to_json }},
 {% endif %}
+{% if raven_subscribe_client_blackhole_response | default('') != '' %}
+  "client_blackhole_response": "{{ raven_subscribe_client_blackhole_response }}",
+{% endif %}
   "inbound_ports": {{ raven_subscribe_inbound_ports | to_json }},
   "static_inbounds": [],
   "bridge_api_addr": "{{ raven_subscribe_bridge_api_addr | default('') }}",
