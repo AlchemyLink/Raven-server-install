@@ -1,0 +1,58 @@
+{
+  "inbounds": [
+{% if xray_fallback_enabled | default(false) %}
+{% set _fb = xray_fallback %}
+{% set _fbr = xray_fallback_reality %}
+{% set _pq = xray_vless_fallback_decryption | default('none') != 'none' %}
+    {
+      "listen": "{{ _fb.listen | default('127.0.0.1') }}",
+      "port": {{ _fb.port }},
+      "protocol": "vless",
+      "tag": "{{ _fb.tag | default('vless-fallback-in') }}",
+      "settings": {
+        "clients": [
+          {% for user in xray_users %}
+          {
+            "id": "{{ user.id }}",
+            "flow": "{{ 'xtls-rprx-vision' if _pq else user.flow | default(xray_vless_default_flow) }}",
+            "email": "{{ (user.email | default('') | trim) or user.id }}",
+            "level": 0
+          }{{ "," if not loop.last }}
+          {% endfor %}
+        ],
+        "decryption": "{{ xray_vless_fallback_decryption | default('none') }}"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "{{ _fb.reality.dest }}",
+          "spiderX": "{{ _fbr.spiderX | default('/') }}",
+          "serverNames": [
+            {% for name in _fb.reality.server_names %}
+            "{{ name }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "privateKey": "{{ _fbr.private_key }}",
+          "shortIds": [
+            {% for short_id in _fbr.short_id %}
+            "{{ short_id }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "xver": 0
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "routeOnly": true
+      }
+    }
+{% endif %}
+  ]
+}

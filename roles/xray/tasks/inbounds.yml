@@ -1,4 +1,15 @@
 ---
+- name: Remove obsolete v1 inbound configs (vless-reality-in, vless-xhttp-in)
+  ansible.builtin.file:
+    path: "{{ xray_config_dir }}config.d/{{ item }}"
+    state: absent
+  loop:
+    - 200-in-vless-reality.json
+    - 210-in-xhttp.json
+  notify:
+    - "Validate xray"
+    - "Restart xray"
+
 - name: Deploy inbound configs
   ansible.builtin.template:
     src: "{{ item }}"

@@ -1,7 +1,7 @@
 {
   "inbounds": [
 {% if xray_v2_inbounds_enabled | default(false) %}
-{% set _v2r = xray_v2_reality | default(xray_reality) %}
+{% set _v2r = xray_v2_reality %}
 {% set _pq = xray_vless_decryption | default('none') != 'none' %}
    {
       "listen": "{{ xray_v2_vless.listen | default('127.0.0.1') }}",

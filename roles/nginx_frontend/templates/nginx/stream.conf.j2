@@ -2,21 +2,28 @@
 # Managed by Ansible nginx_frontend role
 #
 # Reads SNI from TLS ClientHello (ssl_preread) and routes TCP:
-#   {{ nginx_frontend_stream_xhttp_sni }} → Xray XHTTP+Reality      (127.0.0.1:{{ nginx_frontend_stream_xhttp_port }})
 {% if nginx_frontend_stream_v2_enabled | default(false) %}
-#   {{ nginx_frontend_stream_v2_xhttp_sni }}  → Xray XHTTP v2+Reality   (127.0.0.1:{{ nginx_frontend_stream_v2_xhttp_port }})
-#   {{ nginx_frontend_stream_v2_reality_sni }}       → Xray VLESS v2+Reality   (127.0.0.1:{{ nginx_frontend_stream_v2_reality_port }})
+#   {{ nginx_frontend_stream_v2_xhttp_sni }}    → Xray XHTTP v2+Reality   (127.0.0.1:{{ nginx_frontend_stream_v2_xhttp_port }})
+#   {{ nginx_frontend_stream_v2_reality_sni }}  → Xray VLESS v2+Reality   (127.0.0.1:{{ nginx_frontend_stream_v2_reality_port }})
+{% endif %}
+{% if nginx_frontend_stream_fallback_enabled | default(false) %}
+#   {{ nginx_frontend_stream_fallback_snis | join(', ') }}
+#                                         → Xray VLESS fallback (multi-SNI) (127.0.0.1:{{ nginx_frontend_stream_fallback_port }})
 {% endif %}
 #   {{ nginx_frontend_domain }}           → nginx HTTPS              (127.0.0.1:{{ nginx_frontend_listen_port }})
-#   default (other SNI)                   → Xray VLESS Reality       (127.0.0.1:{{ nginx_frontend_stream_reality_port }})
+#   default (other SNI)                   → tcp_close (immediate RST, no TLS response)
 #
 # This file is included inside stream {} block in nginx.conf
 
 map $ssl_preread_server_name $sni_backend {
-    {{ nginx_frontend_stream_xhttp_sni }}   xhttp_reality;
 {% if nginx_frontend_stream_v2_enabled | default(false) %}
     {{ nginx_frontend_stream_v2_xhttp_sni }}    xhttp_reality_v2;
     {{ nginx_frontend_stream_v2_reality_sni }}  vless_reality_v2;
+{% endif %}
+{% if nginx_frontend_stream_fallback_enabled | default(false) %}
+    {% for sni in nginx_frontend_stream_fallback_snis | default([]) %}
+    {{ sni }}    vless_fallback;
+    {% endfor %}
 {% endif %}
 {% if nginx_frontend_dashboard_enabled | default(false) %}
     {{ nginx_frontend_dashboard_sni }}      dashboard_https;
@@ -25,11 +32,13 @@ map $ssl_preread_server_name $sni_backend {
     {{ nginx_frontend_sub_sni }}            sub_https;
 {% endif %}
     {{ nginx_frontend_domain }}             nginx_https;
-    default                                 vless_reality;
+    default                                 tcp_close;
 }
 
-upstream xhttp_reality {
-    server 127.0.0.1:{{ nginx_frontend_stream_xhttp_port }};
+# Default backend for unmatched SNI: connection refused — TCP open, then immediate RST.
+# Equivalent to "return 444" in HTTP context (port 1 is reserved/never bound).
+upstream tcp_close {
+    server 127.0.0.1:1;
 }
 
 {% if nginx_frontend_stream_v2_enabled | default(false) %}
@@ -39,6 +48,12 @@ upstream xhttp_reality_v2 {
 
 upstream vless_reality_v2 {
     server 127.0.0.1:{{ nginx_frontend_stream_v2_reality_port }};
+}
+
+{% endif %}
+{% if nginx_frontend_stream_fallback_enabled | default(false) %}
+upstream vless_fallback {
+    server 127.0.0.1:{{ nginx_frontend_stream_fallback_port }};
 }
 
 {% endif %}
@@ -58,11 +73,6 @@ upstream sub_https {
 }
 
 {% endif %}
-
-upstream vless_reality {
-    server 127.0.0.1:{{ nginx_frontend_stream_reality_port }};
-}
-
 server {
     listen 443 reuseport;
     proxy_pass $sni_backend;
