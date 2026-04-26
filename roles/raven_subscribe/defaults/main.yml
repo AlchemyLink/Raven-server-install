@@ -50,13 +50,17 @@ raven_subscribe_xray_config_dir: "/etc/xray/config.d"
 raven_subscribe_inbound_hosts: {}
 
 # Per-inbound port overrides. Falls back to inbound's own port when tag not listed.
-# Set in secrets.yml. With SNI routing both protocols share port 443.
-# Example: {"vless-reality-in": 443, "vless-xhttp-in": 443}
+# All primary + fallback inbounds share port 443 via nginx stream SNI routing.
 raven_subscribe_inbound_ports:
-    vless-reality-in: 443
-    vless-xhttp-in: 443
     vless-reality-v2-in: 443
     vless-xhttp-v2-in: 443
+    vless-fallback-in: 443
+
+# Fallback subscription inbound allowlist — restricts /sub/fallback/* to outbounds
+# whose inbound tag is in this list. Empty = no filtering (legacy behaviour).
+# Should contain ONLY isolated fallback-only inbounds (NOT primary inbounds).
+raven_subscribe_fallback_inbound_tags:
+  - vless-fallback-in
 
 # Bridge user sync — pushes all EU inbound users to xray-bridge transparent inbounds via gRPC.
 # Requires xray-bridge Stats API enabled and WireGuard tunnel between EU and RU VPS.
@@ -65,13 +69,8 @@ raven_subscribe_inbound_ports:
 raven_subscribe_bridge_api_addr: ""
 raven_subscribe_bridge_transparent_tags: {}
 
-# Path to sing-box config file. Leave empty to disable sing-box sync.
-# Example: "/etc/sing-box/config.json"
-raven_subscribe_singbox_config: ""
-
-# Enable/disable Xray and sing-box sync independently.
+# Enable/disable Xray sync.
 raven_subscribe_xray_enabled: true
-raven_subscribe_singbox_enabled: false
 
 # System user/group (shared with xray role — do NOT change)
 raven_subscribe_user: "xrayuser"

@@ -17,19 +17,28 @@ nginx_frontend_raven_port: 8080    # Must match raven_subscribe_listen_addr port
 
 # ── SNI stream routing on :443 ───────────────────────────────────────────────
 # nginx stream with ssl_preread reads SNI from TLS ClientHello and routes:
-#   SNI = xhttp_sni (e.g. www.adobe.com)  → Xray XHTTP+Reality (xhttp_port)
-#   default (e.g. askubuntu.com)          → Xray Reality TCP (reality_port)
+#   SNI = primary v2 inbounds → Xray Reality v2 (mldsa65)
+#   SNI = fallback inbounds → Xray Reality fallback (isolated keys)
+#   default (other SNI)       → tcp_close (immediate RST, no TLS response)
 nginx_frontend_stream_enabled: true
-nginx_frontend_stream_xhttp_sni: "www.adobe.com"   # Must match xray_xhttp.reality.server_names[0]
-nginx_frontend_stream_xhttp_port: 2053              # Must match xray_xhttp.port
-nginx_frontend_stream_reality_port: 4443            # Must match xray_vless_port
 
-# V2 inbounds (Xray-core >= v26.3.27)
+# Primary v2 inbounds (Xray-core >= v26.3.27 with mldsa65)
 nginx_frontend_stream_v2_enabled: true
 nginx_frontend_stream_v2_reality_sni: "dl.google.com"        # Must match xray_v2_vless.reality.server_names[0]
 nginx_frontend_stream_v2_reality_port: 4444                  # Must match xray_v2_vless.port
 nginx_frontend_stream_v2_xhttp_sni: "addons.mozilla.org"     # Must match xray_v2_xhttp.reality.server_names[0]
 nginx_frontend_stream_v2_xhttp_port: 2054                    # Must match xray_v2_xhttp.port
+
+# Fallback inbound — multi-SNI на StackExchange-инфраструктуре (один upstream)
+# Все 4 SNI идут на один backend port — Reality сама выбирает соединение по UIRD-маркеру.
+# StackExchange использует SNI-virtual-hosting → cert всегда совпадает с любым из этих SNI.
+nginx_frontend_stream_fallback_enabled: true
+nginx_frontend_stream_fallback_port: 5443                    # Must match xray_fallback.port
+nginx_frontend_stream_fallback_snis:                          # Must match xray_fallback.reality.server_names
+  - "stackoverflow.com"
+  - "superuser.com"
+  - "serverfault.com"
+  - "unix.stackexchange.com"
 
 # ── Raven Dashboard SNI integration ──────────────────────────────────────────
 # Routes SNI dash.zirgate.com → separate nginx HTTPS server on dashboard_port.
