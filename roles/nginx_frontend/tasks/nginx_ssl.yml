@@ -35,3 +35,20 @@
     state: absent
   notify: Reload nginx
   when: not (nginx_frontend_dashboard_enabled | default(false))
+
+- name: Nginx frontend | Deploy sub HTTPS config
+  ansible.builtin.template:
+    src: nginx/sub.conf.j2
+    dest: "/etc/nginx/sites-enabled/raven-sub.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+  when: nginx_frontend_sub_enabled | default(false)
+
+- name: Nginx frontend | Remove sub HTTPS config (disabled)
+  ansible.builtin.file:
+    path: "/etc/nginx/sites-enabled/raven-sub.conf"
+    state: absent
+  notify: Reload nginx
+  when: not (nginx_frontend_sub_enabled | default(false))

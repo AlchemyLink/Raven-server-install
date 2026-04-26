@@ -5,6 +5,9 @@
   "db_path": "{{ raven_subscribe_db_dir }}/db.sqlite",
   "sync_interval_seconds": {{ raven_subscribe_sync_interval_seconds }},
   "base_url": "{{ raven_subscribe_base_url }}",
+{% if raven_subscribe_fallback_base_url | default('') != '' %}
+  "fallback_base_url": "{{ raven_subscribe_fallback_base_url }}",
+{% endif %}
   "admin_token": "{{ raven_subscribe_admin_token }}",
   "rate_limit_sub_per_min": {{ raven_subscribe_rate_limit_sub_per_min }},
   "rate_limit_admin_per_min": {{ raven_subscribe_rate_limit_admin_per_min }},
