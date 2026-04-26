@@ -21,6 +21,9 @@ map $ssl_preread_server_name $sni_backend {
 {% if nginx_frontend_dashboard_enabled | default(false) %}
     {{ nginx_frontend_dashboard_sni }}      dashboard_https;
 {% endif %}
+{% if nginx_frontend_sub_enabled | default(false) %}
+    {{ nginx_frontend_sub_sni }}            sub_https;
+{% endif %}
     {{ nginx_frontend_domain }}             nginx_https;
     default                                 vless_reality;
 }
@@ -46,6 +49,12 @@ upstream nginx_https {
 {% if nginx_frontend_dashboard_enabled | default(false) %}
 upstream dashboard_https {
     server 127.0.0.1:{{ nginx_frontend_dashboard_port }};
+}
+
+{% endif %}
+{% if nginx_frontend_sub_enabled | default(false) %}
+upstream sub_https {
+    server 127.0.0.1:{{ nginx_frontend_sub_port }};
 }
 
 {% endif %}
