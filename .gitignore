@@ -23,3 +23,9 @@ tests/fixtures/test_secrets.yml
 
 
 CLAUDE.md
+
+# Internal ops notes — runbooks, ADRs, threat models, dependency maps.
+# Useful next to the code locally, but their content (specific failure modes,
+# fragility maps, IPs/SNIs in plaintext) is higher-value to an attacker than
+# to a public reader. Keep them out of the public mirror.
+docs/
