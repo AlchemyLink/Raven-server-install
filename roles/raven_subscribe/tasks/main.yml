@@ -98,11 +98,17 @@
   notify: Restart raven-subscribe
 
 - name: Raven-subscribe | Ensure Xray config dir exists (required for systemd namespace mount)
+  # WARNING: ownership MUST be xrayuser:xrayuser. raven-subscribe writes new
+  # client JSON files here when admins add users via the dashboard. If this
+  # dir is root-owned, dashboard add-user silently fails (regression observed
+  # 2026-04-27 — broke 11 users). The xray role creates this dir as xrayuser;
+  # this task only re-asserts existence (e.g. fresh server), never resets
+  # ownership when the dir already belongs to xrayuser.
   ansible.builtin.file:
     path: "{{ raven_subscribe_xray_config_dir }}"
     state: directory
-    owner: root
-    group: root
+    owner: "{{ raven_subscribe_user }}"
+    group: "{{ raven_subscribe_group }}"
     mode: "0755"
 
 - name: Raven-subscribe | Deploy systemd service
