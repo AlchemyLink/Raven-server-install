@@ -62,10 +62,15 @@
     mode: "0755"
 
 - name: Ensure Xray config directory exists
+  # Owned by xray_user so raven-subscribe (running as the same user) can
+  # atomically write user-list updates via *.raven.tmp + rename. Root-owned
+  # directory silently breaks the restore loop and new users disappear from
+  # xray's running config every time it restarts.
   ansible.builtin.file:
     path: "{{ xray_config_dir }}config.d"
     state: directory
-
+    owner: "{{ xray_user }}"
+    group: "{{ xray_group }}"
     mode: "0755"
 
 - name: Get latest Xray release version
