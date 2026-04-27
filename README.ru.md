@@ -91,7 +91,8 @@ Raven-subscribe на EU автоматически синхронизирует 
 | `srv_prepare` | EU | `role_xray.yml` | BBR, sysctl, системный пользователь `xrayuser` |
 | `xray` | EU | `role_xray.yml` | Бинарь Xray + split-конфиг в `/etc/xray/config.d/` |
 | `raven_subscribe` | EU | `role_raven_subscribe.yml` | Сервер подписок, gRPC-синхронизация с Xray и мостом |
-| `nginx_frontend` | EU | `role_nginx_frontend.yml` | nginx SNI routing на :443, HTTPS прокси на :8443 |
+| `raven_dashboard` | EU | `role_raven_dashboard.yml` | [Raven Dashboard](https://github.com/AlchemyLink/raven-dashboard) — админ-панель (TOTP-gated CRUD пользователей, broadcast, sync-health card). Vue SPA + Go backend на SNI `dash.<domain>` |
+| `nginx_frontend` | EU | `role_nginx_frontend.yml` | nginx SNI routing на :443, HTTPS прокси на :8443, отдельный vhost для дашборда со static path `/screenshots/*` |
 | `monitoring` | EU+RU | `role_monitoring.yml` | xray-stats-exporter + VictoriaMetrics + Grafana |
 | `wireguard` | EU+RU | `role_wireguard.yml` | WireGuard mesh — туннель EU↔RU для мониторинга и синхронизации моста |
 | `sing-box-playbook` | EU | `role_sing-box.yml` | sing-box + Hysteria2 (опционально) |
@@ -287,6 +288,33 @@ ansible-playbook roles/role_xray.yml -i roles/hosts.yml --vault-password-file $V
 - Слушает на `127.0.0.1:8080`, проксируется через nginx_frontend
 - Автоматически синхронизирует пользователей с inbound'ами моста через `bridge_transparent_tags` (требует туннель WireGuard)
 - Следит за `/etc/xray/config.d/` через fsnotify — подхватывает изменения за секунды
+- Эндпоинт `GET /api/sync/status` (детектор drift'а DB↔xray) и startup write-probe в `/etc/xray/config.d/`. Probe ловит регрессии прав/owner'a на старте, не дожидаясь жалобы пользователя. Дашборд polls этот эндпоинт для своей карточки Settings → Sync Health.
+
+> **Важно** — `/etc/xray/config.d/` должен принадлежать `xrayuser` (роль `xray` это делает). Неправильный owner молча ломает persistence: пользователи попадают в DB raven-subscribe, но запись `*.raven.tmp` падает с EACCES, drift копится, xray отвергает подключения с `invalid request user id`. Health-эндпоинт ловит это; ручной фикс — `sudo chown xrayuser:xrayuser /etc/xray/config.d/`.
+
+---
+
+### Роль `raven_dashboard`
+
+Деплоит [Raven Dashboard](https://github.com/AlchemyLink/raven-dashboard) — админ-панель Vue 3 SPA + Go backend для `raven_subscribe`. Раздаётся на отдельном SNI vhost (обычно `dash.<домен>`) внутри той же nginx-инстанции.
+
+- Vue static-бандл в `/var/www/raven-dashboard/`, Go backend на `127.0.0.1:8090`
+- Раскладка тегов: `raven_dashboard_install` (бинарь), `raven_dashboard_frontend` (SPA tar), `raven_dashboard_config`, `raven_dashboard_db` (one-shot миграция), `raven_dashboard_screenshots`, `raven_dashboard_service`
+- **Local-build override** для ad-hoc деплоев без GitHub-релиза:
+  - `raven_dashboard_local_binary=/path/to/raven-dashboard-linux-amd64`
+  - `raven_dashboard_local_frontend_tar=/path/to/dist.tar.gz`
+- **Скриншоты для шаблонов broadcast** (например `v2box-refresh.png` в шаблоне `subscription_refresh_request`): файлы кладутся в `{{ raven_dashboard_screenshots_dir }}` (по умолчанию `/var/www/raven-dashboard/screenshots`), отдаются по `https://<dashboard SNI>/screenshots/*` через nginx. Таск `screenshots.yml` создаёт директорию и опционально синхронит её с локальной через `raven_dashboard_local_screenshots_dir=/path/to/local/dir`.
+- Переживает фронт-редеплой — `unarchive`-таск SPA не стирает соседей.
+
+Пример деплоя с локальными артефактами:
+```bash
+ansible-playbook roles/role_raven_dashboard.yml -i roles/hosts.yml \
+  --vault-password-file vault_password.txt \
+  --tags raven_dashboard_install,raven_dashboard_frontend,raven_dashboard_screenshots,raven_dashboard_service \
+  -e "raven_dashboard_local_binary=$(pwd)/../raven-dashboard/backend/bin/raven-dashboard-linux-amd64" \
+  -e "raven_dashboard_local_frontend_tar=/tmp/raven-dashboard-frontend.tar.gz" \
+  -e "raven_dashboard_local_screenshots_dir=/tmp/v2box-screens"
+```
 
 ---
 

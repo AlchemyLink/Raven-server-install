@@ -91,7 +91,8 @@ Raven-subscribe on EU automatically syncs users to bridge inbounds via WireGuard
 | `srv_prepare` | EU | `role_xray.yml` | BBR, sysctl tuning, system user `xrayuser` |
 | `xray` | EU | `role_xray.yml` | Xray binary + split config in `/etc/xray/config.d/` |
 | `raven_subscribe` | EU | `role_raven_subscribe.yml` | Subscription server, gRPC sync with Xray and bridge |
-| `nginx_frontend` | EU | `role_nginx_frontend.yml` | nginx SNI routing on :443, HTTPS proxy on :8443 |
+| `raven_dashboard` | EU | `role_raven_dashboard.yml` | [Raven Dashboard](https://github.com/AlchemyLink/raven-dashboard) — admin panel (TOTP-gated user CRUD, broadcast, sync-health card). Vue SPA + Go backend, served on `dash.<domain>` SNI |
+| `nginx_frontend` | EU | `role_nginx_frontend.yml` | nginx SNI routing on :443, HTTPS proxy on :8443, dashboard vhost with `/screenshots/*` static path |
 | `monitoring` | EU+RU | `role_monitoring.yml` | xray-stats-exporter + VictoriaMetrics + Grafana |
 | `wireguard` | EU+RU | `role_wireguard.yml` | WireGuard mesh — EU↔RU tunnel for monitoring and bridge sync |
 | `sing-box-playbook` | EU | `role_sing-box.yml` | sing-box + Hysteria2 (optional) |
@@ -277,6 +278,33 @@ Deploys [Raven-subscribe](https://github.com/AlchemyLink/Raven-subscribe) — a 
 - Listens on `127.0.0.1:8080`, proxied by nginx_frontend
 - Automatically syncs users to the RU bridge via `bridge_transparent_tags` (requires WireGuard tunnel)
 - Watches `/etc/xray/config.d/` via fsnotify — picks up changes within seconds
+- Exposes `GET /api/sync/status` (DB↔xray drift health) and runs a startup write-probe in `/etc/xray/config.d/`. The probe surfaces ownership/permission regressions loudly at boot rather than waiting for a user complaint. The dashboard polls this endpoint for its Settings → Sync Health card.
+
+> **Important** — `/etc/xray/config.d/` must be owned by `xrayuser` (the `xray` role takes care of this). Wrong ownership silently breaks user persistence: dashboard-created users land in raven-subscribe DB, but `*.raven.tmp` writes fail with EACCES, drift accumulates, xray rejects connections with `invalid request user id`. Health endpoint catches this; manually fixed via `sudo chown xrayuser:xrayuser /etc/xray/config.d/`.
+
+---
+
+### `raven_dashboard` role
+
+Deploys [Raven Dashboard](https://github.com/AlchemyLink/raven-dashboard) — Vue 3 SPA + Go backend admin panel for `raven_subscribe`. Served on a separate SNI vhost (typically `dash.<domain>`) inside the same nginx instance.
+
+- Vue static bundle in `/var/www/raven-dashboard/`, Go backend on `127.0.0.1:8090`
+- Tag layout: `raven_dashboard_install` (binary), `raven_dashboard_frontend` (SPA tar), `raven_dashboard_config`, `raven_dashboard_db` (one-shot migration), `raven_dashboard_screenshots`, `raven_dashboard_service`
+- **Local-build override** for ad-hoc deploys without a GitHub release:
+  - `raven_dashboard_local_binary=/path/to/raven-dashboard-linux-amd64`
+  - `raven_dashboard_local_frontend_tar=/path/to/dist.tar.gz`
+- **Screenshots for broadcast templates** (e.g. v2box-refresh.png shipped with `subscription_refresh_request` template): files placed at `{{ raven_dashboard_screenshots_dir }}` (default `/var/www/raven-dashboard/screenshots`), served at `https://<dashboard SNI>/screenshots/*` via nginx. The role's `screenshots.yml` task creates the directory and optionally syncs from a local source via `raven_dashboard_local_screenshots_dir=/path/to/local/dir`.
+- Survives frontend redeploys — the SPA `unarchive` step does not strip siblings.
+
+Example deploy with local artifacts:
+```bash
+ansible-playbook roles/role_raven_dashboard.yml -i roles/hosts.yml \
+  --vault-password-file vault_password.txt \
+  --tags raven_dashboard_install,raven_dashboard_frontend,raven_dashboard_screenshots,raven_dashboard_service \
+  -e "raven_dashboard_local_binary=$(pwd)/../raven-dashboard/backend/bin/raven-dashboard-linux-amd64" \
+  -e "raven_dashboard_local_frontend_tar=/tmp/raven-dashboard-frontend.tar.gz" \
+  -e "raven_dashboard_local_screenshots_dir=/tmp/v2box-screens"
+```
 
 ---
 
