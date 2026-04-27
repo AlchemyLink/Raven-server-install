@@ -1,0 +1,14 @@
+[Unit]
+Description=Weekly refresh of RU CIDR sets for raven-geoblock
+
+[Timer]
+# Run shortly after boot (catches CIDR drift after long downtime),
+# then weekly on Sunday 04:30 server-local. Persistent so we still
+# refresh if the box was off across a scheduled run.
+OnBootSec=5min
+OnCalendar=Sun *-*-* 04:30:00
+RandomizedDelaySec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

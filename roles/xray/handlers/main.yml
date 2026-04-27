@@ -33,3 +33,11 @@
   changed_when: false
   when: ansible_facts['service_mgr'] == "openrc"
 
+- name: Reload raven-geoblock nft table
+  # Atomically reload the table from disk. The chain hooks pick up
+  # the new ruleset; CIDR sets are then re-populated by the
+  # update service triggered right after.
+  ansible.builtin.command:
+    cmd: nft -f /etc/nftables/raven-geoblock.nft
+  changed_when: true
+

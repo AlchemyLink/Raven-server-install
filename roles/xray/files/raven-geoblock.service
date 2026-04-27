@@ -1,0 +1,16 @@
+[Unit]
+Description=Load raven-geoblock nft table (RU geoIP outbound drop for xrayuser)
+Documentation=https://habr.com/ru/articles/1020080/
+After=network-pre.target
+Before=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/nftables/raven-geoblock.nft
+ExecStop=/usr/sbin/nft delete table inet raven_geoblock
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

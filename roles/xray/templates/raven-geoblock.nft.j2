@@ -1,0 +1,45 @@
+#!/usr/sbin/nft -f
+# Managed by Ansible — do not edit by hand.
+#
+# Defense-in-depth firewall against the SOCKS5-leak class of attacks
+# disclosed in https://habr.com/ru/articles/1020080/ (2026-04-07).
+#
+# A misconfigured / malicious Android client can punch a hole through
+# its VpnService and force xray to make outbound requests to attacker-
+# controlled RU honeypots, deanonymizing the VPN exit. We don't trust
+# clients to never do this; we drop the relevant outbound at the kernel.
+#
+# Sets ru_v4 / ru_v6 are populated by raven-update-ru-cidrs.service
+# from ipdeny.com on boot and weekly thereafter; this file only ships
+# the table skeleton + chain.
+#
+# Coexists with iptables-nft (Docker) — separate inet table, no
+# overlapping hooks.
+
+table inet raven_geoblock {
+    set ru_v4 {
+        type ipv4_addr
+        flags interval
+        auto-merge
+    }
+
+    set ru_v6 {
+        type ipv6_addr
+        flags interval
+        auto-merge
+    }
+
+    chain output_drop_ru {
+        type filter hook output priority filter; policy accept;
+
+        # Allow loopback unconditionally — internal raven-subscribe
+        # gRPC to xray API runs on 127.0.0.1 and must never be touched.
+        oif lo accept
+
+        # Drop xrayuser's outbound to any RU prefix. xrayuser owns
+        # both xray itself and the stats exporters; only xray makes
+        # external connections, so the rule is safe on the others.
+        meta skuid {{ xray_user }} ip daddr @ru_v4 counter drop
+        meta skuid {{ xray_user }} ip6 daddr @ru_v6 counter drop
+    }
+}

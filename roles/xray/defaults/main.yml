@@ -114,6 +114,21 @@ xray_freedom_fragment:
 xray_freedom_noises: []
 
 
+# ── RU geoIP outbound drop (defense-in-depth, opt-in) ──────────────────────
+# Defends against the SOCKS5-leak class of attacks disclosed in
+# https://habr.com/ru/articles/1020080/ — a malicious app on a user's
+# Android device can bypass VpnService and force xray to make outbound
+# requests to attacker-controlled RU honeypots, deanonymizing the VPN exit.
+#
+# When enabled, an nftables table drops every outbound packet from
+# xrayuser whose destination falls in any RU CIDR (refreshed weekly
+# from ipdeny.com). Trade-off: a user who deliberately routes a RU
+# CDN through the proxy will see those connections fail. Our shipped
+# routing rules ship `geosite:ru direct` so the typical user never hits
+# this; only an admin who has built a custom proxy-RU rule will notice.
+xray_geoblock_ru_enabled: false
+
+
 # ── Primary inbounds (Xray-core >= v26.3.27 with mldsa65) ───────────────────
 # These are the only primary inbounds — v1 (без mldsa65) удалены 2026-04-26.
 xray_v2_inbounds_enabled: true

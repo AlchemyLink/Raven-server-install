@@ -1,0 +1,98 @@
+---
+# nftables-based RU geoIP outbound drop, defense-in-depth against
+# the SOCKS5-leak class disclosed in https://habr.com/ru/articles/1020080/
+#
+# Opt-in via xray_geoblock_ru_enabled (default: false). When enabled:
+#   - Loads an inet table `raven_geoblock` with skuid+ip-set rules
+#   - Populates RU CIDR sets from ipdeny.com (boot + weekly)
+#   - Drops outbound from xrayuser to any RU prefix
+#
+# Caveat: this blocks legitimate VPN-via-RU routes too. Our shipped
+# routing rules already direct geosite:ru to the client (split routing),
+# so users normally don't hit this. Anyone explicitly proxying a RU
+# CDN via VPN will see timeouts after enabling this.
+
+- name: Geoblock | Apply when enabled
+  when: xray_geoblock_ru_enabled | default(false) | bool
+  block:
+    - name: Geoblock | Install nftables
+      ansible.builtin.apt:
+        name: nftables
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Geoblock | Ensure /etc/nftables directory exists
+      ansible.builtin.file:
+        path: /etc/nftables
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Geoblock | Render nft table skeleton
+      ansible.builtin.template:
+        src: raven-geoblock.nft.j2
+        dest: /etc/nftables/raven-geoblock.nft
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Reload raven-geoblock nft table
+
+    - name: Geoblock | Install RU CIDR refresh script
+      ansible.builtin.copy:
+        src: raven-update-ru-cidrs.sh
+        dest: /usr/local/sbin/raven-update-ru-cidrs.sh
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: Geoblock | Install systemd units
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "/etc/systemd/system/{{ item }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop:
+        - raven-geoblock.service
+        - raven-update-ru-cidrs.service
+        - raven-update-ru-cidrs.timer
+      notify: Reload systemd
+
+    - name: Geoblock | Flush handlers before enabling units
+      ansible.builtin.meta: flush_handlers
+
+    - name: Geoblock | Enable and start raven-geoblock
+      ansible.builtin.systemd:
+        name: raven-geoblock.service
+        enabled: true
+        state: started
+
+    - name: Geoblock | Enable and start refresh timer
+      ansible.builtin.systemd:
+        name: raven-update-ru-cidrs.timer
+        enabled: true
+        state: started
+
+    - name: Geoblock | Run initial CIDR refresh
+      ansible.builtin.systemd:
+        name: raven-update-ru-cidrs.service
+        state: started
+      changed_when: false
+
+- name: Geoblock | Tear down when disabled
+  when: not (xray_geoblock_ru_enabled | default(false) | bool)
+  block:
+    - name: Geoblock | Stop and disable services (if previously enabled)
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        enabled: false
+        state: stopped
+      loop:
+        - raven-update-ru-cidrs.timer
+        - raven-geoblock.service
+      register: _geoblock_teardown
+      failed_when:
+        - _geoblock_teardown.failed
+        - "'Could not find the requested service' not in (_geoblock_teardown.msg | default(''))"

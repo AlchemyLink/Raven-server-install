@@ -1,0 +1,12 @@
+[Unit]
+Description=Refresh RU CIDR sets in raven-geoblock nft table
+Documentation=https://habr.com/ru/articles/1020080/
+After=raven-geoblock.service network-online.target
+Wants=network-online.target
+Requires=raven-geoblock.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/raven-update-ru-cidrs.sh
+StandardOutput=journal
+StandardError=journal

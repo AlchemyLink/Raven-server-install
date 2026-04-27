@@ -39,4 +39,8 @@
   ansible.builtin.import_tasks: grpcurl.yml
   tags: grpcurl
 
+- name: Xray | Geoblock (RU outbound drop)
+  ansible.builtin.import_tasks: geoblock.yml
+  tags: xray_geoblock
+
 
