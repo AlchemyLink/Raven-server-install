@@ -4,6 +4,10 @@ raven_dashboard_install_dir: "/usr/local/bin"
 raven_dashboard_config_dir: "/etc/raven-dashboard"
 raven_dashboard_data_dir: "/var/lib/raven-dashboard"
 raven_dashboard_frontend_dir: "/var/www/raven-dashboard"
+# Screenshots referenced by broadcast templates (e.g. v2box-refresh.png).
+# Sibling of the SPA root so the unarchive step in frontend.yml never wipes it.
+# Served at /screenshots/* by the dashboard SNI vhost (nginx_frontend role).
+raven_dashboard_screenshots_dir: "{{ raven_dashboard_frontend_dir }}/screenshots"
 raven_dashboard_user: "raven-dashboard"
 raven_dashboard_group: "raven-dashboard"
 raven_dashboard_service_name: "raven-dashboard"

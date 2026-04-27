@@ -29,6 +29,14 @@ server {
     root {{ nginx_frontend_dashboard_frontend_dir }};
     index index.html;
 
+    # Screenshot assets referenced by broadcast templates. Explicit /screenshots/
+    # location so missing files return 404 (the SPA fallback would otherwise
+    # serve index.html for a missing image, breaking Telegram sendPhoto).
+    location /screenshots/ {
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=86400";
+    }
+
     location / {
         try_files $uri $uri/ /index.html;
     }

@@ -1,0 +1,40 @@
+---
+# Idempotent screenshot directory for /screenshots/* assets referenced by
+# broadcast templates. Lives under the SPA root so nginx serves it via the
+# explicit /screenshots/ location in dashboard.conf.j2 (nginx_frontend role).
+#
+# Files placed here survive frontend redeploys — the unarchive step in
+# frontend.yml does not strip or wipe siblings.
+#
+# To upload screenshots:
+#   - Set raven_dashboard_local_screenshots_dir=/path/to/local/screenshots and
+#     re-run the role with --tags raven_dashboard_screenshots, OR
+#   - Manually scp/rsync into {{ raven_dashboard_screenshots_dir }} on the host.
+
+- name: Raven-dashboard | Ensure screenshots directory exists
+  ansible.builtin.file:
+    path: "{{ raven_dashboard_screenshots_dir }}"
+    state: directory
+    owner: root
+    group: www-data
+    mode: "0755"
+
+- name: Raven-dashboard | Discover local screenshot files
+  ansible.builtin.find:
+    paths: "{{ raven_dashboard_local_screenshots_dir }}"
+    file_type: file
+  delegate_to: localhost
+  register: _raven_dashboard_local_screens
+  when: raven_dashboard_local_screenshots_dir is defined and raven_dashboard_local_screenshots_dir != ""
+
+- name: Raven-dashboard | Copy each screenshot to host
+  ansible.builtin.copy:
+    src: "{{ item.path }}"
+    dest: "{{ raven_dashboard_screenshots_dir }}/{{ item.path | basename }}"
+    owner: root
+    group: www-data
+    mode: "0644"
+  loop: "{{ _raven_dashboard_local_screens.files | default([]) }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  when: raven_dashboard_local_screenshots_dir is defined and raven_dashboard_local_screenshots_dir != ""

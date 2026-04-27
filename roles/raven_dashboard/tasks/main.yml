@@ -48,6 +48,10 @@
   ansible.builtin.import_tasks: frontend.yml
   tags: raven_dashboard_frontend
 
+- name: Raven-dashboard | Manage broadcast screenshot assets
+  ansible.builtin.import_tasks: screenshots.yml
+  tags: raven_dashboard_screenshots
+
 - name: Raven-dashboard | Configure directories and config.json
   ansible.builtin.import_tasks: config.yml
   tags: raven_dashboard_config
