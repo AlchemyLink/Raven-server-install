@@ -20,9 +20,28 @@ raven_subscribe_rate_limit_admin_per_min: 30
 #   expectIPs     — discard responses whose IPs don't match (geoip: syntax); anti-spoofing
 # Empty list = use built-in default (1.1.1.1, 8.8.8.8, 8.8.4.4).
 #
-# Recommended RU setup (Yandex validates blocked-domain IPs, Quad9 as fallback):
+# Recommended RU setup — Yandex DNS for ALLOWED RU services only.
+#
+# WARNING: never put `geosite:ru-blocked` (or any Roskomnadzor-blocked domain)
+# under a Russian resolver. Yandex DNS is RU-jurisdiction (374-ФЗ "Yarovaya"
+# + СОРМ-3) and is required to log/disclose query metadata to FSB. Routing
+# blocked-domain queries to Yandex would tie each subscriber's residential
+# IP to every blocked site they query — defeating the entire VPN bypass.
+#
+# Yandex DNS is only used for `category-ru`/`domain:ru` (banks, госуслуги,
+# Ozon, VK, etc.) where geo-localized CDN resolution defeats VPN-detection
+# (mismatch IP↔SIM↔geo). For these, Yandex sees the same queries any RU
+# ISP/telecom resolver would see — no anonymity regression.
+#
+# Blocked domains (`geosite:ru-blocked`) keep resolving via 1.1.1.1/9.9.9.9
+# through the proxy chain — never touch a Russian resolver.
+#
 #   - address: "77.88.8.8"
-#     domains: ["geosite:ru-blocked"]
+#     domains:
+#       - "geosite:category-ru"
+#       - "domain:ru"
+#       - "domain:su"
+#       - "domain:рф"
 #     skipFallback: true
 #     expectIPs: ["geoip:ru"]
 #   - "1.1.1.1"

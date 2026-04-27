@@ -1,0 +1,26 @@
+---
+# Renders roles/raven_subscribe/templates/config.json.j2 using the production
+# secrets vault for verification. Output goes to .output/raven_subscribe_config.json
+# so a calling script can jq-validate the DNS split block.
+- name: Render Raven-subscribe config.json
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars_files:
+    - ../../roles/raven_subscribe/defaults/main.yml
+    - ../../roles/raven_subscribe/defaults/secrets.yml
+  vars:
+    role_path: "{{ playbook_dir }}/../../roles/raven_subscribe"
+    out_dir: "{{ lookup('env', 'RAVEN_TEST_RS_OUT_DIR') | default(playbook_dir + '/../.output/raven_subscribe', true) }}"
+  tasks:
+    - name: Ensure output directory
+      ansible.builtin.file:
+        path: "{{ out_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Render config.json.j2
+      ansible.builtin.template:
+        src: "{{ role_path }}/templates/config.json.j2"
+        dest: "{{ out_dir }}/config.json"
+        mode: "0600"
