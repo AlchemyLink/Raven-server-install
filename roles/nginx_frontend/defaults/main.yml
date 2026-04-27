@@ -41,14 +41,14 @@ nginx_frontend_stream_fallback_snis:                          # Must match xray_
   - "unix.stackexchange.com"
 
 # ── Raven Dashboard SNI integration ──────────────────────────────────────────
-# Routes SNI dash.zirgate.com → separate nginx HTTPS server on dashboard_port.
+# Routes SNI <dashboard_domain> → separate nginx HTTPS server on dashboard_port.
 # Requires raven_dashboard role deployed and listening on dashboard_backend_port.
 nginx_frontend_dashboard_enabled: true
 nginx_frontend_dashboard_port: 8444          # nginx HTTPS listen port for dashboard
 nginx_frontend_dashboard_backend_port: 8090  # raven-dashboard listen port (must match raven_dashboard_listen_addr)
 nginx_frontend_dashboard_frontend_dir: "/var/www/raven-dashboard"  # must match raven_dashboard_frontend_dir
 
-# ── Fallback subscription endpoint (sub.zirgate.com → EU-direct) ─────────────
+# ── Fallback subscription endpoint (<sub_domain> → EU-direct) ────────────────
 # When enabled, routes SNI nginx_frontend_sub_sni → separate nginx HTTPS server on sub_port.
 # Exposes only /sub/fallback/ and /c/fallback/ — no admin API, no primary subscriptions.
 # Set nginx_frontend_sub_sni and nginx_frontend_sub_cf_secret in secrets.yml.
