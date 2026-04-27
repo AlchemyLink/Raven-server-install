@@ -21,6 +21,13 @@ tests/.cache/
 tests/.output/
 tests/fixtures/test_secrets.yml
 
+# Test artifacts that may contain inventory data (IPs, hostnames).
+# Ad-hoc scripts produce timestamped result files at tests/ root —
+# never commit them, they're regenerable by re-running the script.
+tests/*_results_*
+tests/*.log
+tests/output/
+
 
 CLAUDE.md
 
