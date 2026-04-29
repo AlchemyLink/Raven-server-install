@@ -11,7 +11,7 @@ Languages: **English** | [Русский](README.ru.md)
 Ansible playbooks for deploying a production-ready self-hosted VPN server stack based on [Xray-core](https://github.com/XTLS/Xray-core) and [Raven-subscribe](https://github.com/AlchemyLink/Raven-subscribe). Designed for censorship circumvention with traffic indistinguishable from regular HTTPS.
 
 > [!WARNING]
-> **Alpha Testing** — This project is under active development. APIs, variable names, and deployment procedures may change between versions. Test thoroughly before using in production. Please [report issues](https://github.com/AlchemyLink/Raven-server-install/issues) to help us improve.
+> **No turnkey installer.** These playbooks deploy the AlchemyLink VPN stack the way we run it — they're not a universal recipe ("works on our machines"). You're welcome to fork it as a template, and we'll be happy to help you adapt it in [Discussions](https://github.com/AlchemyLink/Raven-server-install/discussions).
 
 **What you get:**
 
