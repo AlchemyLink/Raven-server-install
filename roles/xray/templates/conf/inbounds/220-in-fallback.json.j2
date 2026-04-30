@@ -4,22 +4,25 @@
 {% set _fb = xray_fallback %}
 {% set _fbr = xray_fallback_reality %}
 {% set _pq = xray_vless_fallback_decryption | default('none') != 'none' %}
+{% set _clients = [] %}
+{% for user in xray_users %}
+{%   set _ = _clients.append({
+       "id": user.id,
+       "flow": ('xtls-rprx-vision' if _pq else (user.flow | default(xray_vless_default_flow))),
+       "email": ((user.email | default('') | trim) or user.id),
+       "level": 0
+     }) %}
+{% endfor %}
+{% for c in (xray_extra_clients | default({})).get('220-in-fallback.json', []) %}
+{%   set _ = _clients.append(c) %}
+{% endfor %}
     {
       "listen": "{{ _fb.listen | default('127.0.0.1') }}",
       "port": {{ _fb.port }},
       "protocol": "vless",
       "tag": "{{ _fb.tag | default('vless-fallback-in') }}",
       "settings": {
-        "clients": [
-          {% for user in xray_users %}
-          {
-            "id": "{{ user.id }}",
-            "flow": "{{ 'xtls-rprx-vision' if _pq else user.flow | default(xray_vless_default_flow) }}",
-            "email": "{{ (user.email | default('') | trim) or user.id }}",
-            "level": 0
-          }{{ "," if not loop.last }}
-          {% endfor %}
-        ],
+        "clients": {{ _clients | to_json }},
         "decryption": "{{ xray_vless_fallback_decryption | default('none') }}"
       },
       "streamSettings": {

@@ -10,6 +10,65 @@
     - "Validate xray"
     - "Restart xray"
 
+# Preserve API-added clients on redeploy.
+#
+# Raven-subscribe writes dashboard-added users (Mode 2: api_user_inbound_tag)
+# into the same inbound JSON files Ansible owns. Without this guard, a
+# `--tags xray_inbounds` deploy rewrites clients[] from `xray_users` only and
+# silently drops every API-added user from the file. On Xray restart they
+# vanish from the runtime until raven-subscribe restore.go re-adds them via
+# gRPC — a window in which those clients cannot connect.
+#
+# Strategy: read existing files, extract clients whose email is NOT in vault
+# xray_users, expose as xray_extra_clients[<file>], let templates append them.
+# Tests/render_conf.yml never sets this fact → defaults to {} → no-op.
+- name: "Slurp existing inbound files (to preserve API-added clients on redeploy)"
+  ansible.builtin.slurp:
+    src: "{{ xray_config_dir }}config.d/{{ item }}"
+  register: xray_existing_inbounds
+  loop:
+    - 201-in-vless-reality-v2.json
+    - 211-in-xhttp-v2.json
+    - 220-in-fallback.json
+  failed_when: false   # missing file = fresh install, treated as no extras
+  changed_when: false
+  check_mode: false    # we need real content even in --check
+
+- name: "Compute preserved (API-added) clients per inbound file"
+  ansible.builtin.set_fact:
+    xray_extra_clients: >-
+      {{ xray_extra_clients | default({}) | combine({
+           item.item: (
+             ((item.content | b64decode | from_json).inbounds[0].settings.clients
+               | default([])
+               | rejectattr('email', 'defined')
+               | list
+             ) + (
+              (item.content | b64decode | from_json).inbounds[0].settings.clients
+               | default([])
+               | selectattr('email', 'defined')
+               | rejectattr('email', 'in', _vault_emails)
+               | list
+             )
+           ) if (item.content is defined and item.content | length > 0) else []
+         }) }}
+  vars:
+    _vault_emails: "{{ xray_users | map(attribute='email') | list }}"
+  loop: "{{ xray_existing_inbounds.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: "Report preserved API-added clients"
+  ansible.builtin.debug:
+    msg: >-
+      {{ item.key }}: {{ item.value | length }} API-added client(s) preserved
+      {%- if item.value | length > 0 %}
+      ({{ item.value | map(attribute='email') | join(', ') }})
+      {%- endif %}
+  loop: "{{ (xray_extra_clients | default({})) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
 - name: Deploy inbound configs
   ansible.builtin.template:
     src: "{{ item }}"

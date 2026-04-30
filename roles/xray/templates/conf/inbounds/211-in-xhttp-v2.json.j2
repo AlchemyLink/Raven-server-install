@@ -3,22 +3,25 @@
 {% if xray_v2_inbounds_enabled | default(false) %}
 {% set _v2r = xray_v2_reality %}
 {% set _pq = xray_vless_decryption | default('none') != 'none' %}
+{% set _clients = [] %}
+{% for user in xray_users %}
+{%   set _ = _clients.append({
+       "id": user.id,
+       "flow": ('xtls-rprx-vision' if _pq else ''),
+       "email": ((user.email | default('') | trim) or user.id),
+       "level": 0
+     }) %}
+{% endfor %}
+{% for c in (xray_extra_clients | default({})).get('211-in-xhttp-v2.json', []) %}
+{%   set _ = _clients.append(c) %}
+{% endfor %}
     {
       "listen": "{{ xray_v2_xhttp.listen | default('127.0.0.1') }}",
       "port": {{ xray_v2_xhttp.port }},
       "protocol": "vless",
       "tag": "{{ xray_v2_xhttp.tag }}",
       "settings": {
-        "clients": [
-          {% for user in xray_users %}
-          {
-            "id": "{{ user.id }}",
-            "flow": "{{ 'xtls-rprx-vision' if _pq else '' }}",
-            "email": "{{ (user.email | default('') | trim) or user.id }}",
-            "level": 0
-          }{{ "," if not loop.last }}
-          {% endfor %}
-        ],
+        "clients": {{ _clients | to_json }},
         {% set _ts = xray_v2_testseed | default(xray_testseed | default([])) %}
         {% if _ts | length == 4 %}
         "testseed": {{ _ts | to_json }},
