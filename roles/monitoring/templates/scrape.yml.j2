@@ -8,22 +8,6 @@ global:
 # EU exporters (xray, xray-stats, node-eu, blackbox) are scraped by
 # vmagent on EU VPS and pushed here via /api/v1/write over WireGuard.
 scrape_configs:
-  - job_name: xray-bridge-stats
-    metrics_path: {{ xray_bridge_stats_exporter_metrics_path }}
-    static_configs:
-      - targets:
-          - {{ xray_bridge_stats_exporter_listen }}
-        labels:
-          server: ru
-
-  - job_name: xray-bridge
-    metrics_path: {{ xray_bridge_exporter_metrics_path }}
-    static_configs:
-      - targets:
-          - {{ xray_bridge_exporter_listen }}
-        labels:
-          server: ru
-
   - job_name: node
     static_configs:
       - targets:
