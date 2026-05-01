@@ -1,5 +1,5 @@
 ---
-raven_dashboard_github_repo: "alchemylink/raven-dashboard"
+raven_dashboard_github_repo: "AlchemyLink/raven-dashboard"
 raven_dashboard_install_dir: "/usr/local/bin"
 raven_dashboard_config_dir: "/etc/raven-dashboard"
 raven_dashboard_data_dir: "/var/lib/raven-dashboard"
