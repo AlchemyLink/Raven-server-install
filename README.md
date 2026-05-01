@@ -120,6 +120,10 @@ Raven-subscribe on EU automatically syncs users to bridge inbounds via WireGuard
 ```bash
 git clone https://github.com/AlchemyLink/Raven-server-install.git
 cd Raven-server-install
+
+# Install pre-commit + pre-push hooks that block IPs / tokens / private keys /
+# unencrypted secrets.yml from leaking into the public mirror.
+scripts/install-hooks.sh
 ```
 
 ### 2. Create vault password file
@@ -630,6 +634,35 @@ ansible-playbook roles/role_relay.yml -i roles/hosts.yml \
 # Ansible-only (no Docker required)
 SKIP_XRAY_TEST=1 ./tests/run.sh
 ```
+
+---
+
+## Operations
+
+### Bulk rotate subscription tokens
+
+Rotates the `sub_token` (subscription URL token) for every enabled user via the
+Raven-subscribe admin API. Old subscription URLs return `404` immediately. VPN
+credentials (UUID, Reality keys) are **not** touched — only the URL token —
+so existing VPN sessions stay up. Use after a leaked link, suspected scrape,
+or routine periodic rotation.
+
+```bash
+# Run on the EU VPS (or anywhere with RAVEN_API + admin token reachable).
+# Output is CSV on stdout: id,username,enabled,old_token,new_token,new_sub_url
+
+# 1. Dry run — show who would be touched, no writes.
+scripts/bulk-rotate-subtokens.sh --dry-run
+
+# 2. Real rotation — capture the new URLs to a 0600 file for redistribution.
+scripts/bulk-rotate-subtokens.sh --yes > ~/rotation-$(date +%F).csv
+chmod 600 ~/rotation-$(date +%F).csv
+```
+
+Flags: `--exclude REGEX` (skip usernames), `--include-disabled` (also touch
+disabled users), `--sleep-ms N` (rate-limit), `--api URL` (override
+`http://127.0.0.1:8080`). Requires `RAVEN_ADMIN_TOKEN` env var, plus `jq`
+and `curl`. Without `--yes` the script prompts before mutating.
 
 ---
 
