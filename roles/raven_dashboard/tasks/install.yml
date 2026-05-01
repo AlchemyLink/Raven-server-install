@@ -15,16 +15,27 @@
     create_home: false
     state: present
 
-- name: Raven-dashboard | Download binary from GitHub releases
+- name: Raven-dashboard | Download binary from GitHub releases (private repo via API)
   ansible.builtin.get_url:
-    url: "https://github.com/{{ raven_dashboard_github_repo }}/releases/download/\
-          {{ _raven_dashboard_version }}/raven-dashboard-{{ _raven_dashboard_arch }}"
+    url: >-
+      {{
+        (_raven_dashboard_assets
+          | selectattr('name', 'equalto', 'raven-dashboard-' ~ _raven_dashboard_arch)
+          | list
+          | first
+        ).url
+      }}
     dest: "{{ raven_dashboard_install_dir }}/raven-dashboard"
     mode: "0755"
     owner: root
     group: root
+    headers:
+      Accept: "application/octet-stream"
+      Authorization: "token {{ raven_dashboard_github_token }}"
+    force: true
   notify: Restart raven-dashboard
   when: raven_dashboard_local_binary is not defined
+  no_log: true  # Authorization header would otherwise echo into task output
 
 - name: Raven-dashboard | Copy local binary
   ansible.builtin.copy:

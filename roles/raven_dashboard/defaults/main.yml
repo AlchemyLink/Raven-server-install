@@ -46,6 +46,12 @@ raven_dashboard_db_migrate_src: ""
 # Example: raven_dashboard_local_frontend_tar: "/tmp/raven-dashboard-frontend.tar.gz"
 # raven_dashboard_local_frontend_tar: ""
 
+# GitHub PAT for downloading release assets from the private AlchemyLink/raven-dashboard
+# repo. Required when raven_dashboard_local_binary / raven_dashboard_local_frontend_tar
+# are NOT set. Token needs `repo` scope (or fine-grained: Contents: Read on the repo).
+# Empty default — set in secrets.yml. Validated in tasks/main.yml.
+raven_dashboard_github_token: ""
+
 ##### Set these in secrets.yml (ansible-vault encrypted) #####
 # raven_dashboard_jwt_secret: ""              # openssl rand -hex 32 (min 32 chars)
 # raven_dashboard_raven_admin_token: ""       # same as raven_subscribe_admin_token
@@ -53,3 +59,4 @@ raven_dashboard_db_migrate_src: ""
 # raven_dashboard_prometheus_user: ""
 # raven_dashboard_prometheus_password: ""
 # raven_dashboard_telegram_bot_token: ""      # optional — create via @BotFather; empty = bot disabled
+# raven_dashboard_github_token: "ghp_..."     # PAT with repo scope; only needed if NOT using local_binary/local_frontend_tar overrides

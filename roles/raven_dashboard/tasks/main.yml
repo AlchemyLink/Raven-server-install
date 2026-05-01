@@ -16,6 +16,18 @@
 - name: Raven-dashboard | Resolve latest GitHub release
   when: raven_dashboard_local_binary is not defined or raven_dashboard_local_frontend_tar is not defined
   block:
+    - name: Raven-dashboard | Validate GitHub token is set (private repo)
+      ansible.builtin.assert:
+        that:
+          - raven_dashboard_github_token | default('') | length > 0
+        fail_msg: >-
+          {{ raven_dashboard_github_repo }} is a private repo — anonymous GitHub API
+          returns 404. Either set raven_dashboard_github_token in secrets.yml
+          (PAT with `repo` scope) OR override with
+          -e "raven_dashboard_local_binary=/path/to/raven-dashboard-linux-amd64
+              raven_dashboard_local_frontend_tar=/path/to/raven-dashboard-frontend.tar.gz"
+          after `gh release download v<ver> --repo {{ raven_dashboard_github_repo }}`.
+
     - name: Raven-dashboard | Query GitHub releases API
       ansible.builtin.uri:
         url: "https://api.github.com/repos/{{ raven_dashboard_github_repo }}/releases/latest"
@@ -23,12 +35,14 @@
         return_content: true
         headers:
           Accept: "application/vnd.github.v3+json"
+          Authorization: "token {{ raven_dashboard_github_token }}"
         status_code: 200
       register: _raven_dashboard_release_info
       run_once: true
       retries: 3
       delay: 3
       until: _raven_dashboard_release_info.status == 200
+      no_log: true  # response body is fine, but headers contain the token in echoed task vars
 
     - name: Raven-dashboard | Set release version and arch facts
       ansible.builtin.set_fact:
@@ -39,6 +53,7 @@
             else 'linux-arm64' if ansible_architecture in ['aarch64', 'arm64']
             else 'linux-arm'
           }}
+        _raven_dashboard_assets: "{{ _raven_dashboard_release_info.json.assets }}"
 
 - name: Raven-dashboard | Install binary
   ansible.builtin.import_tasks: install.yml

@@ -7,13 +7,24 @@
     group: www-data
     mode: "0755"
 
-- name: Raven-dashboard | Download frontend archive from GitHub releases
+- name: Raven-dashboard | Download frontend archive from GitHub releases (private repo via API)
   ansible.builtin.get_url:
-    url: "https://github.com/{{ raven_dashboard_github_repo }}/releases/download/\
-          {{ _raven_dashboard_version }}/raven-dashboard-frontend.tar.gz"
+    url: >-
+      {{
+        (_raven_dashboard_assets
+          | selectattr('name', 'equalto', 'raven-dashboard-frontend.tar.gz')
+          | list
+          | first
+        ).url
+      }}
     dest: "/tmp/raven-dashboard-frontend.tar.gz"
     mode: "0644"
+    headers:
+      Accept: "application/octet-stream"
+      Authorization: "token {{ raven_dashboard_github_token }}"
+    force: true
   when: raven_dashboard_local_frontend_tar is not defined
+  no_log: true  # Authorization header would otherwise echo into task output
 
 - name: Raven-dashboard | Copy local frontend archive
   ansible.builtin.copy:
