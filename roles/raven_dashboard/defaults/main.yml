@@ -59,4 +59,7 @@ raven_dashboard_github_token: ""
 # raven_dashboard_prometheus_user: ""
 # raven_dashboard_prometheus_password: ""
 # raven_dashboard_telegram_bot_token: ""      # optional — create via @BotFather; empty = bot disabled
+# raven_dashboard_external_probe_token: ""    # optional; empty disables /api/external/probe-result with 401
+# raven_dashboard_telegram_alert_chat_ids: [] # optional; chat_ids for probe drift / staleness alerts
+# raven_dashboard_xray_stats_anonymize_secret: ""  # MUST equal monitoring.xray_stats_anonymize_secret or per-user PromQL misses every series
 # raven_dashboard_github_token: "ghp_..."     # PAT with repo scope; only needed if NOT using local_binary/local_frontend_tar overrides

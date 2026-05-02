@@ -18,7 +18,11 @@ xray_exporter_group: "xrayuser"
 victoriametrics_version: "latest"            # "latest" or pinned e.g. "v1.101.0"
 victoriametrics_github_repo: "VictoriaMetrics/VictoriaMetrics"
 victoriametrics_listen: "10.10.0.2:8428"     # WireGuard interface — vmagent push from EU + Grafana access
-victoriametrics_retention_months: 1          # 1 month retention
+# VictoriaMetrics retention. Format follows VM's -retentionPeriod flag:
+# Nd (days), NM (months), Ny (years). Reduced from 1M to 14d as part of A2
+# seizure-risk reduction — bounds the historical traffic-pattern dataset that
+# would be available to anyone who gains physical access to the RU TSDB.
+victoriametrics_retention: "14d"
 victoriametrics_data_dir: "/var/lib/victoriametrics"
 victoriametrics_bin_dir: "/usr/local/bin"
 victoriametrics_service_name: "victoriametrics"
@@ -71,6 +75,11 @@ xray_stats_exporter_log_path: "/var/log/Xray/access.log"
 xray_stats_exporter_error_log_path: "/var/log/Xray/error.log"
 xray_stats_exporter_geo_city_db: "/var/lib/xray-exporter/GeoLite2-City.mmdb"
 xray_stats_exporter_geo_asn_db: "/var/lib/xray-exporter/GeoLite2-ASN.mmdb"
+# Pseudonymise email labels before they leave the exporter; same secret must be
+# set on raven-dashboard (raven_dashboard_xray_stats_anonymize_secret) so its
+# PromQL queries can target the hashed series. Defined in secrets.yml; empty
+# disables anonymisation (raw emails — pre-A2 behaviour).
+xray_stats_anonymize_secret: ""
 
 # xray-exporter-bridge (compassvpn/xray-exporter for RU xray-bridge, runs on vm_my_ru)
 # Listens on WireGuard interface — EU VictoriaMetrics scrapes via 10.10.0.2:9553.
@@ -89,7 +98,8 @@ xray_bridge_exporter_group: "xraybridgeuser"
 # xray-stats-exporter-bridge (per-user traffic for RU xray-bridge, runs on vm_my_ru)
 # Listens on WireGuard interface — EU VictoriaMetrics scrapes via 10.10.0.2:9552.
 # GeoLite2 DBs are synced from EU /var/lib/xray-exporter/ via control machine.
-# error-log-path enables TSPU detection metrics (R4A).
+# error-log-path enables DPI detection metrics (R4A) — TLS handshake failures,
+# TCP RST events, active probes recorded as xray_handshake_failure_total etc.
 xray_bridge_stats_exporter_listen: "10.10.0.2:9552"
 xray_bridge_stats_exporter_metrics_path: "/metrics"
 xray_bridge_stats_exporter_xray_endpoint: "10.10.0.2:10086"

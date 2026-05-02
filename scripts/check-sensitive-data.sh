@@ -38,8 +38,25 @@ case "$mode" in
             if [ -n "$upstream" ]; then
                 range="${upstream}..HEAD"
             else
-                # No upstream yet — scan everything reachable from HEAD
-                range="HEAD"
+                # No upstream yet — this is the first push of a new branch.
+                # Scan only the commits that this branch adds on top of the
+                # default base (origin/main, then origin/master), not the
+                # entire reachable history from HEAD which would re-flag every
+                # placeholder/test-fixture already on the default branch.
+                base=""
+                for candidate in origin/main origin/master; do
+                    if git rev-parse --verify --quiet "$candidate" >/dev/null; then
+                        base=$(git merge-base "$candidate" HEAD 2>/dev/null || true)
+                        [ -n "$base" ] && break
+                    fi
+                done
+                if [ -n "$base" ]; then
+                    range="${base}..HEAD"
+                else
+                    # No origin/main or origin/master visible — fall back to
+                    # the original "scan everything" behaviour. Last resort.
+                    range="HEAD"
+                fi
             fi
         fi
         added=$(git log -p -U0 "$range" -- ':(exclude)scripts/check-sensitive-data.sh' \

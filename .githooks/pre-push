@@ -6,7 +6,24 @@ status=0
 while read -r local_ref local_sha remote_ref remote_sha; do
     [ "$local_sha" = "$zero" ] && continue          # branch deletion
     if [ "$remote_sha" = "$zero" ]; then
-        range="$local_sha"                          # new branch — scan everything
+        # New branch on the remote — scan only the commits this push adds
+        # on top of the default base, NOT everything reachable from
+        # local_sha which would re-flag every placeholder already on
+        # origin/main. Try origin/main, fall back to origin/master, then
+        # last-resort to "scan everything" so the safety net stays on
+        # for fresh forks where neither default branch is fetched yet.
+        base=""
+        for candidate in origin/main origin/master; do
+            if git rev-parse --verify --quiet "$candidate" >/dev/null; then
+                base=$(git merge-base "$candidate" "$local_sha" 2>/dev/null || true)
+                [ -n "$base" ] && break
+            fi
+        done
+        if [ -n "$base" ]; then
+            range="${base}..${local_sha}"
+        else
+            range="$local_sha"
+        fi
     else
         range="${remote_sha}..${local_sha}"
     fi

@@ -1,0 +1,30 @@
+# ru-probe.sh config — copy to ~/.config/ru-probe.conf or /etc/ru-probe.conf
+#                      and set the values below.
+
+# Dashboard ingest endpoint. Trailing slash is OK; the script strips it.
+DASHBOARD_URL="https://dash.zirgate.com"
+
+# X-Probe-Token header value. Must match raven_dashboard_external_probe_token
+# on the EU VPS dashboard config. Generate: openssl rand -hex 32
+PROBE_TOKEN="REPLACE_WITH_TOKEN_FROM_DASHBOARD_CONFIG"
+
+# RU VPS we want to probe — public IP, NOT the WireGuard one.
+TARGET_IP="REPLACE_WITH_RU_VPS_IP"
+TARGET_PORT="443"
+
+# SNIs from our Reality / nginx-stream pool. Space-separated.
+# Keep in sync with roles/xray/defaults/main.yml + xray_bridge defaults.
+SNIS="askubuntu.com www.adobe.com dl.google.com addons.mozilla.org www.wikipedia.org"
+
+# Hostnames whose DNS resolution we want to verify from the carrier resolver.
+DNS_NAMES="g1.zirgate.com sub.zirgate.com dash.zirgate.com"
+
+# Where this agent stores its post-failure counter. Default is fine for both
+# Termux and OpenWrt; override only if $HOME is read-only.
+# STATE_DIR="$HOME/.local/state/ru-probe"
+
+# Optional: Telegram fallback when the dashboard is unreachable for 3 ticks
+# in a row. The bot must have already started a chat with you (DM the bot
+# /start once on the receiving account before enabling this).
+# TG_BOT_TOKEN="123456:ABC..."
+# TG_CHAT_ID="123456789"

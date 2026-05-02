@@ -230,13 +230,13 @@ groups:
           severity: warning
 
   - orgId: 1
-    name: raven-tspu
+    name: raven-dpi
     folder: Raven
     interval: 1m
     rules:
 
-      - uid: tspu-handshake-spike
-        title: "TSPU: всплеск ошибок TLS handshake"
+      - uid: dpi-handshake-spike
+        title: "DPI: всплеск ошибок TLS handshake"
         condition: C
         data:
           - refId: A
@@ -267,13 +267,13 @@ groups:
         execErrState: Error
         for: 2m
         annotations:
-          summary: "Всплеск TLS handshake failures — возможна TSPU блокировка"
-          description: "Более 10 TLS handshake failures за 5 минут. TSPU может активно обрывать соединения. Проверьте дашборд TSPU Detection."
+          summary: "Всплеск TLS handshake failures — возможна DPI-блокировка"
+          description: "Более 10 TLS handshake failures за 5 минут. Промежуточный DPI может активно обрывать соединения. Проверьте дашборд DPI Detection."
         labels:
           severity: warning
 
-      - uid: tspu-probe-detected
-        title: "TSPU: обнаружен активный probe"
+      - uid: dpi-probe-detected
+        title: "DPI: обнаружен активный probe"
         condition: C
         data:
           - refId: A
@@ -305,12 +305,12 @@ groups:
         for: 1m
         annotations:
           summary: "Обнаружен активный DPI probe на инбаунде"
-          description: "Получены нетипичные данные (garbage TLS record, unexpected ALPN, i/o timeout). Это признак активного зондирования TSPU."
+          description: "Получены нетипичные данные (garbage TLS record, unexpected ALPN, i/o timeout). Признак активного DPI-зондирования."
         labels:
           severity: critical
 
-      - uid: tspu-rst-spike
-        title: "TSPU: всплеск TCP RST"
+      - uid: dpi-rst-spike
+        title: "DPI: всплеск TCP RST"
         condition: C
         data:
           - refId: A
@@ -341,13 +341,13 @@ groups:
         execErrState: Error
         for: 2m
         annotations:
-          summary: "Массовые TCP RST — возможна инжекция RST от TSPU"
-          description: "Более 20 connection reset за 5 минут. TSPU может инжектировать TCP RST пакеты. Проверьте blackbox probe_success."
+          summary: "Массовые TCP RST — возможна инжекция RST со стороны DPI"
+          description: "Более 20 connection reset за 5 минут. Промежуточный DPI может инжектировать TCP RST пакеты. Проверьте blackbox probe_success."
         labels:
           severity: warning
 
-      - uid: tspu-degradation-sustained
-        title: "TSPU: устойчивая деградация пропускной способности"
+      - uid: dpi-degradation-sustained
+        title: "DPI: устойчивая деградация пропускной способности"
         condition: C
         data:
           - refId: A
@@ -379,6 +379,6 @@ groups:
         for: 10m
         annotations:
           summary: "Устойчивая деградация трафика на инбаундах"
-          description: "Более 100 событий деградации пропускной способности за час. Возможна TSPU-ограничение или перегрузка канала."
+          description: "Более 100 событий деградации пропускной способности за час. Возможно DPI-ограничение или перегрузка канала."
         labels:
           severity: warning
