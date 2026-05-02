@@ -16,6 +16,14 @@ scrape_configs:
     static_configs:
       - targets:
           - {{ xray_stats_exporter_listen }}
+    # Drop sub-country geo precision before metrics leave EU. country/city
+    # remain on xray_user_last_country (for the geo-overview panel), but
+    # without lat/lon a seized RU TSDB can't pin a user to a city block.
+    # labeldrop applies to all metrics in this scrape — only this exporter
+    # ever emits lat/lon, so the regex is unambiguous.
+    metric_relabel_configs:
+      - regex: '(lat|lon)'
+        action: labeldrop
 
   - job_name: node
     static_configs:
