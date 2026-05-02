@@ -18,7 +18,8 @@ ExecStart={{ xray_bridge_stats_exporter_bin_dir }}/xray-stats-exporter \
   --error-log-path={{ xray_bridge_stats_exporter_error_log_path }} \
   --geo-city-db={{ xray_bridge_stats_exporter_geo_city_db }} \
   --geo-asn-db={{ xray_bridge_stats_exporter_geo_asn_db }}{% if xray_stats_anonymize_secret | default('') %} \
-  --anonymize-secret={{ xray_stats_anonymize_secret }}{% endif %}
+  --anonymize-secret={{ xray_stats_anonymize_secret }}{% endif +%}
+
 Restart=on-failure
 RestartSec=5s
 TimeoutStopSec=10s
