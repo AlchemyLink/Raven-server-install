@@ -64,6 +64,12 @@ node_exporter_bin_dir: "/usr/local/bin"
 node_exporter_service_name: "node_exporter"
 
 # xray-stats-exporter (per-user traffic via StatsService gRPC)
+# Public GitHub repo — release workflow builds linux-amd64 / linux-arm64 /
+# darwin-amd64 / darwin-arm64. The role auto-resolves the binary URL and
+# downloads it; pin via xray_stats_exporter_version, or override the whole
+# fetch with -e xray_stats_exporter_local_binary=/path for a hand-built drop.
+xray_stats_exporter_github_repo: "AlchemyLink/xray-stats-exporter"
+xray_stats_exporter_version: "latest"
 xray_stats_exporter_listen: "127.0.0.1:9551"
 xray_stats_exporter_metrics_path: "/metrics"
 xray_stats_exporter_xray_endpoint: "127.0.0.1:10085"

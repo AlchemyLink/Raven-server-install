@@ -1,5 +1,61 @@
 ---
-- name: Copy xray-stats-exporter binary
+# Auto-download xray-stats-exporter from the GitHub release that matches
+# xray_stats_exporter_version (default "latest", or pinned "v1.0.2"). The
+# repo is public, so no token plumbing — anonymous get_url against the
+# release asset's browser_download_url is enough. delegate_to: localhost on
+# the API call avoids burning the prod host's small per-IP rate-limit.
+#
+# Override path: set xray_stats_exporter_local_binary=/path/to/binary at the
+# CLI (-e) or in inventory to skip the download and copy a hand-built binary
+# instead — used during the A2 deploy on 2026-05-02 before v1.0.2 was tagged
+# upstream, kept around for emergency rebuild scenarios.
+- name: xray-stats-exporter | Resolve release URL from GitHub API
+  ansible.builtin.uri:
+    url: >-
+      https://api.github.com/repos/{{ xray_stats_exporter_github_repo }}/releases/{{
+      'latest' if xray_stats_exporter_version == 'latest'
+      else 'tags/' ~ xray_stats_exporter_version }}
+    method: GET
+    return_content: true
+    headers:
+      Accept: "application/vnd.github.v3+json"
+    status_code: 200
+  register: _xray_stats_exporter_release_info
+  delegate_to: localhost
+  run_once: true
+  retries: 3
+  delay: 3
+  until: _xray_stats_exporter_release_info.status == 200
+  when: xray_stats_exporter_local_binary is not defined
+
+- name: xray-stats-exporter | Detect target architecture
+  ansible.builtin.set_fact:
+    _xray_stats_exporter_arch: >-
+      {{
+        'linux-amd64' if ansible_architecture in ['x86_64', 'amd64']
+        else 'linux-arm64' if ansible_architecture in ['aarch64', 'arm64']
+        else (undef() | mandatory(msg='unsupported arch ' ~ ansible_architecture))
+      }}
+  when: xray_stats_exporter_local_binary is not defined
+
+- name: xray-stats-exporter | Download binary
+  ansible.builtin.get_url:
+    url: >-
+      {{
+        (_xray_stats_exporter_release_info.json.assets
+          | selectattr('name', 'equalto', 'xray-stats-exporter-' ~ _xray_stats_exporter_arch)
+          | list | first
+        ).browser_download_url
+      }}
+    dest: "{{ xray_stats_exporter_bin_dir }}/xray-stats-exporter"
+    mode: "0755"
+    owner: root
+    group: root
+    force: true
+  notify: Restart xray-stats-exporter
+  when: xray_stats_exporter_local_binary is not defined
+
+- name: xray-stats-exporter | Copy local binary (override)
   ansible.builtin.copy:
     src: "{{ xray_stats_exporter_local_binary }}"
     dest: "{{ xray_stats_exporter_bin_dir }}/xray-stats-exporter"
