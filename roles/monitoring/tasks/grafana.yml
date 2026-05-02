@@ -151,13 +151,24 @@
   notify: Restart grafana
   tags: grafana_dashboards
 
-- name: Deploy Grafana TSPU detection dashboard
+- name: Deploy Grafana DPI detection dashboard
   ansible.builtin.template:
-    src: dashboards/tspu-detection.json.j2
-    dest: "{{ grafana_data_dir }}/dashboards/tspu-detection.json"
+    src: dashboards/dpi-detection.json.j2
+    dest: "{{ grafana_data_dir }}/dashboards/dpi-detection.json"
     owner: grafana
     group: grafana
     mode: "0640"
+  notify: Restart grafana
+  tags: grafana_dashboards
+
+# One-shot cleanup of the legacy filename + uid so a seized RU disk + Grafana
+# UI both stop carrying the gov-specific term. Safe to remove this task once
+# every host has been redeployed and the file is gone (verify: ls
+# {{ grafana_data_dir }}/dashboards/ | grep tspu  must be empty).
+- name: Remove legacy tspu-detection.json (renamed to dpi-detection.json)
+  ansible.builtin.file:
+    path: "{{ grafana_data_dir }}/dashboards/tspu-detection.json"
+    state: absent
   notify: Restart grafana
   tags: grafana_dashboards
 
