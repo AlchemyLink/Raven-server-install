@@ -70,8 +70,8 @@
   ansible.builtin.set_fact:
     node_exporter_listen: >-
       {{
-        node_exporter_ru_listen
-        if inventory_hostname in ['vm_my_ru', 'vm_my_ru2']
+        (hostvars[inventory_hostname].wg_ip | default(wg_ru_ip)) + ':9100'
+        if inventory_hostname in groups['ru']
         else node_exporter_listen
       }}
 
@@ -98,4 +98,4 @@
     port: "9100"
     proto: tcp
     comment: "node_exporter via WireGuard"
-  when: inventory_hostname in ['vm_my_ru', 'vm_my_ru2']
+  when: inventory_hostname in groups['ru']

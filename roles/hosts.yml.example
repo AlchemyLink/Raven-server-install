@@ -6,6 +6,27 @@ all:
         vm_my_srv:
           ansible_host: "EU_VPS_IP"   # Replace with your EU VPS IP
           ansible_port: 22
+      children:
+        # RU host group — RU-targeted playbooks (relay, monitoring scrape, WG)
+        # iterate `groups['ru']`. Adding a second RU = append a new host slot.
+        ru:
+          hosts:
+            vm_my_ru:
+              ansible_host: "RU_VPS_IP"   # Replace with your RU VPS IP
+              ansible_port: 22
+              wg_ip: 10.10.0.2            # WireGuard IP for this peer
+              # wg_public_key:            # Per-host (optional). Falls back to global wg_ru_public_key.
+              relay_cloudflare_proxy: true
+              relay_cloudflare_enforce: true
+              relay_bridge_enabled: false
+              relay_bridge_sni: ""
+            # Add a second RU here when scaling, e.g.:
+            # vm_my_ru_b:
+            #   ansible_host: "SECOND_RU_VPS_IP"
+            #   ansible_port: 22
+            #   wg_ip: 10.10.0.3
+            #   relay_cloudflare_proxy: true
+            #   relay_cloudflare_enforce: true
       vars:
         ansible_user: deploy
         ansible_python_interpreter: /usr/bin/python3

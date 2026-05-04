@@ -1,6 +1,6 @@
 [Interface]
-Address = {{ wg_ru_ip }}/24
-PrivateKey = {{ wg_ru_private_key }}
+Address = {{ hostvars[inventory_hostname].wg_ip | default(wg_ru_ip) }}/24
+PrivateKey = {{ hostvars[inventory_hostname].wg_private_key | default(wg_ru_private_key) }}
 
 [Peer]
 # EU server

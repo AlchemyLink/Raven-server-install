@@ -10,8 +10,10 @@ global:
 scrape_configs:
   - job_name: node
     static_configs:
+{% for h in groups['ru'] %}
       - targets:
-          - {{ node_exporter_ru_listen }}
+          - {{ hostvars[h].wg_ip | default(wg_ru_ip) }}:9100
         labels:
           server: ru
-          instance: "{{ hostvars['vm_my_ru2']['ansible_host'] }}"
+          instance: "{{ hostvars[h].ansible_host }}"
+{% endfor %}
