@@ -1,20 +1,28 @@
 ---
-- name: Relay | Check if certificate already exists
-  ansible.builtin.stat:
-    path: "/etc/letsencrypt/live/{{ relay_domain }}/fullchain.pem"
-  register: relay_cert
+# LE cert covers ONLY apex {{ relay_domain }}. {{ relay_sub_my }} is CF-proxied
+# and uses CF Origin CA cert (deployed in nginx_ssl.yml when relay_cf_origin_cert
+# is set), so it doesn't need a publicly-trusted cert and stays out of CT logs
+# (closes M6).
+- name: Relay | Check if certificate already covers apex only
+  ansible.builtin.shell:
+    cmd: |
+      certbot certificates --cert-name {{ relay_domain }} 2>/dev/null \
+        | grep -E 'Domains:' | awk -F': ' '{print $2}' | xargs -n1 | sort | tr '\n' ' '
+  register: relay_cert_domains
+  changed_when: false
+  failed_when: false
 
-- name: Relay | Obtain Let's Encrypt certificate
+- name: Relay | Obtain or update Let's Encrypt certificate (apex only)
   ansible.builtin.command:
     cmd: >
       certbot certonly --webroot
       --webroot-path {{ relay_webroot }}
       --non-interactive
       --agree-tos
+      --cert-name {{ relay_domain }}
       --email {{ relay_certbot_email }}
       -d {{ relay_domain }}
-      -d {{ relay_sub_my }}
-  when: not relay_cert.stat.exists
+  when: relay_cert_domains.stdout | default('') | trim != relay_domain
   notify: Reload nginx
 
 - name: Relay | Ensure certbot renewal timer is enabled

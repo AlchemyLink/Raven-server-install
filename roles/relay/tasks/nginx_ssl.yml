@@ -12,6 +12,39 @@
       {{ (_nginx_version_output.stderr | regex_search('nginx/(\d+\.\d+\.\d+)', '\1') | first | default('0.0.0'))
          is version('1.25.1', '>=') }}
 
+# CF Origin CA cert for {{ relay_sub_my }} — deployed only when both vault
+# vars are set AND the subdomain is CF-proxied. Keeps the subdomain out of
+# public CT logs (closes M6).
+- name: Relay | Ensure CF cert directory exists
+  ansible.builtin.file:
+    path: /etc/ssl/cloudflare
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  when: relay_cloudflare_proxy | default(false) and relay_cf_origin_cert is defined
+
+- name: Relay | Deploy CF Origin CA certificate
+  ansible.builtin.copy:
+    content: "{{ relay_cf_origin_cert }}"
+    dest: /etc/ssl/cloudflare/origin.pem
+    owner: root
+    group: root
+    mode: "0644"
+  when: relay_cloudflare_proxy | default(false) and relay_cf_origin_cert is defined
+  notify: Reload nginx
+
+- name: Relay | Deploy CF Origin CA private key
+  ansible.builtin.copy:
+    content: "{{ relay_cf_origin_key }}"
+    dest: /etc/ssl/cloudflare/origin.key
+    owner: root
+    group: root
+    mode: "0600"
+  when: relay_cloudflare_proxy | default(false) and relay_cf_origin_key is defined
+  notify: Reload nginx
+  no_log: true
+
 - name: Relay | Deploy HTTPS nginx config
   ansible.builtin.template:
     src: nginx/https.conf.j2

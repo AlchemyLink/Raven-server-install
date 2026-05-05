@@ -40,8 +40,16 @@ server {
 {% endif %}
     server_name {{ relay_sub_my }};
 
+{% if relay_cloudflare_proxy | default(false) and relay_cf_origin_cert is defined %}
+    # CF Origin CA cert (CF→origin only — browsers don't trust this CA, but the
+    # subdomain is CF-proxied so direct browser→origin doesn't happen). Keeps
+    # {{ relay_sub_my }} out of public CT logs.
+    ssl_certificate     /etc/ssl/cloudflare/origin.pem;
+    ssl_certificate_key /etc/ssl/cloudflare/origin.key;
+{% else %}
     ssl_certificate     /etc/letsencrypt/live/{{ relay_domain }}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/{{ relay_domain }}/privkey.pem;
+{% endif %}
     ssl_protocols       TLSv1.2 TLSv1.3;
     ssl_ciphers         ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
     ssl_prefer_server_ciphers off;
