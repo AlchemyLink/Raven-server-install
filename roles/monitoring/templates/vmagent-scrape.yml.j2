@@ -40,6 +40,13 @@ scrape_configs:
         labels:
           server: eu
           instance: "{{ hostvars['vm_my_srv']['ansible_host'] }}"
+{% for h in groups['ru'] %}
+      - targets:
+          - {{ hostvars[h].wg_ip | default(wg_ru_ip) }}:9100
+        labels:
+          server: ru
+          instance: "{{ hostvars[h].ansible_host }}"
+{% endfor %}
 
 {% for probe in blackbox_inbound_probes %}
   # Blackbox probe: {{ probe.name }} ({{ probe.sni }})

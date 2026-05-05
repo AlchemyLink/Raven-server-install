@@ -111,13 +111,13 @@
     - "/tmp/victoria-metrics-{{ vm_resolved_version }}.tar.gz"
     - "/tmp/victoria-metrics-prod"
 
-- name: Deploy scrape config
-  ansible.builtin.template:
-    src: scrape.yml.j2
-    dest: "{{ victoriametrics_scrape_config }}"
-    owner: root
-    group: root
-    mode: "0644"
+# Post-Variant-B: VictoriaMetrics no longer scrapes anything itself.
+# All scraping is done by vmagent on EU (which has WG to RU for node_exporter)
+# and pushed to VM via remote-write. Old scrape config left to clean up.
+- name: Remove obsolete VictoriaMetrics scrape config (post-Variant-B)
+  ansible.builtin.file:
+    path: "{{ victoriametrics_scrape_config }}"
+    state: absent
   notify: Restart victoriametrics
 
 - name: Deploy VictoriaMetrics systemd unit

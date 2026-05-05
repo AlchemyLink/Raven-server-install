@@ -26,6 +26,18 @@
       xray_bridge_eu_reality_short_id, xray_bridge_eu_user_id.
     success_msg: "xray_bridge vars are valid"
 
+- name: Xray Bridge | Validate xray_bridge_api_address is loopback (M7 — never expose API publicly)
+  ansible.builtin.assert:
+    that:
+      - xray_bridge_api_address | default('') in ['127.0.0.1', '::1', 'localhost']
+    fail_msg: >-
+      xray_bridge_api_address is "{{ xray_bridge_api_address | default('<unset>') }}".
+      Bridge API exposes HandlerService + StatsService over plaintext gRPC.
+      It MUST listen on loopback only — public binding gives the internet
+      full admin control. Set xray_bridge_api_address: 127.0.0.1.
+    success_msg: "xray_bridge_api_address is loopback ({{ xray_bridge_api_address }})"
+  when: xray_bridge_api_enabled | default(false)
+
 - name: Xray Bridge | Validate each bridge user has id and email
   ansible.builtin.assert:
     that:

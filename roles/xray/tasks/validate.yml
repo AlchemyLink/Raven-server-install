@@ -21,6 +21,19 @@
       Generate both with: xray vlessenc
     success_msg: "xray_vless_client_encryption is consistent with decryption"
 
+- name: Xray | Validate xray_api.inbound.address is loopback (M7 — never expose API publicly)
+  ansible.builtin.assert:
+    that:
+      - xray_api.inbound.address | default('') in ['127.0.0.1', '::1', 'localhost']
+    fail_msg: >-
+      xray_api.inbound.address is "{{ xray_api.inbound.address | default('<unset>') }}".
+      Xray API exposes HandlerService (add/remove inbounds, users) and StatsService
+      over plaintext gRPC. It MUST listen on loopback only — binding to a public
+      interface gives anyone on the internet full admin control of Xray.
+      Set `xray_api.inbound.address: 127.0.0.1` (or ::1 / localhost).
+    success_msg: "xray_api.inbound.address is loopback ({{ xray_api.inbound.address }})"
+  when: xray_api.enable | default(false)
+
 - name: Xray | Validate xray_users is defined and non-empty
   ansible.builtin.assert:
     that:
