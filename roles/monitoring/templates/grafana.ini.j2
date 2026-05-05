@@ -1,7 +1,11 @@
 [server]
 http_addr = {{ grafana_listen.split(':')[0] }}
 http_port = {{ grafana_listen.split(':')[1] }}
-# SSH tunnel (Grafana is on RU VPS): ssh -L 13000:127.0.0.1:13000 deploy@{{ monitoring_ru_host }} -p {{ hostvars['vm_my_ru']['ansible_port'] | default(22) }}
+# Grafana binds to the DO VPC private IP (not 127.0.0.1). This lets EU
+# vmagent scrape /metrics over the private network and keeps the public
+# IP free of any Grafana login form. Operator access is via SSH tunnel:
+#   ssh -L 13000:{{ grafana_listen }} -p 2200 konkov@<mon-public-ip>
+# Then open http://localhost:13000 in browser.
 
 [security]
 admin_user = admin
@@ -33,3 +37,8 @@ provisioning = {{ grafana_provisioning_dir }}
 [analytics]
 reporting_enabled = false
 check_for_updates = false
+
+[metrics]
+# Expose Prometheus-format metrics at /metrics (process stats, alert engine,
+# request counts). Scraped by EU vmagent via private VPC.
+enabled = true

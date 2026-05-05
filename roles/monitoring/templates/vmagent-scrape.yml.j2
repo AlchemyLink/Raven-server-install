@@ -89,6 +89,29 @@ scrape_configs:
           server: eu
           instance: "{{ hostvars['vm_my_srv']['ansible_host'] }}"
 
+  # Grafana self-metrics: alert engine state, datasource request counts,
+  # http handlers, Go runtime. Scraped via DO VPC private network.
+  - job_name: grafana
+    static_configs:
+      - targets:
+          - {{ hostvars[groups['mon'][0]].private_ip }}:13000
+        labels:
+          server: mon
+          instance: "{{ hostvars[groups['mon'][0]].ansible_host }}"
+
+  # nginx-prometheus-exporter on RU — request count, accepts, connections by
+  # state (active/reading/writing/waiting). Reads nginx stub_status locally.
+  # Scraped over WireGuard.
+{% for h in groups['ru'] %}
+  - job_name: nginx-{{ h }}
+    static_configs:
+      - targets:
+          - {{ hostvars[h].wg_ip | default(wg_ru_ip) }}:9113
+        labels:
+          server: ru
+          instance: "{{ hostvars[h].ansible_host }}"
+{% endfor %}
+
 {% for probe in blackbox_inbound_probes %}
   # Blackbox probe: {{ probe.name }} ({{ probe.sni }})
   - job_name: "blackbox_{{ probe.name }}"

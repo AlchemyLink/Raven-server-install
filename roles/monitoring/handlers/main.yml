@@ -61,3 +61,16 @@
     state: restarted
     daemon_reload: true
   when: ansible_facts['service_mgr'] == "systemd"
+
+- name: Restart nginx-prometheus-exporter
+  ansible.builtin.systemd:
+    name: nginx-prometheus-exporter
+    state: restarted
+    daemon_reload: true
+  when: ansible_facts['service_mgr'] == "systemd"
+
+- name: Reload nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: reloaded
+  when: ansible_facts['service_mgr'] == "systemd"

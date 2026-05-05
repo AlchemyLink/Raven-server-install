@@ -67,6 +67,13 @@ node_exporter_ru_scrape: "10.10.0.2:9100"      # EU scrapes RU via WireGuard
 node_exporter_bin_dir: "/usr/local/bin"
 node_exporter_service_name: "node_exporter"
 
+# nginx-prometheus-exporter (RU only — reads nginx stub_status, exports request
+# count, accepts, connections by state; scraped by EU vmagent over WireGuard).
+nginx_exporter_version: "latest"
+nginx_exporter_listen: "10.10.0.2:9113"        # RU WG interface
+nginx_exporter_bin_dir: "/usr/local/bin"
+nginx_stub_status_port: 8081                   # localhost-only nginx server block
+
 # xray-stats-exporter (per-user traffic via StatsService gRPC)
 # Public GitHub repo — release workflow builds linux-amd64 / linux-arm64 /
 # darwin-amd64 / darwin-arm64. The role auto-resolves the binary URL and
@@ -128,7 +135,7 @@ xray_bridge_stats_exporter_geo_asn_db: "/var/lib/xray-stats-exporter-bridge/GeoL
 raven_subscribe_scrape_addr: "127.0.0.1:8080"
 
 # Grafana
-grafana_listen: "127.0.0.1:13000"
+grafana_listen: "{{ hostvars[inventory_hostname].private_ip | default('127.0.0.1') }}:13000"
 grafana_service_name: "grafana-server"
 grafana_data_dir: "/var/lib/grafana"
 grafana_log_dir: "/var/log/grafana"

@@ -1,0 +1,20 @@
+# Stub status endpoint for nginx-prometheus-exporter.
+# Managed by Ansible monitoring role.
+# Localhost-only — exporter scrapes locally and exposes its own /metrics on
+# {{ nginx_exporter_listen }} for the EU vmagent over WireGuard.
+
+server {
+    listen 127.0.0.1:{{ nginx_stub_status_port }};
+    server_name _;
+
+    location /stub_status {
+        stub_status;
+        allow 127.0.0.1;
+        deny all;
+        access_log off;
+    }
+
+    location / {
+        return 404;
+    }
+}

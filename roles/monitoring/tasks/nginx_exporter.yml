@@ -1,0 +1,121 @@
+---
+# nginx-prometheus-exporter on RU — reads nginx stub_status (request count,
+# accepts, connections by state) and exposes them on the WG interface for EU
+# vmagent to scrape.
+
+- name: nginx_exporter | Get latest release version
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/nginx/nginx-prometheus-exporter/releases/latest"
+    method: GET
+    return_content: true
+    headers:
+      Accept: "application/vnd.github.v3+json"
+    status_code: 200
+  register: nginx_exporter_release_info
+  run_once: true
+  retries: 3
+  delay: 3
+  until: nginx_exporter_release_info.status == 200
+  when: nginx_exporter_version == "latest"
+
+- name: nginx_exporter | Set version fact
+  ansible.builtin.set_fact:
+    nginx_exporter_resolved_version: >-
+      {{
+        nginx_exporter_release_info.json.tag_name
+        if nginx_exporter_version == "latest"
+        else nginx_exporter_version
+      }}
+
+- name: nginx_exporter | Detect architecture
+  ansible.builtin.set_fact:
+    nginx_exporter_arch: >-
+      {{
+        'amd64' if ansible_architecture in ['x86_64', 'amd64']
+        else 'arm64' if ansible_architecture in ['aarch64', 'arm64']
+        else ansible_architecture
+      }}
+
+# RU outbound to github.com is flaky (DPI throttling, occasional timeout).
+# Download on control machine and ship to remote — same pattern as Grafana .deb.
+- name: nginx_exporter | Download archive on control machine
+  ansible.builtin.get_url:
+    url: "https://github.com/nginx/nginx-prometheus-exporter/releases/download/{{ nginx_exporter_resolved_version }}/nginx-prometheus-exporter_{{ nginx_exporter_resolved_version[1:] }}_linux_{{ nginx_exporter_arch }}.tar.gz"
+    dest: "/tmp/nginx-prometheus-exporter-{{ nginx_exporter_resolved_version }}.tar.gz"
+    mode: "0644"
+    checksum: "sha256:https://github.com/nginx/nginx-prometheus-exporter/releases/download/{{ nginx_exporter_resolved_version }}/nginx-prometheus-exporter_{{ nginx_exporter_resolved_version[1:] }}_checksums.txt"
+  delegate_to: localhost
+  run_once: true
+  register: nginx_exporter_download
+
+- name: nginx_exporter | Copy archive to remote
+  ansible.builtin.copy:
+    src: "/tmp/nginx-prometheus-exporter-{{ nginx_exporter_resolved_version }}.tar.gz"
+    dest: "/tmp/nginx-prometheus-exporter-{{ nginx_exporter_resolved_version }}.tar.gz"
+    mode: "0644"
+
+- name: nginx_exporter | Extract binary on remote
+  ansible.builtin.unarchive:
+    src: "/tmp/nginx-prometheus-exporter-{{ nginx_exporter_resolved_version }}.tar.gz"
+    dest: /tmp/
+    remote_src: true
+
+- name: nginx_exporter | Install binary
+  ansible.builtin.copy:
+    src: /tmp/nginx-prometheus-exporter
+    dest: "{{ nginx_exporter_bin_dir }}/nginx-prometheus-exporter"
+    owner: root
+    group: root
+    mode: "0755"
+    remote_src: true
+  notify: Restart nginx-prometheus-exporter
+
+- name: nginx_exporter | Cleanup temp files (remote)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/tmp/nginx-prometheus-exporter-{{ nginx_exporter_resolved_version }}.tar.gz"
+    - "/tmp/nginx-prometheus-exporter"
+    - "/tmp/LICENSE"
+    - "/tmp/README.md"
+
+- name: nginx_exporter | Cleanup temp files (control)
+  ansible.builtin.file:
+    path: "/tmp/nginx-prometheus-exporter-{{ nginx_exporter_resolved_version }}.tar.gz"
+    state: absent
+  delegate_to: localhost
+  run_once: true
+
+- name: nginx_exporter | Deploy stub_status nginx config
+  ansible.builtin.template:
+    src: nginx_stub_status.conf.j2
+    dest: /etc/nginx/conf.d/stub_status.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+
+- name: nginx_exporter | Deploy systemd unit
+  ansible.builtin.template:
+    src: nginx-prometheus-exporter.service.j2
+    dest: /etc/systemd/system/nginx-prometheus-exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart nginx-prometheus-exporter
+
+- name: nginx_exporter | Enable and start
+  ansible.builtin.systemd:
+    name: nginx-prometheus-exporter
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: nginx_exporter | Allow scrape from WireGuard subnet (RU ufw)
+  community.general.ufw:
+    rule: allow
+    src: "{{ wg_network }}"
+    port: "{{ nginx_exporter_listen.split(':')[1] }}"
+    proto: tcp
+    comment: "nginx-prometheus-exporter via WireGuard"
