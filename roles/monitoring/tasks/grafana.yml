@@ -202,13 +202,17 @@
   notify: Restart grafana
   tags: grafana_dashboards
 
-- name: Deploy Grafana RU Traffic Split dashboard
-  ansible.builtin.template:
-    src: dashboards/ru-traffic-split.json.j2
-    dest: "{{ grafana_data_dir }}/dashboards/ru-traffic-split.json"
-    owner: grafana
-    group: grafana
-    mode: "0640"
+# RU Traffic Split dashboard removed 2026-05-05 — its sole signal source
+# was the xray-bridge-stats scrape job which was decommissioned with the
+# transparent-bridge teardown (C5 Phase 3, 2026-04-30). All panels were
+# perpetually empty. Cleanup task purges the on-disk file from previous
+# deploys; remove this task in a future PR once every host has been
+# redeployed (verify: ls /var/lib/grafana/dashboards/ | grep ru-traffic
+# is empty).
+- name: Remove decommissioned RU Traffic Split dashboard (post-bridge teardown)
+  ansible.builtin.file:
+    path: "{{ grafana_data_dir }}/dashboards/ru-traffic-split.json"
+    state: absent
   notify: Restart grafana
   tags: grafana_dashboards
 

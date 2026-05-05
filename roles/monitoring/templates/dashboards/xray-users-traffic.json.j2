@@ -23,7 +23,7 @@
       "collapsed": false,
       "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
       "id": 10,
-      "title": "Пользователи — трафик (EU + Bridge)",
+      "title": "Пользователи — трафик",
       "type": "row"
     },
 
@@ -51,7 +51,7 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "sum by (email) (rate(xray_user_uplink_bytes_total{job=~\"xray-stats|xray-bridge-stats\",email!=\"xray_bridge@konkov.com\"}[$__rate_interval]))",
+          "expr": "sum by (email) (rate(xray_user_uplink_bytes_total{job=~\"xray-stats\",email!=\"xray_bridge@konkov.com\"}[$__rate_interval]))",
           "legendFormat": "{% raw %}{{email}}{% endraw %}",
           "range": true,
           "refId": "A"
@@ -85,7 +85,7 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "sum by (email) (rate(xray_user_downlink_bytes_total{job=~\"xray-stats|xray-bridge-stats\",email!=\"xray_bridge@konkov.com\"}[$__rate_interval]))",
+          "expr": "sum by (email) (rate(xray_user_downlink_bytes_total{job=~\"xray-stats\",email!=\"xray_bridge@konkov.com\"}[$__rate_interval]))",
           "legendFormat": "{% raw %}{{email}}{% endraw %}",
           "range": true,
           "refId": "A"
@@ -112,7 +112,7 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "sort_desc(sum by (email) (increase(xray_user_downlink_bytes_total{job=~\"xray-stats|xray-bridge-stats\",email!=\"xray_bridge@konkov.com\"}[$__range])))",
+          "expr": "sort_desc(sum by (email) (increase(xray_user_downlink_bytes_total{job=~\"xray-stats\",email!=\"xray_bridge@konkov.com\"}[$__range])))",
           "instant": true,
           "legendFormat": "{% raw %}{{email}}{% endraw %}",
           "refId": "A"
@@ -139,7 +139,7 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "sort_desc(sum by (email) (increase(xray_user_uplink_bytes_total{job=~\"xray-stats|xray-bridge-stats\",email!=\"xray_bridge@konkov.com\"}[$__range])))",
+          "expr": "sort_desc(sum by (email) (increase(xray_user_uplink_bytes_total{job=~\"xray-stats\",email!=\"xray_bridge@konkov.com\"}[$__range])))",
           "instant": true,
           "legendFormat": "{% raw %}{{email}}{% endraw %}",
           "refId": "A"
@@ -182,7 +182,7 @@
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
           "expr": "rate(xray_inbound_downlink_bytes_total{job=\"xray-stats\"}[$__rate_interval])",
-          "legendFormat": "EU / {% raw %}{{inbound}}{% endraw %} down",
+          "legendFormat": "{% raw %}{{inbound}}{% endraw %} down",
           "range": true,
           "refId": "A"
         },
@@ -190,25 +190,9 @@
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
           "expr": "rate(xray_inbound_uplink_bytes_total{job=\"xray-stats\"}[$__rate_interval])",
-          "legendFormat": "EU / {% raw %}{{inbound}}{% endraw %} up",
+          "legendFormat": "{% raw %}{{inbound}}{% endraw %} up",
           "range": true,
           "refId": "B"
-        },
-        {
-          "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
-          "editorMode": "code",
-          "expr": "rate(xray_inbound_downlink_bytes_total{job=\"xray-bridge-stats\"}[$__rate_interval])",
-          "legendFormat": "Bridge / {% raw %}{{inbound}}{% endraw %} down",
-          "range": true,
-          "refId": "C"
-        },
-        {
-          "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
-          "editorMode": "code",
-          "expr": "rate(xray_inbound_uplink_bytes_total{job=\"xray-bridge-stats\"}[$__rate_interval])",
-          "legendFormat": "Bridge / {% raw %}{{inbound}}{% endraw %} up",
-          "range": true,
-          "refId": "D"
         }
       ],
       "title": "Трафик по inbound (bytes/s)",
@@ -232,7 +216,7 @@
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "sort_desc(increase(xray_inbound_downlink_bytes_total{job=~\"xray-stats|xray-bridge-stats\"}[$__range]))",
+          "expr": "sort_desc(increase(xray_inbound_downlink_bytes_total{job=~\"xray-stats\"}[$__range]))",
           "instant": true,
           "legendFormat": "{% raw %}{{job}}{% endraw %} / {% raw %}{{inbound}}{% endraw %}",
           "refId": "A"
@@ -246,81 +230,46 @@
       "collapsed": false,
       "gridPos": {"h": 1, "w": 24, "x": 0, "y": 42},
       "id": 30,
-      "title": "Карта локаций пользователей (ingress RU)",
+      "title": "Геораспределение пользователей",
       "type": "row"
     },
 
     {
       "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
-      "description": "Геолокация по IP из access.log xray-bridge на RU (клиенты приходят на RU, дальше transparent stream на EU). Метрика job=xray-bridge-stats — не EU xray-stats.",
+      "description": "Страны последних подключений (lat/lon dropped at vmagent — сводка по country/city, без точек на карте).",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "palette-classic"},
-          "custom": {"hideFrom": {"legend": false, "tooltip": false, "viz": false}}
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
         },
-        "overrides": []
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "country"}, "properties": [{"id": "displayName", "value": "Страна"}, {"id": "custom.width", "value": 80}]},
+          {"matcher": {"id": "byName", "options": "city"}, "properties": [{"id": "displayName", "value": "Город"}]},
+          {"matcher": {"id": "byName", "options": "email"}, "properties": [{"id": "displayName", "value": "Пользователь"}]}
+        ]
       },
       "gridPos": {"h": 14, "w": 24, "x": 0, "y": 43},
       "id": 31,
       "options": {
-        "view": {"allLayers": true, "id": "zero", "lat": 0, "lon": 0, "zoom": 2},
-        "layers": [
-          {
-            "config": {
-              "showLegend": true,
-              "style": {
-                "color": {"fixed": "dark-blue"},
-                "opacity": 0.8,
-                "size": {"fixed": 6, "max": 15, "min": 2},
-                "symbol": {"fixed": "img/icons/marker/circle.svg", "mode": "fixed"},
-                "text": {"field": "email", "fixed": "", "mode": "field"}
-              }
-            },
-            "location": {
-              "latitude": "lat",
-              "longitude": "lon",
-              "mode": "coords"
-            },
-            "name": "Users",
-            "tooltip": true,
-            "type": "markers"
-          }
-        ],
-        "tooltip": {"mode": "details"}
+        "footer": {"show": false},
+        "showHeader": true,
+        "sortBy": [{"desc": false, "displayName": "Страна"}]
       },
       "targets": [
         {
           "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
           "editorMode": "code",
-          "expr": "xray_user_last_country{job=\"xray-bridge-stats\"}",
+          "expr": "xray_user_last_country{job=\"xray-stats\"}",
           "instant": true,
-          "queryType": "instant",
-          "range": false,
-          "legendFormat": "{% raw %}{{email}}{% endraw %}",
+          "format": "table",
           "refId": "A"
         }
       ],
       "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {"mode": "columns"}
-        },
-        {
-          "id": "reduce",
-          "options": {"reducers": ["lastNotNull"], "labelsToFields": false}
-        },
-        {
-          "id": "convertFieldType",
-          "options": {
-            "conversions": [
-              {"destinationType": "number", "targetField": "lat"},
-              {"destinationType": "number", "targetField": "lon"}
-            ]
-          }
-        }
+        {"id": "filterFieldsByName", "options": {"include": {"names": ["email", "country", "city"]}}}
       ],
-      "title": "Карта локаций пользователей (RU ingress)",
-      "type": "geomap"
+      "title": "Последние подключения — страна / город",
+      "type": "table"
     }
 
   ],
