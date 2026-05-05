@@ -17,7 +17,7 @@ xray_exporter_group: "xrayuser"
 # VictoriaMetrics
 victoriametrics_version: "latest"            # "latest" or pinned e.g. "v1.101.0"
 victoriametrics_github_repo: "VictoriaMetrics/VictoriaMetrics"
-victoriametrics_listen: "10.10.0.2:8428"     # WireGuard interface — vmagent push from EU + Grafana access
+victoriametrics_listen: "{{ hostvars[groups['mon'][0]].private_ip }}:8428"  # MON private IP (DO VPC eth1) — EU vmagent push + Grafana datasource
 # VictoriaMetrics retention. Format follows VM's -retentionPeriod flag:
 # Nd (days), NM (months), Ny (years). Reduced from 1M to 14d as part of A2
 # seizure-risk reduction — bounds the historical traffic-pattern dataset that
@@ -36,10 +36,10 @@ monitoring_donor_label: "alchemylink"
 victoriametrics_user: "victoriametrics"
 victoriametrics_group: "victoriametrics"
 
-# vmagent (EU VPS — scrapes EU exporters, pushes to RU VictoriaMetrics via WireGuard)
+# vmagent (EU VPS — scrapes EU exporters, pushes to MON VictoriaMetrics via DO private network)
 vmagent_version: "latest"
 vmagent_listen: "127.0.0.1:8429"
-vmagent_remote_write_url: "http://10.10.0.2:8428/api/v1/write"
+vmagent_remote_write_url: "http://{{ hostvars[groups['mon'][0]].private_ip }}:8428/api/v1/write"
 vmagent_data_dir: "/var/lib/vmagent"
 vmagent_scrape_config: "/etc/victoriametrics/vmagent-scrape.yml"
 vmagent_bin_dir: "/usr/local/bin"
@@ -47,8 +47,12 @@ vmagent_service_name: "vmagent"
 vmagent_user: "vmagent"
 vmagent_group: "vmagent"
 
-# WireGuard network (for ufw rules on RU)
+# WireGuard network (legacy — RU↔EU mesh)
 wg_network: "10.10.0.0/24"
+
+# DO VPC private network (EU↔MON) — used for ufw rules on MON allowing
+# vmagent push from EU. Set to your provider's private subnet.
+monitoring_private_subnet: "10.114.0.0/20"
 
 # Server public IPs — derived from inventory; used in Grafana dashboards and alerts.
 # Override in group_vars/host_vars if inventory structure differs.

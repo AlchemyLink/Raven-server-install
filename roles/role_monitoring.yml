@@ -1,15 +1,17 @@
 ---
 # Deploy monitoring stack
-# EU (vm_my_srv): node_exporter + xray-exporter + xray-stats-exporter + VictoriaMetrics + Grafana
-# RU (vm_my_ru):  node_exporter only (scraped by VictoriaMetrics via WireGuard 10.10.0.2:9100)
+# EU (vm_my_srv): vmagent + xray-exporter + xray-stats-exporter + blackbox-exporter + node_exporter
+# MON (vm_my_mon): VictoriaMetrics + Grafana (TSDB backend, isolated EU VPS in DO VPC)
+# RU (vm_my_ru):  node_exporter only (scraped by EU vmagent via WireGuard 10.10.0.2:9100)
 #
-# Access Grafana: ssh -L 13000:127.0.0.1:13000 user@eu-server
+# Access Grafana: ssh -L 13000:127.0.0.1:13000 user@<mon-public-ip>
 # then open http://localhost:13000
 
 - name: Deploy monitoring stack
   hosts:
     - vm_my_srv
     - ru
+    - mon
   become: true
   roles:
     - role: monitoring

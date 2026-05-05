@@ -135,10 +135,10 @@
     state: started
     daemon_reload: true
 
-- name: Allow VictoriaMetrics remote write from WireGuard subnet (RU ufw)
+- name: Allow VictoriaMetrics remote write from EU via DO private network
   community.general.ufw:
     rule: allow
-    src: "{{ wg_network }}"
+    src: "{{ monitoring_private_subnet }}"
     port: "{{ victoriametrics_listen.split(':')[1] }}"
     proto: tcp
-    comment: "VictoriaMetrics remote write via WireGuard (vmagent from EU)"
+    comment: "VictoriaMetrics remote write from EU vmagent (DO VPC)"

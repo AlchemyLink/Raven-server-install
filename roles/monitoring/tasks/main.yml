@@ -15,7 +15,7 @@
 
 - name: Deploy VictoriaMetrics
   ansible.builtin.import_tasks: victoriametrics.yml
-  when: inventory_hostname in groups['ru']
+  when: inventory_hostname in groups['mon']
   tags: victoriametrics
 
 - name: Deploy vmagent (EU → pushes metrics to RU VictoriaMetrics)
@@ -30,7 +30,7 @@
 
 - name: Deploy Grafana
   ansible.builtin.import_tasks: grafana.yml
-  when: inventory_hostname in groups['ru']
+  when: inventory_hostname in groups['mon']
   tags: grafana
 
 - name: Deploy blackbox-exporter
