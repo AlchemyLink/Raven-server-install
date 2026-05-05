@@ -10,6 +10,14 @@ scrape_configs:
     static_configs:
       - targets:
           - {{ xray_exporter_listen }}
+    # Drop xray_requested_domain_ip_total entirely — its `target` label is the
+    # raw destination IP a user connected to. Storing this in VM (which lives
+    # on RU and is at seizure risk) leaks per-user browsing history. The
+    # metric is unused by any active dashboard since the bridge decommission.
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'xray_requested_domain_ip_total'
+        action: drop
 
   - job_name: xray-stats
     metrics_path: {{ xray_stats_exporter_metrics_path }}
