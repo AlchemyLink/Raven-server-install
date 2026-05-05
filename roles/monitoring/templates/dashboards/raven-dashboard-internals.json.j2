@@ -1,0 +1,183 @@
+{
+  "annotations": {"list": [{"builtIn": 1, "datasource": {"type": "grafana", "uid": "-- Grafana --"}, "enable": true, "hide": true, "iconColor": "rgba(0, 211, 255, 1)", "name": "Annotations & Alerts", "type": "dashboard"}]},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}, "id": 100, "title": "Раздел: App health", "type": "row"},
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Reachability of the underlying Raven-subscribe API as seen by raven-dashboard. 0 = dashboard cannot reach Raven-subscribe → user list / inbound configs broken.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [{"type": "value", "options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}}], "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 0.5}]}}, "overrides": []},
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 1},
+      "id": 101,
+      "options": {"colorMode": "background", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "raven_up", "instant": true, "refId": "A"}],
+      "title": "Raven API up",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Total Raven users (enabled + disabled).",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}}, "overrides": []},
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 1},
+      "id": 102,
+      "options": {"colorMode": "value", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "raven_users_total", "instant": true, "refId": "A"}],
+      "title": "Users total",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Users with status=enabled.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}}, "overrides": []},
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 1},
+      "id": 103,
+      "options": {"colorMode": "value", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "raven_users_active", "instant": true, "refId": "A"}],
+      "title": "Users active",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Highest applied goose migration version. If lower than expected, DB is behind code — restart the service or run migrations manually.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}}, "overrides": []},
+      "gridPos": {"h": 4, "w": 4, "x": 12, "y": 1},
+      "id": 104,
+      "options": {"colorMode": "value", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "raven_dashboard_schema_version", "instant": true, "refId": "A"}],
+      "title": "DB schema version",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "raven-dashboard process up.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [{"type": "value", "options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}}], "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 0.5}]}}, "overrides": []},
+      "gridPos": {"h": 4, "w": 4, "x": 16, "y": 1},
+      "id": 105,
+      "options": {"colorMode": "background", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "up{job=\"raven-dashboard\"}", "instant": true, "refId": "A"}],
+      "title": "Process up",
+      "type": "stat"
+    },
+
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5}, "id": 200, "title": "Раздел: HTTP responses", "type": "row"},
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "HTTP response rate by status class (1xx/2xx/3xx/4xx/5xx).",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 10, "showPoints": "never"}, "unit": "ops"}, "overrides": [
+        {"matcher": {"id": "byRegexp", "options": ".*5xx.*"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}]},
+        {"matcher": {"id": "byRegexp", "options": ".*4xx.*"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "yellow"}}]},
+        {"matcher": {"id": "byRegexp", "options": ".*2xx.*"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "green"}}]}
+      ]},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+      "id": 201,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true, "calcs": ["lastNotNull", "max"]}},
+      "targets": [
+        {"expr": "sum by (class) (rate(raven_dashboard_http_responses_total[5m]))", "legendFormat": "{% raw %}{{class}}{% endraw %}", "range": true, "refId": "A"}
+      ],
+      "title": "HTTP responses by status class (req/s)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Distribution of HTTP responses over the selected period.",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"hideFrom": {"legend": false, "tooltip": false, "viz": false}}, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+      "id": 202,
+      "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true, "values": ["value", "percent"]}, "pieType": "donut", "reduceOptions": {"calcs": ["lastNotNull"]}, "tooltip": {"mode": "single"}},
+      "targets": [
+        {"expr": "sum by (class) (increase(raven_dashboard_http_responses_total[$__range]))", "instant": true, "legendFormat": "{% raw %}{{class}}{% endraw %}", "refId": "A"}
+      ],
+      "title": "HTTP response distribution (period)",
+      "type": "piechart"
+    },
+
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 14}, "id": 300, "title": "Раздел: Background workers", "type": "row"},
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Seconds since each background worker last completed an iteration. Quota checker runs every 5 min, broadcast worker on demand, probe alert watcher every minute. Sustained high age = worker stuck or panic'd.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "unit": "s", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 360}, {"color": "red", "value": 900}]}}, "overrides": []},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 15},
+      "id": 301,
+      "options": {"orientation": "horizontal", "displayMode": "gradient", "reduceOptions": {"calcs": ["lastNotNull"]}, "valueMode": "color", "showUnfilled": true, "minVizWidth": 0, "minVizHeight": 16},
+      "targets": [
+        {"expr": "raven_dashboard_worker_last_tick_age_seconds", "instant": true, "legendFormat": "{% raw %}{{worker}}{% endraw %}", "refId": "A"}
+      ],
+      "title": "Worker last tick age (seconds)",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Worker tick age over time. Saw-tooth pattern = healthy. Flatline up = stuck.",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 5, "showPoints": "never"}, "unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 23},
+      "id": 302,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true, "calcs": ["lastNotNull", "max"]}},
+      "targets": [
+        {"expr": "raven_dashboard_worker_last_tick_age_seconds", "legendFormat": "{% raw %}{{worker}}{% endraw %}", "range": true, "refId": "A"}
+      ],
+      "title": "Worker tick age over time",
+      "type": "timeseries"
+    },
+
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 31}, "id": 400, "title": "Раздел: Process internals", "type": "row"},
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Goroutines count. Stable = healthy. Linear growth = leak.",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 10, "showPoints": "never"}}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 32},
+      "id": 401,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": false}},
+      "targets": [
+        {"expr": "raven_dashboard_goroutines", "legendFormat": "goroutines", "range": true, "refId": "A"}
+      ],
+      "title": "Goroutines",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Heap allocated bytes (Go runtime). Saw-tooth = normal GC cycle.",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 10, "showPoints": "never"}, "unit": "bytes"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 32},
+      "id": 402,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": false}},
+      "targets": [
+        {"expr": "raven_dashboard_memory_alloc_bytes", "legendFormat": "heap alloc", "range": true, "refId": "A"}
+      ],
+      "title": "Heap alloc",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Total memory obtained from the OS (Go runtime).",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 10, "showPoints": "never"}, "unit": "bytes"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 32},
+      "id": 403,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": false}},
+      "targets": [
+        {"expr": "raven_dashboard_memory_sys_bytes", "legendFormat": "sys mem", "range": true, "refId": "A"}
+      ],
+      "title": "System mem (sys)",
+      "type": "timeseries"
+    }
+
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["raven", "dashboard", "internals"],
+  "templating": {"list": []},
+  "time": {"from": "now-3h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Raven Dashboard — Internals",
+  "uid": "raven-dashboard-internals",
+  "version": 1,
+  "weekStart": ""
+}

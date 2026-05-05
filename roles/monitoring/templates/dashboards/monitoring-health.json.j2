@@ -1,0 +1,270 @@
+{
+  "annotations": {"list": [{"builtIn": 1, "datasource": {"type": "grafana", "uid": "-- Grafana --"}, "enable": true, "hide": true, "iconColor": "rgba(0, 211, 255, 1)", "name": "Annotations & Alerts", "type": "dashboard"}]},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}, "id": 100, "title": "vmagent (EU) — push pipeline", "type": "row"},
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Should be 1. If 0 — vmagent itself is down, no metrics flowing.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [{"type": "value", "options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}}], "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 0.5}]}}, "overrides": []},
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 1},
+      "id": 101,
+      "options": {"colorMode": "background", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "up{job=\"vmagent\"}", "instant": true, "refId": "A"}],
+      "title": "vmagent up",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Bytes pending in remote_write queue. >0 sustained = VM unreachable.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "unit": "bytes", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1048576}, {"color": "red", "value": 10485760}]}}, "overrides": []},
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 1},
+      "id": 102,
+      "options": {"colorMode": "value", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "vmagent_remotewrite_pending_data_bytes", "instant": true, "refId": "A"}],
+      "title": "Push queue pending",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Active scrape targets observed by vmagent.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}}, "overrides": []},
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 1},
+      "id": 103,
+      "options": {"colorMode": "value", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "sum(vm_promscrape_targets)", "instant": true, "refId": "A"}],
+      "title": "Active targets",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Sum of scraped samples last 5m. Drops would indicate a target stopped emitting.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "unit": "short", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}}, "overrides": []},
+      "gridPos": {"h": 4, "w": 4, "x": 12, "y": 1},
+      "id": 104,
+      "options": {"colorMode": "value", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "sum(rate(vm_promscrape_scraped_samples_count[5m]))", "instant": true, "refId": "A"}],
+      "title": "Samples/sec (in)",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Rows/sec sent to VictoriaMetrics on MON. Should track 'Samples/sec (in)' closely.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 4, "w": 4, "x": 16, "y": 1},
+      "id": 105,
+      "options": {"colorMode": "value", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "rate(vmagent_remotewrite_rows_pushed_after_relabel_total[5m])", "instant": true, "refId": "A"}],
+      "title": "Rows/sec (out)",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Cumulative scrape failures. Steady increase means a target is broken.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
+      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 1},
+      "id": 106,
+      "options": {"colorMode": "value", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "sum(increase(vm_promscrape_scrapes_failed_total[5m]))", "instant": true, "refId": "A"}],
+      "title": "Scrape failures (5m)",
+      "type": "stat"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Push request rate by HTTP status class. 2xx green, 5xx red — sustained 5xx = MON unreachable.",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 10, "showPoints": "never"}, "unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 5},
+      "id": 110,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true, "calcs": ["lastNotNull"]}},
+      "targets": [
+        {"expr": "sum by (status_code) (rate(vmagent_remotewrite_requests_total[5m]))", "legendFormat": "{% raw %}{{status_code}}{% endraw %}", "range": true, "refId": "A"}
+      ],
+      "title": "Push requests by status",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Bytes/sec sent to VM remote-write endpoint.",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 10, "showPoints": "never"}, "unit": "Bps"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 5},
+      "id": 111,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": false}},
+      "targets": [
+        {"expr": "rate(vmagent_remotewrite_bytes_sent_total[5m])", "legendFormat": "out", "range": true, "refId": "A"}
+      ],
+      "title": "Push throughput (bytes/s)",
+      "type": "timeseries"
+    },
+
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 13}, "id": 200, "title": "VictoriaMetrics (MON) — TSDB backend", "type": "row"},
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [{"type": "value", "options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}}], "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 0.5}]}}, "overrides": []},
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 14},
+      "id": 201,
+      "options": {"colorMode": "background", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "up{job=\"victoriametrics\"}", "instant": true, "refId": "A"}],
+      "title": "VM up",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Free disk space for /var/lib/victoriametrics. Alert <2GB, danger <500MB.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "unit": "bytes", "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "yellow", "value": 524288000}, {"color": "green", "value": 2147483648}]}}, "overrides": []},
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 14},
+      "id": 202,
+      "options": {"colorMode": "value", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "vm_free_disk_space_bytes{job=\"victoriametrics\"}", "instant": true, "refId": "A"}],
+      "title": "Free disk",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "On-disk size of TSDB data.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "unit": "bytes"}, "overrides": []},
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 14},
+      "id": 203,
+      "options": {"colorMode": "value", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "vm_data_size_bytes{job=\"victoriametrics\"}", "instant": true, "refId": "A"}],
+      "title": "Data size",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "VictoriaMetrics resident memory. Pressure if approaches process_memory_limit.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "unit": "bytes"}, "overrides": []},
+      "gridPos": {"h": 4, "w": 4, "x": 12, "y": 14},
+      "id": 204,
+      "options": {"colorMode": "value", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "process_resident_memory_bytes{job=\"victoriametrics\"}", "instant": true, "refId": "A"}],
+      "title": "VM RSS",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Concurrent SELECT queries in flight. Spike = dashboard load or slow queries.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}}, "overrides": []},
+      "gridPos": {"h": 4, "w": 4, "x": 16, "y": 14},
+      "id": 205,
+      "options": {"colorMode": "value", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "vm_concurrent_select_current{job=\"victoriametrics\"}", "instant": true, "refId": "A"}],
+      "title": "Active selects",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Insertion rate at the storage layer.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 14},
+      "id": 206,
+      "options": {"colorMode": "value", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "rate(vm_rows_inserted_total{job=\"victoriametrics\"}[5m])", "instant": true, "refId": "A"}],
+      "title": "Rows ingested/sec",
+      "type": "stat"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "VM ingestion rate over time. Drops = vmagent stopped pushing.",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 10, "showPoints": "never"}, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 18},
+      "id": 210,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": false}},
+      "targets": [
+        {"expr": "rate(vm_rows_inserted_total{job=\"victoriametrics\"}[5m])", "legendFormat": "rows/s", "range": true, "refId": "A"}
+      ],
+      "title": "VM ingestion (rows/sec)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "VM disk space — green=plenty, red=urgent. /etc/systemd hard-limit at vm_free_disk_space_limit_bytes.",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 30, "showPoints": "never"}, "unit": "bytes"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 18},
+      "id": 211,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true, "calcs": ["lastNotNull"]}},
+      "targets": [
+        {"expr": "vm_free_disk_space_bytes{job=\"victoriametrics\"}", "legendFormat": "free", "range": true, "refId": "A"},
+        {"expr": "vm_data_size_bytes{job=\"victoriametrics\"}", "legendFormat": "data on disk", "range": true, "refId": "B"}
+      ],
+      "title": "VM storage over time",
+      "type": "timeseries"
+    },
+
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 26}, "id": 300, "title": "MON system (DO Frankfurt droplet)", "type": "row"},
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "% of CPU not idle on MON.",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 10, "showPoints": "never"}, "unit": "percent", "max": 100}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 27},
+      "id": 301,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true, "calcs": ["lastNotNull"]}},
+      "targets": [
+        {"expr": "100 * (1 - avg by (mode) (rate(node_cpu_seconds_total{server=\"mon\",mode=\"idle\"}[5m])))", "legendFormat": "CPU%", "range": true, "refId": "A"}
+      ],
+      "title": "MON CPU usage (%)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "RAM used / total.",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 10, "showPoints": "never"}, "unit": "bytes"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 27},
+      "id": 302,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true, "calcs": ["lastNotNull"]}},
+      "targets": [
+        {"expr": "node_memory_MemTotal_bytes{server=\"mon\"} - node_memory_MemAvailable_bytes{server=\"mon\"}", "legendFormat": "used", "range": true, "refId": "A"},
+        {"expr": "node_memory_MemTotal_bytes{server=\"mon\"}", "legendFormat": "total", "range": true, "refId": "B"}
+      ],
+      "title": "MON RAM",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Root filesystem usage on MON. Watch for slow growth (TSDB).",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "unit": "percent", "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 70}, {"color": "red", "value": 85}]}}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 35},
+      "id": 303,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": false}},
+      "targets": [
+        {"expr": "100 - 100 * node_filesystem_avail_bytes{server=\"mon\",mountpoint=\"/\"} / node_filesystem_size_bytes{server=\"mon\",mountpoint=\"/\"}", "legendFormat": "/", "range": true, "refId": "A"}
+      ],
+      "title": "MON disk usage % (/)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Network bytes/sec on MON eth0+eth1 (public + private VPC).",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 10, "showPoints": "never"}, "unit": "Bps"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 35},
+      "id": 304,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom", "showLegend": true, "calcs": ["lastNotNull"]}},
+      "targets": [
+        {"expr": "sum by (device) (rate(node_network_receive_bytes_total{server=\"mon\",device=~\"eth.*\"}[5m]))", "legendFormat": "{% raw %}{{device}}{% endraw %} rx", "range": true, "refId": "A"},
+        {"expr": "sum by (device) (rate(node_network_transmit_bytes_total{server=\"mon\",device=~\"eth.*\"}[5m]))", "legendFormat": "{% raw %}{{device}}{% endraw %} tx", "range": true, "refId": "B"}
+      ],
+      "title": "MON network I/O",
+      "type": "timeseries"
+    }
+
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["monitoring", "raven", "self"],
+  "templating": {"list": []},
+  "time": {"from": "now-3h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Monitoring Stack Health",
+  "uid": "raven-monitoring-health",
+  "version": 1,
+  "weekStart": ""
+}

@@ -205,6 +205,26 @@
   notify: Restart grafana
   tags: grafana_dashboards
 
+- name: Deploy Grafana monitoring stack health dashboard
+  ansible.builtin.template:
+    src: dashboards/monitoring-health.json.j2
+    dest: "{{ grafana_data_dir }}/dashboards/monitoring-health.json"
+    owner: grafana
+    group: grafana
+    mode: "0640"
+  notify: Restart grafana
+  tags: grafana_dashboards
+
+- name: Deploy Grafana raven-dashboard internals dashboard
+  ansible.builtin.template:
+    src: dashboards/raven-dashboard-internals.json.j2
+    dest: "{{ grafana_data_dir }}/dashboards/raven-dashboard-internals.json"
+    owner: grafana
+    group: grafana
+    mode: "0640"
+  notify: Restart grafana
+  tags: grafana_dashboards
+
 # RU Traffic Split dashboard removed 2026-05-05 — its sole signal source
 # was the xray-bridge-stats scrape job which was decommissioned with the
 # transparent-bridge teardown (C5 Phase 3, 2026-04-30). All panels were
