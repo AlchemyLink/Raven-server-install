@@ -1,0 +1,13 @@
+[Unit]
+Description=Run raven-dashboard SQLite backup hourly
+
+[Timer]
+# Hourly at minute 17 — offsets from xx:00 service restart windows
+# RandomizedDelaySec spreads writes across the hour to avoid thundering herd
+# if multiple instances ever exist.
+OnCalendar=*:17:00
+RandomizedDelaySec=60
+Persistent=true
+
+[Install]
+WantedBy=timers.target

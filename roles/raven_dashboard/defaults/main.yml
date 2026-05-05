@@ -18,8 +18,10 @@ raven_dashboard_db_path: "{{ raven_dashboard_data_dir }}/dashboard.db"
 # Raven-subscribe API — local, same host
 raven_dashboard_raven_api_url: "http://127.0.0.1:8080"
 
-# VictoriaMetrics on RU VPS via WireGuard (must match monitoring role)
-raven_dashboard_prometheus_url: "http://10.10.0.2:8428"
+# VictoriaMetrics on dedicated EU MON host via DO VPC private network
+# (must match monitoring role's victoriametrics_listen). Post-Variant-B
+# moved from 10.10.0.2:8428 (RU WG) to MON private IP.
+raven_dashboard_prometheus_url: "http://{{ hostvars[groups['mon'][0]].private_ip }}:8428"
 raven_dashboard_prometheus_addr: "127.0.0.1:9090"
 
 raven_dashboard_jwt_expiration_seconds: 900
@@ -63,3 +65,11 @@ raven_dashboard_github_token: ""
 # raven_dashboard_telegram_alert_chat_ids: [] # optional; chat_ids for probe drift / staleness alerts
 # raven_dashboard_xray_stats_anonymize_secret: ""  # MUST equal monitoring.xray_stats_anonymize_secret or per-user PromQL misses every series
 # raven_dashboard_github_token: "ghp_..."     # PAT with repo scope; only needed if NOT using local_binary/local_frontend_tar overrides
+
+# ── Backup (hourly SQLite snapshot to MON) ───────────────────────────────────
+# Rsync'd over DO VPC to a dedicated unprivileged user on MON, retention 7d
+# enforced by daily cron on the receiving side.
+raven_dashboard_backup_enabled: true
+raven_dashboard_backup_user: "raven-backup"            # system user provisioned on MON
+raven_dashboard_backup_ssh_key: "{{ raven_dashboard_data_dir }}/backup_key"
+raven_dashboard_backup_retention_days: 7

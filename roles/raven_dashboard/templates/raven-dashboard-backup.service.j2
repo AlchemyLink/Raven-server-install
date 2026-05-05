@@ -1,0 +1,18 @@
+[Unit]
+Description=raven-dashboard SQLite backup to MON
+Documentation=AlchemyLink/Raven-server-install raven_dashboard role
+After=network-online.target raven-dashboard.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User={{ raven_dashboard_user }}
+Group={{ raven_dashboard_user }}
+ExecStart=/usr/local/bin/backup-dashboard-db.sh
+# Hardening — script reads DB + SSH key, writes only to PrivateTmp=true /tmp,
+# and SSH's outbound. Known_hosts is pre-populated by Ansible to a fixed path.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadOnlyPaths={{ raven_dashboard_data_dir }}

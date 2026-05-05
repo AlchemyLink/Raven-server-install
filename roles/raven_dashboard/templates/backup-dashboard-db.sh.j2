@@ -1,0 +1,31 @@
+#!/bin/bash
+# Hourly SQLite backup of raven-dashboard. Runs as {{ raven_dashboard_user }}
+# (the same user that owns the DB), takes an online .backup snapshot to a
+# tmpfile, gzips, then rsyncs to the off-host backup user via DO VPC private
+# network. Retention is enforced on the receiving side via a daily cron.
+#
+# Managed by Ansible — do not edit by hand.
+
+set -euo pipefail
+
+DB="{{ raven_dashboard_data_dir }}/dashboard.db"
+TMPDIR=$(mktemp -d /tmp/raven-dashboard-backup.XXXXXX)
+trap 'rm -rf "$TMPDIR"' EXIT
+
+TS=$(date -u +%Y%m%d-%H%M%SZ)
+SNAP="$TMPDIR/dashboard-$TS.db"
+
+# Online consistent snapshot (sqlite3 .backup is safe across writes).
+sqlite3 "$DB" ".backup '$SNAP'"
+
+# Compress before sending.
+gzip "$SNAP"
+SNAP_GZ="${SNAP}.gz"
+
+# Push to MON. The receiving side runs rrsync wrapper that pins destination
+# to a specific dir, so even if this script is compromised it can't write
+# elsewhere on MON.
+rsync -e "ssh -i {{ raven_dashboard_backup_ssh_key }} -o UserKnownHostsFile={{ raven_dashboard_data_dir }}/known_hosts -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -p {{ hostvars[groups['mon'][0]].ansible_port | default(22) }}" \
+      --quiet \
+      "$SNAP_GZ" \
+      "{{ raven_dashboard_backup_user }}@{{ hostvars[groups['mon'][0]].private_ip }}:./"

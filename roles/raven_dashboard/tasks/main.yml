@@ -78,3 +78,8 @@
 - name: Raven-dashboard | Deploy and start systemd service
   ansible.builtin.import_tasks: service.yml
   tags: raven_dashboard_service
+
+- name: Raven-dashboard | Hourly backup → MON
+  ansible.builtin.import_tasks: backup.yml
+  when: raven_dashboard_backup_enabled | default(true)
+  tags: raven_dashboard_backup

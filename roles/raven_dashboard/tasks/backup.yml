@@ -1,0 +1,122 @@
+---
+# Hourly SQLite backup of dashboard.db to MON over DO VPC private network.
+# Uses a dedicated `raven-backup` system user on MON (no shell, locked password,
+# authorized_keys restricted via rrsync wrapper to a specific destination dir).
+# Retention is 7 days, enforced by cron on MON.
+
+# ── EU side: SSH key + script + systemd timer ────────────────────────────────
+
+- name: Raven-dashboard backup | Generate ed25519 keypair (EU side)
+  community.crypto.openssh_keypair:
+    path: "{{ raven_dashboard_backup_ssh_key }}"
+    type: ed25519
+    comment: "raven-dashboard backup → MON ({{ ansible_date_time.date | default('') }})"
+    owner: "{{ raven_dashboard_user }}"
+    group: "{{ raven_dashboard_user }}"
+    mode: "0600"
+  register: _backup_keypair
+
+- name: Raven-dashboard backup | Read public key
+  ansible.builtin.slurp:
+    src: "{{ raven_dashboard_backup_ssh_key }}.pub"
+  register: _backup_pubkey
+
+- name: Raven-dashboard backup | Pre-populate MON host key in known_hosts
+  ansible.builtin.shell:
+    cmd: |
+      ssh-keyscan -t ed25519 -p {{ hostvars[groups['mon'][0]].ansible_port | default(22) }} \
+        {{ hostvars[groups['mon'][0]].private_ip }} > {{ raven_dashboard_data_dir }}/known_hosts.tmp
+      install -o {{ raven_dashboard_user }} -g {{ raven_dashboard_user }} -m 0644 \
+        {{ raven_dashboard_data_dir }}/known_hosts.tmp \
+        {{ raven_dashboard_data_dir }}/known_hosts
+      rm {{ raven_dashboard_data_dir }}/known_hosts.tmp
+    creates: "{{ raven_dashboard_data_dir }}/known_hosts"
+
+- name: Raven-dashboard backup | Stage backup script
+  ansible.builtin.template:
+    src: backup-dashboard-db.sh.j2
+    dest: /usr/local/bin/backup-dashboard-db.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Raven-dashboard backup | Stage systemd unit
+  ansible.builtin.template:
+    src: raven-dashboard-backup.service.j2
+    dest: /etc/systemd/system/raven-dashboard-backup.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Raven-dashboard backup | Stage systemd timer
+  ansible.builtin.template:
+    src: raven-dashboard-backup.timer.j2
+    dest: /etc/systemd/system/raven-dashboard-backup.timer
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Raven-dashboard backup | Enable + start timer
+  ansible.builtin.systemd:
+    name: raven-dashboard-backup.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+
+# ── MON side: receiving user + authorized_keys + retention cron ──────────────
+
+- name: Raven-dashboard backup | Provision receiver user on MON
+  ansible.builtin.user:
+    # /bin/sh (not nologin) is required because rsync-over-ssh runs the
+    # forced command via the user's shell — nologin pollutes stdout with
+    # its refusal message, which rsync sees as protocol corruption.
+    # Interactive shell is blocked by `restrict` in authorized_keys.
+    name: "{{ raven_dashboard_backup_user }}"
+    system: true
+    shell: /bin/sh
+    home: "/var/lib/{{ raven_dashboard_backup_user }}"
+    create_home: true
+    password_lock: true
+    state: present
+  delegate_to: "{{ groups['mon'][0] }}"
+  become: true
+
+- name: Raven-dashboard backup | Ensure backup destination exists on MON
+  ansible.builtin.file:
+    path: "/var/lib/{{ raven_dashboard_backup_user }}/dashboard"
+    state: directory
+    owner: "{{ raven_dashboard_backup_user }}"
+    group: "{{ raven_dashboard_backup_user }}"
+    mode: "0750"
+  delegate_to: "{{ groups['mon'][0] }}"
+  become: true
+
+- name: Raven-dashboard backup | Ensure .ssh exists on MON
+  ansible.builtin.file:
+    path: "/var/lib/{{ raven_dashboard_backup_user }}/.ssh"
+    state: directory
+    owner: "{{ raven_dashboard_backup_user }}"
+    group: "{{ raven_dashboard_backup_user }}"
+    mode: "0700"
+  delegate_to: "{{ groups['mon'][0] }}"
+  become: true
+
+- name: Raven-dashboard backup | Authorize EU backup key on MON (rrsync-restricted)
+  ansible.posix.authorized_key:
+    user: "{{ raven_dashboard_backup_user }}"
+    state: present
+    key: "{{ _backup_pubkey.content | b64decode }}"
+    key_options: 'restrict,from="{{ hostvars["vm_my_srv"].private_ip }}",command="/usr/bin/rrsync /var/lib/{{ raven_dashboard_backup_user }}/dashboard"'
+  delegate_to: "{{ groups['mon'][0] }}"
+  become: true
+
+- name: Raven-dashboard backup | Daily retention cron on MON (delete > {{ raven_dashboard_backup_retention_days }} d)
+  ansible.builtin.cron:
+    name: "raven-dashboard backup retention"
+    minute: "23"
+    hour: "4"
+    user: "{{ raven_dashboard_backup_user }}"
+    job: "find /var/lib/{{ raven_dashboard_backup_user }}/dashboard -name 'dashboard-*.db.gz' -mtime +{{ raven_dashboard_backup_retention_days }} -delete"
+    state: present
+  delegate_to: "{{ groups['mon'][0] }}"
+  become: true
