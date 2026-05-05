@@ -90,11 +90,26 @@
             else ansible_architecture
           }}
 
+    - name: Xray Bridge | Fetch Xray .dgst checksum file
+      ansible.builtin.uri:
+        url: "https://github.com/{{ xray_github_repo }}/releases/download/{{ xray_bridge_version }}/Xray-linux-{{ xray_bridge_arch }}.zip.dgst"
+        return_content: true
+        status_code: 200
+      register: xray_bridge_dgst
+      retries: 3
+      delay: 3
+      until: xray_bridge_dgst.status == 200
+
+    - name: Xray Bridge | Extract SHA2-256 from .dgst
+      ansible.builtin.set_fact:
+        xray_bridge_sha256: "{{ xray_bridge_dgst.content | regex_search('SHA2-256=\\s*([0-9a-fA-F]{64})', '\\1') | first }}"
+
     - name: Xray Bridge | Download and unpack Xray
       ansible.builtin.get_url:
         url: "https://github.com/{{ xray_github_repo }}/releases/download/{{ xray_bridge_version }}/Xray-linux-{{ xray_bridge_arch }}.zip"
         dest: "/tmp/Xray-{{ xray_bridge_version }}-linux-{{ xray_bridge_arch }}.zip"
         mode: "0644"
+        checksum: "sha256:{{ xray_bridge_sha256 }}"
       register: bridge_xray_download
 
     - name: Xray Bridge | Unarchive Xray
@@ -120,6 +135,7 @@
     mode: "0644"
     owner: "{{ xray_bridge_user }}"
     group: "{{ xray_bridge_group }}"
+    checksum: "sha256:{{ xray_bridge_geosite_url }}.sha256sum"
   retries: 3
   delay: 3
   tags: xray_bridge_install
@@ -131,6 +147,7 @@
     mode: "0644"
     owner: "{{ xray_bridge_user }}"
     group: "{{ xray_bridge_group }}"
+    checksum: "sha256:{{ xray_bridge_geoip_url }}.sha256sum"
   retries: 3
   delay: 3
   tags: xray_bridge_install

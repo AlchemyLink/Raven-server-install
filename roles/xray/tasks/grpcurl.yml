@@ -45,6 +45,7 @@
     url: "https://github.com/fullstorydev/grpcurl/releases/download/v{{ grpcurl_version }}/grpcurl_{{ grpcurl_version }}_linux_{{ grpcurl_arch }}.tar.gz"
     dest: "/tmp/grpcurl_{{ grpcurl_version }}.tar.gz"
     mode: "0644"
+    checksum: "sha256:https://github.com/fullstorydev/grpcurl/releases/download/v{{ grpcurl_version }}/grpcurl_{{ grpcurl_version }}_checksums.txt"
   register: grpcurl_download
 
 - name: Extract grpcurl binary

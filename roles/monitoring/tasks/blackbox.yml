@@ -36,6 +36,7 @@
     url: "https://github.com/{{ blackbox_github_repo }}/releases/download/{{ blackbox_resolved_version }}/blackbox_exporter-{{ blackbox_resolved_version[1:] }}.linux-{{ blackbox_arch }}.tar.gz"
     dest: "/tmp/blackbox_exporter-{{ blackbox_resolved_version }}.tar.gz"
     mode: "0644"
+    checksum: "sha256:https://github.com/{{ blackbox_github_repo }}/releases/download/{{ blackbox_resolved_version }}/sha256sums.txt"
   register: blackbox_download
 
 - name: Extract blackbox_exporter archive

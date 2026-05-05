@@ -26,11 +26,31 @@
   ansible.builtin.set_fact:
     grafana_resolved_version: "{{ grafana_release_info.json.tag_name | regex_replace('^v', '') }}"
 
+# Grafana ships a .sha256 sidecar but the filename inside is the build-prefixed
+# `dist/grafana_<ver>_<build>_linux_amd64.deb`, which doesn't match Ansible's
+# URL-based checksum lookup (looks up by source filename). Fetch and extract.
+- name: Fetch Grafana .deb sha256 sidecar
+  ansible.builtin.uri:
+    url: "https://dl.grafana.com/oss/release/grafana_{{ grafana_resolved_version }}_amd64.deb.sha256"
+    return_content: true
+    status_code: 200
+  register: grafana_sha256_resp
+  delegate_to: localhost
+  run_once: true
+  retries: 3
+  delay: 3
+  until: grafana_sha256_resp.status == 200
+
+- name: Set Grafana .deb sha256 fact
+  ansible.builtin.set_fact:
+    grafana_deb_sha256: "{{ grafana_sha256_resp.content.split()[0] }}"
+
 - name: Download Grafana .deb on control machine
   ansible.builtin.get_url:
     url: "https://dl.grafana.com/oss/release/grafana_{{ grafana_resolved_version }}_amd64.deb"
     dest: "/tmp/grafana_{{ grafana_resolved_version }}_amd64.deb"
     mode: "0644"
+    checksum: "sha256:{{ grafana_deb_sha256 }}"
   delegate_to: localhost
   run_once: true
 

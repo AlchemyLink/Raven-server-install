@@ -38,6 +38,7 @@
     url: "https://github.com/prometheus/node_exporter/releases/download/{{ node_exporter_resolved_version }}/node_exporter-{{ node_exporter_resolved_version[1:] }}.linux-{{ node_exporter_arch }}.tar.gz"
     dest: "/tmp/node_exporter-{{ node_exporter_resolved_version }}.tar.gz"
     mode: "0644"
+    checksum: "sha256:https://github.com/prometheus/node_exporter/releases/download/{{ node_exporter_resolved_version }}/sha256sums.txt"
   register: node_exporter_download
 
 - name: Extract node_exporter binary

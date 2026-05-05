@@ -82,6 +82,7 @@
     url: "https://github.com/{{ victoriametrics_github_repo }}/releases/download/{{ vm_resolved_version }}/victoria-metrics-linux-{{ vm_arch }}-{{ vm_resolved_version }}.tar.gz"
     dest: "/tmp/victoria-metrics-{{ vm_resolved_version }}.tar.gz"
     mode: "0644"
+    checksum: "sha256:https://github.com/{{ victoriametrics_github_repo }}/releases/download/{{ vm_resolved_version }}/victoria-metrics-linux-{{ vm_arch }}-{{ vm_resolved_version }}_checksums.txt"
   register: vm_download
 
 - name: Extract VictoriaMetrics binary

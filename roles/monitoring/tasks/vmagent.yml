@@ -69,6 +69,7 @@
     url: "https://github.com/{{ victoriametrics_github_repo }}/releases/download/{{ vmagent_resolved_version }}/vmutils-linux-{{ vmagent_arch }}-{{ vmagent_resolved_version }}.tar.gz"
     dest: "/tmp/vmutils-{{ vmagent_resolved_version }}.tar.gz"
     mode: "0644"
+    checksum: "sha256:https://github.com/{{ victoriametrics_github_repo }}/releases/download/{{ vmagent_resolved_version }}/vmutils-linux-{{ vmagent_arch }}-{{ vmagent_resolved_version }}_checksums.txt"
   register: vmagent_download
 
 - name: Extract vmutils bundle

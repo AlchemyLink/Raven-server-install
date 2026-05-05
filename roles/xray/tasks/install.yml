@@ -105,13 +105,29 @@
   ansible.builtin.set_fact:
     xray_download_url: "https://github.com/{{ xray_github_repo }}/releases/download/{{ xray_version }}/Xray-linux-{{ xray_arch }}.zip"
 
+# Xray publishes a .dgst sidecar in multi-algorithm format (MD5/SHA1/SHA256/SHA512).
+# Standard checksum URL feature can't parse this — fetch and extract the SHA2-256 line.
+- name: Fetch Xray .dgst checksum file
+  ansible.builtin.uri:
+    url: "{{ xray_download_url }}.dgst"
+    return_content: true
+    status_code: 200
+  register: xray_dgst
+  retries: 3
+  delay: 3
+  until: xray_dgst.status == 200
+
+- name: Extract SHA2-256 from Xray .dgst
+  ansible.builtin.set_fact:
+    xray_sha256: "{{ xray_dgst.content | regex_search('SHA2-256=\\s*([0-9a-fA-F]{64})', '\\1') | first }}"
+
 - name: Download Xray using get_url (Ansible >= 2.16.0)
   block:
     - name: Download Xray archive (Ansible >= 2.16.0)
       ansible.builtin.get_url:
         url: "{{ xray_download_url }}"
         dest: "/tmp/Xray-{{ xray_version }}-linux-{{ xray_arch }}.zip"
-
+        checksum: "sha256:{{ xray_sha256 }}"
         mode: "0644"
       register: download_xray
     - name: Unarchive Xray
@@ -161,6 +177,7 @@
     mode: "0644"
     owner: "{{ xray_user }}"
     group: "{{ xray_group }}"
+    checksum: "sha256:https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat.sha256sum"
   retries: 3
   delay: 3
 
@@ -171,6 +188,7 @@
     mode: "0644"
     owner: "{{ xray_user }}"
     group: "{{ xray_group }}"
+    checksum: "sha256:https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat.sha256sum"
   retries: 3
   delay: 3
 
