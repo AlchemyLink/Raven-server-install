@@ -47,6 +47,47 @@ scrape_configs:
           server: ru
           instance: "{{ hostvars[h].ansible_host }}"
 {% endfor %}
+{% for h in groups['mon'] %}
+      - targets:
+          - {{ hostvars[h].private_ip }}:9100
+        labels:
+          server: mon
+          instance: "{{ hostvars[h].ansible_host }}"
+{% endfor %}
+
+  # vmagent self-scrape — primary defense against silent monitoring outages.
+  # If vmagent stops scraping or pushing, no other metrics flow either.
+  - job_name: vmagent
+    static_configs:
+      - targets:
+          - 127.0.0.1:8429
+        labels:
+          server: eu
+          instance: "{{ hostvars['vm_my_srv']['ansible_host'] }}"
+
+  # VictoriaMetrics self-metrics on MON — process health, ingestion rate,
+  # query latency, disk usage. Auth required (httpAuth flag in VM service unit).
+  - job_name: victoriametrics
+    basic_auth:
+      username: "{{ victoriametrics_auth_username }}"
+      password: "{{ victoriametrics_auth_password }}"
+    static_configs:
+      - targets:
+          - {{ hostvars[groups['mon'][0]].private_ip }}:8428
+        labels:
+          server: mon
+          instance: "{{ hostvars[groups['mon'][0]].ansible_host }}"
+
+  # raven-dashboard app metrics: raven_users_total/active, http_responses,
+  # worker_last_tick_age_seconds (broadcast/quota/sync background workers),
+  # schema_version, goroutines, mem stats.
+  - job_name: raven-dashboard
+    static_configs:
+      - targets:
+          - 127.0.0.1:8090
+        labels:
+          server: eu
+          instance: "{{ hostvars['vm_my_srv']['ansible_host'] }}"
 
 {% for probe in blackbox_inbound_probes %}
   # Blackbox probe: {{ probe.name }} ({{ probe.sni }})

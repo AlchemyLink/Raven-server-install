@@ -121,17 +121,20 @@
   retries: 3
   delay: 3
 
-# CompassVPN panel "Proxy Configuration Links" queries vpn_config{...}, a metric
-# emitted only by CompassVPN's management daemon (we do not run it). Strip the
-# panel so it doesn't render as empty. Runs after every download to survive
-# upstream dashboard refreshes.
+# CompassVPN dashboard contains panels that don't work in our setup:
+# - "Proxy Configuration Links" — queries vpn_config{...} from CompassVPN's
+#   management daemon (we don't run it).
+# - "Top Requested Domains/IPs" — queries xray_requested_domain_ip_total which
+#   we drop at vmagent (closes destination-IP leak, M-fix 2026-05-05).
+# Strip both so they don't render as empty. Runs after every download to
+# survive upstream dashboard refreshes.
 - name: Strip non-functional panels from CompassVPN dashboard
   ansible.builtin.shell:
     cmd: |
       set -euo pipefail
       src="{{ grafana_data_dir }}/dashboards/xray-compassvpn.json"
       tmp=$(mktemp)
-      jq 'walk(if type=="object" and (.panels?|type)=="array" then .panels |= map(select(.title!="Proxy Configuration Links")) else . end)' "$src" > "$tmp"
+      jq 'walk(if type=="object" and (.panels?|type)=="array" then .panels |= map(select(.title!="Proxy Configuration Links" and .title!="Top Requested Domains/IPs")) else . end)' "$src" > "$tmp"
       if ! cmp -s "$src" "$tmp"; then
         install -o grafana -g grafana -m 0640 "$tmp" "$src"
         rm -f "$tmp"

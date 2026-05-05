@@ -73,7 +73,9 @@
       {{
         (hostvars[inventory_hostname].wg_ip | default(wg_ru_ip)) + ':9100'
         if inventory_hostname in groups['ru']
-        else node_exporter_listen
+        else (hostvars[inventory_hostname].private_ip + ':9100'
+              if inventory_hostname in groups['mon']
+              else node_exporter_listen)
       }}
 
 - name: Deploy node_exporter systemd unit
@@ -100,3 +102,12 @@
     proto: tcp
     comment: "node_exporter via WireGuard"
   when: inventory_hostname in groups['ru']
+
+- name: Allow node_exporter from EU via DO private network (MON ufw)
+  community.general.ufw:
+    rule: allow
+    src: "{{ monitoring_private_subnet }}"
+    port: "9100"
+    proto: tcp
+    comment: "node_exporter from EU vmagent (DO VPC)"
+  when: inventory_hostname in groups['mon']
