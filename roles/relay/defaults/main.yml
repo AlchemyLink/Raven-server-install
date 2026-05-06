@@ -44,6 +44,16 @@ relay_access_log: false
 # ── Certbot ───────────────────────────────────────────────────────────────────
 relay_certbot_email: "" # Set in secrets.yml: relay_certbot_email: "admin@example.com"
 
+# Cert acquisition method for the apex domain.
+# - webroot: HTTP-01 challenge served from {{ relay_webroot }}/.well-known/acme-challenge.
+#   Requires apex DNS to point at this host. Breaks for second-IP/round-robin DNS
+#   (LE may pick the wrong server and 404 the challenge).
+# - dns-cloudflare: DNS-01 challenge via Cloudflare API. Requires
+#   relay_cloudflare_api_token in vault (Zone:DNS:Edit scope on the apex zone).
+#   Works regardless of where DNS resolves — required for multi-IP RU setups.
+relay_certbot_method: webroot
+relay_certbot_dns_propagation_seconds: 30
+
 # ── Stub site ─────────────────────────────────────────────────────────────────
 relay_stub_title: "Welcome"
 relay_stub_description: "Personal website"
