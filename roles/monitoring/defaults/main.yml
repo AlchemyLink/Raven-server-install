@@ -69,8 +69,10 @@ node_exporter_service_name: "node_exporter"
 
 # nginx-prometheus-exporter (RU only — reads nginx stub_status, exports request
 # count, accepts, connections by state; scraped by EU vmagent over WireGuard).
+# Listen on per-host WG IP so multi-RU works. Falls back to global wg_ru_ip
+# (10.10.0.2) for hosts without an explicit wg_ip — matches scrape.yml.j2 logic.
 nginx_exporter_version: "latest"
-nginx_exporter_listen: "10.10.0.2:9113"        # RU WG interface
+nginx_exporter_listen: "{{ hostvars[inventory_hostname].wg_ip | default(wg_ru_ip) }}:9113"
 nginx_exporter_bin_dir: "/usr/local/bin"
 nginx_stub_status_port: 8081                   # localhost-only nginx server block
 
