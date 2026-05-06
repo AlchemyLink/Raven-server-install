@@ -3,7 +3,7 @@
 Языки: [English](README.md) | **Русский**
 
 [![CI](https://github.com/AlchemyLink/Raven-server-install/actions/workflows/xray-config-test.yml/badge.svg)](https://github.com/AlchemyLink/Raven-server-install/actions/workflows/xray-config-test.yml)
-[![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)](LICENSE)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![Ansible](https://img.shields.io/badge/Ansible-%3E%3D2.14-red?logo=ansible)](https://docs.ansible.com/)
 [![Platform](https://img.shields.io/badge/Platform-Debian%2011%2B%20%7C%20Ubuntu%2020.04%2B-blue)](https://www.debian.org/)
 [![Status](https://img.shields.io/badge/Status-Alpha%20Testing-orange)](https://github.com/AlchemyLink/Raven-server-install)
@@ -813,4 +813,9 @@ ansible-playbook roles/role_nginx_frontend.yml -i roles/hosts.yml \
 
 ## Лицензия
 
-[Mozilla Public License 2.0](LICENSE)
+[GNU Affero General Public License v3.0 or later](LICENSE) © AlchemyLink contributors
+
+Проект перелицензирован c MPL-2.0 на AGPL-3.0-or-later 2026-05-06.
+Код на коммите `ea9eb3292077acb9311048c52c0e8a334481e2a0` или раньше остаётся
+доступен под MPL-2.0 согласно исходным условиям публикации; начиная со
+следующего коммита — AGPL-3.0-or-later.
