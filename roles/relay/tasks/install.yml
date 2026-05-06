@@ -62,3 +62,23 @@
     name: nginx
     enabled: true
     state: started
+
+# certbot-dns-cloudflare plugin. Snap requires explicit trust before installing
+# any plugin that runs as root; the trust flag is idempotent so we just always
+# set it when method=dns-cloudflare. Plugin install is gated by `creates`, and
+# `snap connect` is idempotent on its own.
+- name: Relay | Allow certbot snap plugins with root access
+  ansible.builtin.command: snap set certbot trust-plugin-with-root=ok
+  changed_when: false
+  when: relay_certbot_method == 'dns-cloudflare'
+
+- name: Relay | Install certbot-dns-cloudflare snap plugin
+  ansible.builtin.command:
+    cmd: snap install certbot-dns-cloudflare
+    creates: /snap/certbot-dns-cloudflare
+  when: relay_certbot_method == 'dns-cloudflare'
+
+- name: Relay | Connect certbot:plugin to certbot-dns-cloudflare
+  ansible.builtin.command: snap connect certbot:plugin certbot-dns-cloudflare
+  changed_when: false
+  when: relay_certbot_method == 'dns-cloudflare'
