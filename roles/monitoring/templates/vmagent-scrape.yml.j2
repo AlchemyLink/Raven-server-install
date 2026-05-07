@@ -112,6 +112,19 @@ scrape_configs:
           instance: "{{ hostvars[h].ansible_host }}"
 {% endfor %}
 
+  # raven-probe — layered Reality-aware connectivity probe (DNS/TCP/TLS/HTTP)
+  # per cover-SNI from each RU vantage. Detects path-specific DPI (PIN DC vs
+  # Beget pattern), ISP-wide SNI blocks, DNS poisoning. Scraped via WG.
+{% for h in groups['ru'] %}
+  - job_name: raven-probe-{{ h }}
+    static_configs:
+      - targets:
+          - {{ hostvars[h].wg_ip | default(wg_ru_ip) }}:9117
+        labels:
+          server: ru
+          instance: "{{ hostvars[h].ansible_host }}"
+{% endfor %}
+
 {% for probe in blackbox_inbound_probes %}
   # Blackbox probe: {{ probe.name }} ({{ probe.sni }})
   - job_name: "blackbox_{{ probe.name }}"

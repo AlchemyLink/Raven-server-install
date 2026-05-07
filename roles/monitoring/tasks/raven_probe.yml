@@ -1,0 +1,89 @@
+---
+# raven-probe — layered Reality-aware connectivity probe (DNS/TCP/TLS/HTTP).
+# Runs on RU peers, exposes /metrics on WG IP (so vmagent can scrape via WG mesh).
+#
+# Build path: by default, builds the binary on the controller from the local
+# raven-probe repo (sibling of Raven-server-install). Override with
+# raven_probe_local_binary=/path/to/raven-probe to skip the build.
+
+- name: raven-probe | Build binary on controller
+  ansible.builtin.command:
+    cmd: go build -o raven-probe-linux-amd64 .
+    chdir: "{{ raven_probe_repo_path }}"
+  environment:
+    GOOS: linux
+    GOARCH: amd64
+    CGO_ENABLED: "0"
+  delegate_to: localhost
+  run_once: true
+  register: _raven_probe_build
+  changed_when: _raven_probe_build.rc == 0
+  when: raven_probe_local_binary is not defined
+
+- name: raven-probe | Set binary source (built or override)
+  ansible.builtin.set_fact:
+    _raven_probe_src: >-
+      {{
+        raven_probe_local_binary if raven_probe_local_binary is defined
+        else raven_probe_repo_path ~ '/raven-probe-linux-amd64'
+      }}
+
+- name: raven-probe | Ensure system user
+  ansible.builtin.user:
+    name: "{{ raven_probe_user }}"
+    system: true
+    create_home: false
+    shell: /usr/sbin/nologin
+    state: present
+
+- name: raven-probe | Ensure config dir
+  ansible.builtin.file:
+    path: "{{ raven_probe_config_dir }}"
+    state: directory
+    owner: root
+    group: "{{ raven_probe_user }}"
+    mode: "0750"
+
+- name: raven-probe | Copy binary
+  ansible.builtin.copy:
+    src: "{{ _raven_probe_src }}"
+    dest: "{{ raven_probe_bin_dir }}/raven-probe"
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart raven-probe
+
+- name: raven-probe | Render config
+  ansible.builtin.template:
+    src: raven-probe.yaml.j2
+    dest: "{{ raven_probe_config_dir }}/config.yaml"
+    owner: root
+    group: "{{ raven_probe_user }}"
+    mode: "0640"
+  notify: Restart raven-probe
+
+- name: raven-probe | Deploy systemd unit
+  ansible.builtin.template:
+    src: raven-probe.service.j2
+    dest: /etc/systemd/system/raven-probe.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart raven-probe
+
+- name: raven-probe | Allow WG ingress to /metrics port (UFW)
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "{{ raven_probe_listen.split(':')[1] }}"
+    src: 10.10.0.0/24
+    comment: "raven-probe via WireGuard"
+  when: ansible_facts['os_family'] == 'Debian'
+  failed_when: false   # if ufw not installed/active, silently skip — matches RU host where UFW disabled
+
+- name: raven-probe | Enable and start
+  ansible.builtin.systemd:
+    name: "{{ raven_probe_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true

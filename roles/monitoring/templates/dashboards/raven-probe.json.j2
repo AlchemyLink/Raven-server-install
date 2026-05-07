@@ -1,0 +1,114 @@
+{
+  "annotations": {"list": [{"builtIn": 1, "datasource": {"type": "grafana", "uid": "-- Grafana --"}, "enable": true, "hide": true, "iconColor": "rgba(0, 211, 255, 1)", "name": "Annotations & Alerts", "type": "dashboard"}]},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}, "id": 1, "title": "Сводка состояния по vantage'ам", "type": "row"},
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Сколько cover-SNI на пути от RU vantage'а до нашего Reality-инбаунда сейчас работают (verdict=OK). Зелёный = достаточно резерва, жёлтый = деградация, красный = критично — VPN из этой vantage скорее всего сломан. Считаются только targets с префиксом eu_*.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "yellow", "value": 2}, {"color": "green", "value": 4}]}, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 8, "x": 0, "y": 1},
+      "id": 2,
+      "options": {"colorMode": "background", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"]}, "textMode": "auto", "orientation": "horizontal"},
+      "targets": [{"expr": "count by (vantage) (raven_probe_verdict{verdict=\"OK\",name=~\"eu_.*\"} == 1)", "instant": true, "legendFormat": "{% raw %}{{ vantage }}{% endraw %}", "refId": "A"}],
+      "title": "Рабочих cover-SNI",
+      "type": "stat"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Сколько секунд назад завершился последний цикл проб. Зелёный = свежие данные, жёлтый = задержка, красный = вероятно агент или scrape сломан (>30 минут без обновления при 5-минутном интервале).",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 600}, {"color": "red", "value": 1800}]}, "unit": "s"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 8, "x": 8, "y": 1},
+      "id": 3,
+      "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]}, "orientation": "horizontal"},
+      "targets": [{"expr": "time() - raven_probe_last_run_timestamp_seconds", "instant": true, "legendFormat": "{% raw %}{{ vantage }}{% endraw %}", "refId": "A"}],
+      "title": "Возраст последнего скана",
+      "type": "stat"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Сколько изменений verdict'а произошло на каждом vantage за последний час. Любое ненулевое значение здесь — точка для расследования: либо реальное изменение DPI/доступности, либо флаппинг (проба нестабильна).",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}]}, "unit": "short"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 8, "x": 16, "y": 1},
+      "id": 4,
+      "options": {"colorMode": "background", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"]}, "textMode": "auto", "orientation": "horizontal"},
+      "targets": [{"expr": "sum by (vantage) (changes(raven_probe_verdict[1h]) > 0) / 2", "instant": true, "legendFormat": "{% raw %}{{ vantage }}{% endraw %}", "refId": "A"}],
+      "title": "Изменений verdict'а за час",
+      "type": "stat"
+    },
+
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 6}, "id": 10, "title": "История verdict'ов — где и когда что начало падать", "type": "row"},
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Каждая горизонтальная полоса = одна цель (vantage/имя). Цвет показывает verdict в каждый момент времени. Переходы цвета — это и есть «падающие изменения»: зелёная→красная грань видна моментально и говорит «здесь и сейчас что-то сломалось». Скрол влево покажет, как далеко в прошлое уходит проблема.\n\nЦвета: зелёный=OK, красный=блок (TLS/TCP/DNS/HTTP_STUB), жёлтый=неоднозначно (timeout/down), серый=неизвестно.\n\neu_* строки = путь от RU vantage к НАШЕМУ Reality серверу. isp_* = к реальному CDN самой SNI (не наш сервер). ctl_* = контроль, должно всегда быть OK.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "custom": {"fillOpacity": 70, "lineWidth": 0, "spanNulls": false}, "mappings": [{"type": "value", "options": {"OK": {"color": "green", "index": 0}, "TLS_BLOCK": {"color": "red", "index": 1}, "TCP_RESET": {"color": "red", "index": 2}, "DNS_BLOCK": {"color": "red", "index": 3}, "HTTP_STUB": {"color": "red", "index": 4}, "TIMEOUT": {"color": "yellow", "index": 5}, "DOWN": {"color": "yellow", "index": 6}, "UNKNOWN": {"color": "purple", "index": 7}}}], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}}, "overrides": []},
+      "gridPos": {"h": 14, "w": 24, "x": 0, "y": 7},
+      "id": 11,
+      "options": {"alignValue": "left", "legend": {"displayMode": "list", "placement": "bottom", "showLegend": false}, "mergeValues": true, "rowHeight": 0.9, "showValue": "auto", "tooltip": {"mode": "single", "sort": "none"}},
+      "targets": [{"expr": "label_replace(raven_probe_verdict{verdict!=\"\"} == 1, \"status\", \"$1\", \"verdict\", \"(.+)\")", "legendFormat": "{% raw %}{{ vantage }}/{{ name }}{% endraw %}", "refId": "A"}],
+      "transformations": [{"id": "renameByRegex", "options": {"regexExp": ".*vantage=\"([^\"]+)\".*name=\"([^\"]+)\".*verdict=\"([^\"]+)\".*", "renamePattern": "$1/$2"}}],
+      "title": "State timeline — переходы verdict'ов по времени",
+      "type": "state-timeline"
+    },
+
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 21}, "id": 20, "title": "Текущее состояние всех целей", "type": "row"},
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Snapshot последнего скана по всем (vantage, target).\n\nКак читать: сравни строки eu_X и isp_X с тем же SNI. Если eu_X = TLS_BLOCK, а isp_X = OK — это path-specific DPI (наш сервер блокируется только с этого vantage). Если оба TLS_BLOCK — ISP-wide block (SNI режется глобально). Если eu_X = OK, а isp_X = OK — всё хорошо. ctl_yandex и ctl_cloudflare должны быть всегда OK; если нет — у этого RU peer'а проблемы с интернетом, а не с DPI.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "custom": {"align": "auto", "displayMode": "color-background"}, "mappings": [{"type": "value", "options": {"OK": {"color": "green", "text": "OK ✓"}, "TLS_BLOCK": {"color": "red", "text": "TLS_BLOCK ✗"}, "TCP_RESET": {"color": "red", "text": "TCP_RESET ✗"}, "DNS_BLOCK": {"color": "red", "text": "DNS_BLOCK ✗"}, "HTTP_STUB": {"color": "red", "text": "HTTP_STUB ✗"}, "TIMEOUT": {"color": "yellow", "text": "TIMEOUT ?"}, "DOWN": {"color": "yellow", "text": "DOWN ?"}, "UNKNOWN": {"color": "purple", "text": "UNKNOWN"}}}], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}}, "overrides": []},
+      "gridPos": {"h": 14, "w": 24, "x": 0, "y": 22},
+      "id": 21,
+      "options": {"showHeader": true, "footer": {"show": false}, "cellHeight": "sm"},
+      "targets": [{"expr": "max by (vantage, name, sni, verdict) (raven_probe_verdict == 1)", "instant": true, "format": "table", "refId": "A"}],
+      "transformations": [{"id": "organize", "options": {"excludeByName": {"Time": true, "Value": true, "__name__": true, "instance": true, "job": true, "server": true, "donor": true}, "indexByName": {"vantage": 0, "name": 1, "sni": 2, "verdict": 3}, "renameByName": {"vantage": "Vantage", "name": "Имя цели", "sni": "SNI", "verdict": "Verdict"}}}],
+      "title": "Verdict matrix — что с каждой целью прямо сейчас",
+      "type": "table"
+    },
+
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 36}, "id": 30, "title": "Тайминги слоёв — ускорения/замедления подскажут где боль", "type": "row"},
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Длительность TLS handshake'а в миллисекундах. На рабочих целях — десятки мс. 5000 мс = таймаут (handshake не завершился, скорее всего DPI). Резкий рост на одном vantage при стабильности на другом = path-specific деградация.\n\nЛегенда формата vantage/имя — например ru/eu_mozilla.",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "lineWidth": 1, "fillOpacity": 0, "showPoints": "never", "spanNulls": false}, "unit": "ms"}, "overrides": []},
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 37},
+      "id": 31,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [{"expr": "raven_probe_layer_duration_ms{layer=\"tls\"}", "legendFormat": "{% raw %}{{ vantage }}/{{ name }}{% endraw %}", "refId": "A"}],
+      "title": "TLS handshake — время до завершения",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+      "description": "Длительность TCP connect'а. Обычно 1-50 мс в зависимости от RTT. Резкий рост = деградация маршрута или RST-инжекция со стороны DPI (TCP отвечает медленно из-за фоновой потери пакетов).",
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "lineWidth": 1, "fillOpacity": 0, "showPoints": "never", "spanNulls": false}, "unit": "ms"}, "overrides": []},
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 37},
+      "id": 32,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [{"expr": "raven_probe_layer_duration_ms{layer=\"tcp\"}", "legendFormat": "{% raw %}{{ vantage }}/{{ name }}{% endraw %}", "refId": "A"}],
+      "title": "TCP connect — время установки соединения",
+      "type": "timeseries"
+    }
+
+  ],
+  "refresh": "1m",
+  "schemaVersion": 39,
+  "tags": ["raven-probe", "dpi", "ru"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "timezone": "browser",
+  "title": "raven-probe — диагностика RU connectivity (DPI / DNS / TLS)",
+  "uid": "raven-probe-1",
+  "version": 2,
+  "weekStart": ""
+}

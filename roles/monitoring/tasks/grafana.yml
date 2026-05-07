@@ -215,6 +215,16 @@
   notify: Restart grafana
   tags: grafana_dashboards
 
+- name: Deploy Grafana raven-probe dashboard
+  ansible.builtin.template:
+    src: dashboards/raven-probe.json.j2
+    dest: "{{ grafana_data_dir }}/dashboards/raven-probe.json"
+    owner: grafana
+    group: grafana
+    mode: "0640"
+  notify: Restart grafana
+  tags: grafana_dashboards
+
 - name: Deploy Grafana raven-dashboard internals dashboard
   ansible.builtin.template:
     src: dashboards/raven-dashboard-internals.json.j2

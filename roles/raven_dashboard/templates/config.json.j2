@@ -19,6 +19,12 @@
   "telegram_bot_token": "{{ raven_dashboard_telegram_bot_token }}"{% endif %}{% if raven_dashboard_external_probe_token | default('') %},
   "external_probe_token": "{{ raven_dashboard_external_probe_token }}"{% endif %}{% if raven_dashboard_telegram_alert_chat_ids | default([]) %},
   "telegram_alert_chat_ids": {{ raven_dashboard_telegram_alert_chat_ids | to_json }}{% endif %}{% if raven_dashboard_xray_stats_anonymize_secret | default('') %},
-  "xray_stats_anonymize_secret": "{{ raven_dashboard_xray_stats_anonymize_secret }}"{% endif %}
+  "xray_stats_anonymize_secret": "{{ raven_dashboard_xray_stats_anonymize_secret }}"{% endif %},
+  "raven_probe_vantages": [
+{% for h in groups['ru'] %}
+    {"name": "{{ h | regex_replace('^vm_my_', '') }}", "url": "http://{{ hostvars[h].wg_ip | default(wg_ru_ip) }}:9117"}{% if not loop.last %},{% endif %}
+
+{% endfor %}
+  ]
 
 }

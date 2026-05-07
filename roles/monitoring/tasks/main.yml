@@ -43,6 +43,11 @@
   when: inventory_hostname in groups['ru']
   tags: nginx_exporter
 
+- name: Deploy raven-probe
+  ansible.builtin.import_tasks: raven_probe.yml
+  when: inventory_hostname in groups['ru']
+  tags: raven_probe
+
 - name: Deploy xray-stats-exporter-bridge
   ansible.builtin.import_tasks: xray_stats_exporter_bridge.yml
   when: inventory_hostname in groups['ru']

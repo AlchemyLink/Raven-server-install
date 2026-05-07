@@ -1,0 +1,26 @@
+[Unit]
+Description=raven-probe — layered Reality-aware connectivity probe
+Documentation=https://github.com/alchemylink/raven-probe
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ raven_probe_user }}
+Group={{ raven_probe_user }}
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadOnlyPaths={{ raven_probe_config_dir }}
+ExecStart={{ raven_probe_bin_dir }}/raven-probe \
+  --listen={{ raven_probe_listen }} \
+  --interval={{ raven_probe_interval }} \
+  --timeout={{ raven_probe_timeout }} \
+  --vantage={{ raven_probe_vantage }} \
+  --config={{ raven_probe_config_dir }}/config.yaml
+Restart=on-failure
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target

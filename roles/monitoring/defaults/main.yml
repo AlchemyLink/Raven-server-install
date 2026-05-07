@@ -187,3 +187,31 @@ blackbox_inbound_probes:
     target: "{{ hostvars['vm_my_ru']['ansible_host'] }}:443"
     sni: "www.wikipedia.org"
     server: "ru"
+
+# raven-probe — layered Reality-aware connectivity probe (DNS/TCP/TLS/HTTP).
+# Deployed on RU peers; vmagent scrapes via WG mesh.
+raven_probe_repo_path: "{{ playbook_dir }}/../../raven-probe"   # local source repo (sibling of Raven-server-install; playbook_dir is roles/)
+raven_probe_bin_dir: "/usr/local/bin"
+raven_probe_config_dir: "/etc/raven-probe"
+raven_probe_user: "raven-probe"
+raven_probe_service_name: "raven-probe"
+raven_probe_listen: "{{ hostvars[inventory_hostname].wg_ip | default(wg_ru_ip) }}:9117"
+raven_probe_interval: "5m"
+raven_probe_timeout: "5s"
+raven_probe_vantage: "{{ inventory_hostname | regex_replace('^vm_my_', '') }}"  # ru / ru2 / ...
+raven_probe_eu_host: "{{ hostvars['vm_my_srv'].ansible_host }}"
+raven_probe_targets:
+  # Mode 2 — cover-SNI to OUR EU; detects path-specific DPI (PIN DC vs Beget pattern)
+  - {name: eu_mozilla,       sni: addons.mozilla.org, host_override: "{{ raven_probe_eu_host }}"}
+  - {name: eu_google,        sni: dl.google.com,      host_override: "{{ raven_probe_eu_host }}"}
+  - {name: eu_adobe,         sni: www.adobe.com,      host_override: "{{ raven_probe_eu_host }}"}
+  - {name: eu_stackoverflow, sni: stackoverflow.com,  host_override: "{{ raven_probe_eu_host }}"}
+  - {name: eu_superuser,     sni: superuser.com,      host_override: "{{ raven_probe_eu_host }}"}
+  - {name: eu_serverfault,   sni: serverfault.com,    host_override: "{{ raven_probe_eu_host }}"}
+  # Mode 1 — same SNI, no override (real CDN); detects ISP-wide SNI blocks
+  - {name: isp_mozilla,       sni: addons.mozilla.org}
+  - {name: isp_google,        sni: dl.google.com}
+  - {name: isp_stackoverflow, sni: stackoverflow.com}
+  # Controls — should always work; if break, internet is just down
+  - {name: ctl_yandex,     sni: ya.ru}
+  - {name: ctl_cloudflare, sni: www.cloudflare.com}

@@ -1,0 +1,20 @@
+# raven-probe configuration
+# Managed by Ansible monitoring role — DO NOT edit by hand.
+# To change targets: edit raven_probe_targets in monitoring/defaults/main.yml or override per-host.
+
+vantage: "{{ raven_probe_vantage }}"
+
+targets:
+{% for t in raven_probe_targets %}
+  - name: {{ t.name }}
+    sni: {{ t.sni }}
+{%   if t.host_override is defined and t.host_override %}
+    host_override: "{{ t.host_override }}"
+{%   endif %}
+{%   if t.port is defined %}
+    port: {{ t.port }}
+{%   endif %}
+{%   if t.url is defined and t.url %}
+    url: "{{ t.url }}"
+{%   endif %}
+{% endfor %}

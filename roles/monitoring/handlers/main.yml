@@ -74,3 +74,10 @@
     name: nginx
     state: reloaded
   when: ansible_facts['service_mgr'] == "systemd"
+
+- name: Restart raven-probe
+  ansible.builtin.systemd:
+    name: "{{ raven_probe_service_name }}"
+    state: restarted
+    daemon_reload: true
+  when: ansible_facts['service_mgr'] == "systemd"
