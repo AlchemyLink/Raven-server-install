@@ -40,6 +40,14 @@ raven_dashboard_max_sse_subscribers: 256
 # e.g. raven_dashboard_broadcast_media_base_url: "https://your-host.example/static"
 raven_dashboard_broadcast_media_base_url: ""
 
+# Public HTTPS URL of the Telegram Mini App. When set, the bot's StartPoller
+# calls setChatMenuButton with this URL so the chat menu button opens the
+# Mini App instead of the default command list. Must match a real route on
+# the public sub.* vhost (nginx_frontend role serves /app from the same
+# dashboard SPA bundle as Phase 0 portal). Empty → no setChatMenuButton call.
+# Example: "https://sub.example.com/app"
+raven_dashboard_telegram_webapp_url: ""
+
 # Override per deployment in secrets.yml: set to the public dashboard origin(s),
 # e.g. ["https://dashboard.example.com"]. Default is empty — the dev origin
 # stays a per-deploy decision rather than a shipped value.
