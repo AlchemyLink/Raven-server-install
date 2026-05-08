@@ -29,11 +29,13 @@ raven_dashboard_refresh_token_expiry_seconds: 604800
 raven_dashboard_rate_limit_per_min: 100
 raven_dashboard_max_request_body_bytes: 1048576
 
+# Cap concurrent SSE clients on /api/events. Each client holds a 16-event
+# buffer + an HTTP goroutine, so unbounded count is a memory-DoS vector.
+# 256 is two orders of magnitude over realistic admin-UI concurrency.
+raven_dashboard_max_sse_subscribers: 256
+
 raven_dashboard_cors_allowed_origins:
   - "https://dash.zirgate.com"
-
-raven_dashboard_enable_websocket: true
-raven_dashboard_websocket_auth_enabled: true
 
 # One-shot DB migration from Ansible control node.
 # Set to local path of dashboard.db before first deploy; leave empty afterwards.
