@@ -34,6 +34,12 @@ raven_dashboard_max_request_body_bytes: 1048576
 # 256 is two orders of magnitude over realistic admin-UI concurrency.
 raven_dashboard_max_sse_subscribers: 256
 
+# Prefixed onto relative MediaURLs in broadcast templates (e.g. screenshot
+# attachments). Empty default is OSS-friendly — relative-path media is
+# omitted entirely. Set per-deploy in secrets.yml when self-hosting screenshots,
+# e.g. raven_dashboard_broadcast_media_base_url: "https://your-host.example/static"
+raven_dashboard_broadcast_media_base_url: ""
+
 raven_dashboard_cors_allowed_origins:
   - "https://dash.zirgate.com"
 
