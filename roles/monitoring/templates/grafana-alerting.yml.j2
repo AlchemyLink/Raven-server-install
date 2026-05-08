@@ -393,7 +393,7 @@ groups:
               to: 0
             datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
             model:
-              expr: "max by (vantage, name, sni, verdict) (raven_probe_verdict{verdict=~\"TLS_BLOCK|TCP_RESET|DNS_BLOCK\",name=~\"eu_.*\"} == 1)"
+              expr: "max by (vantage, name, sni, verdict) (raven_probe_verdict{verdict=~\"TLS_BLOCK|TLS_RESET|TLS_DROP|TCP_RESET|DNS_BLOCK\",name=~\"eu_.*\"} == 1)"
               instant: true
               refId: A
           - refId: C
