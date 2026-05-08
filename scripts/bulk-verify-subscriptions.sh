@@ -6,9 +6,13 @@
 # returns 404 from raven-subscribe even though everything else looks healthy.
 #
 # Usage:
-#   ./bulk-verify-subscriptions.sh [--db PATH] [--primary URL] [--fallback URL]
-#                                  [--sleep-ms N] [--min-primary BYTES]
-#                                  [--min-fallback BYTES] [--quiet]
+#   ./bulk-verify-subscriptions.sh --primary URL --fallback URL
+#                                  [--db PATH] [--sleep-ms N]
+#                                  [--min-primary BYTES] [--min-fallback BYTES]
+#                                  [--quiet]
+#
+# --primary and --fallback (or env RAVEN_PRIMARY_BASE / RAVEN_FALLBACK_BASE)
+# are required; the script does not ship operator-specific defaults.
 #
 # Exits 0 if all URLs are 200 with body >= min size, 1 if any fail.
 # Designed for cron + Telegram alert hookup. Tokens are NEVER logged.
@@ -19,8 +23,11 @@
 set -euo pipefail
 
 db="/var/lib/xray-subscription/db.sqlite"
-primary_base="https://my.zirgate.com"
-fallback_base="https://sub.zirgate.com"
+# Primary/fallback base URLs are mandatory — pass via flags or environment.
+# Falling back to fixed defaults would couple this script to one operator's
+# domain and silently target the wrong host on a forked deploy.
+primary_base="${RAVEN_PRIMARY_BASE:-}"
+fallback_base="${RAVEN_FALLBACK_BASE:-}"
 sleep_ms=500
 min_primary=1000
 min_fallback=500
@@ -39,6 +46,12 @@ while [[ $# -gt 0 ]]; do
         *) echo "unknown arg: $1" >&2; exit 1 ;;
     esac
 done
+
+if [[ -z "$primary_base" || -z "$fallback_base" ]]; then
+    echo "error: --primary and --fallback (or RAVEN_PRIMARY_BASE / RAVEN_FALLBACK_BASE env) are required" >&2
+    echo "example: $0 --primary https://my.example.com --fallback https://sub.example.com" >&2
+    exit 1
+fi
 
 for cmd in sqlite3 curl; do
     command -v "$cmd" >/dev/null 2>&1 || { echo "$cmd not found" >&2; exit 1; }

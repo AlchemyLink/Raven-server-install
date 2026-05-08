@@ -1,15 +1,15 @@
 # ru-probe — RU mobile uplink probe agent
 
 `ru-probe.sh` runs from inside Russia on a **mobile carrier connection** and
-reports back to the AlchemyLink dashboard whether our RU VPS IP, our Reality
-SNI pool, and our DNS names are reachable through that carrier's TSPU and
-whitelist filters.
+reports back to the dashboard whether the configured RU VPS IP, Reality SNI
+pool, and DNS names are reachable through that carrier's TSPU and whitelist
+filters.
 
-It is the only way we can detect:
-- **L3 whitelist drops** — our RU IP fell out of the carrier's CIDR allowlist
-- **L7 SNI drops** — one of our Reality SNIs fell out of the DPI allowlist
+It is the only way to detect:
+- **L3 whitelist drops** — the RU IP fell out of the carrier's CIDR allowlist
+- **L7 SNI drops** — one of the Reality SNIs fell out of the DPI allowlist
 - **DNS poisoning** — the carrier resolver started returning bogus answers
-  for `*.zirgate.com`
+  for the configured `DNS_NAMES`
 
 A probe from EU or RU broadband sees none of these — they are mobile-only
 filters. Without an agent on a real RU mobile uplink, we have zero visibility
@@ -108,7 +108,7 @@ dependencies (`apt install bash curl openssl dnsutils netcat-openbsd`).
 
 ## Verifying it works
 
-After the first successful probe, on the dashboard at `https://dash.zirgate.com/settings`
+After the first successful probe, on the dashboard at `<dashboard-url>/settings`
 you should see an **"External Probes"** card with:
 - The carrier name we detected (mts / megafon / beeline / tele2 / yota)
 - The public IP the agent is using
@@ -119,7 +119,7 @@ If after the first run nothing shows up:
 1. Check the script's exit on the device: `ru-probe.sh; echo $?`
 2. Confirm the token: `curl -i -X POST -H "X-Probe-Token: $TOKEN"
    -d '{"schema":1,"carrier":"mts","public_ip":"1.2.3.4"}'
-   https://dash.zirgate.com/api/external/probe-result`
+   "$DASHBOARD_URL/api/external/probe-result"`
    → expect 204
 3. Check the dashboard backend log:
    `journalctl -u raven-dashboard -f` on the EU VPS

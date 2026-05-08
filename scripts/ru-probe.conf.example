@@ -2,7 +2,7 @@
 #                      and set the values below.
 
 # Dashboard ingest endpoint. Trailing slash is OK; the script strips it.
-DASHBOARD_URL="https://dash.zirgate.com"
+DASHBOARD_URL="https://dashboard.example.com"
 
 # X-Probe-Token header value. Must match raven_dashboard_external_probe_token
 # on the EU VPS dashboard config. Generate: openssl rand -hex 32
@@ -17,7 +17,9 @@ TARGET_PORT="443"
 SNIS="askubuntu.com www.adobe.com dl.google.com addons.mozilla.org www.wikipedia.org"
 
 # Hostnames whose DNS resolution we want to verify from the carrier resolver.
-DNS_NAMES="g1.zirgate.com sub.zirgate.com dash.zirgate.com"
+# Space-separated. Use whichever names matter for your deployment — typically
+# the Reality cover-domain hosts and the dashboard FQDN.
+DNS_NAMES="cover.example.com sub.example.com dashboard.example.com"
 
 # Where this agent stores its post-failure counter. Default is fine for both
 # Termux and OpenWrt; override only if $HOME is read-only.

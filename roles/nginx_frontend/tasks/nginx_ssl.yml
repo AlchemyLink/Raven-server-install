@@ -10,6 +10,39 @@
       {{ (_nginx_version_output.stderr | regex_search('nginx/(\d+\.\d+\.\d+)', '\1') | first | default('0.0.0'))
          is version('1.25.1', '>=') }}
 
+# CF Origin CA cert covering dash.* and sub.* subdomains. Path matches the
+# relay role (/etc/ssl/cloudflare/) so both VPS use the same convention.
+# Consumed by dashboard.conf.j2 and sub.conf.j2.
+- name: Nginx frontend | Ensure CF cert directory exists
+  ansible.builtin.file:
+    path: /etc/ssl/cloudflare
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  when: nginx_frontend_cf_origin_cert is defined
+
+- name: Nginx frontend | Deploy CF Origin CA certificate
+  ansible.builtin.copy:
+    content: "{{ nginx_frontend_cf_origin_cert }}"
+    dest: /etc/ssl/cloudflare/origin.pem
+    owner: root
+    group: root
+    mode: "0644"
+  when: nginx_frontend_cf_origin_cert is defined
+  notify: Reload nginx
+
+- name: Nginx frontend | Deploy CF Origin CA private key
+  ansible.builtin.copy:
+    content: "{{ nginx_frontend_cf_origin_key }}"
+    dest: /etc/ssl/cloudflare/origin.key
+    owner: root
+    group: root
+    mode: "0600"
+  when: nginx_frontend_cf_origin_key is defined
+  notify: Reload nginx
+  no_log: true
+
 - name: Nginx frontend | Deploy HTTPS config
   ansible.builtin.template:
     src: nginx/https.conf.j2

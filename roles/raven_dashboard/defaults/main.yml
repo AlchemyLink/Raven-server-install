@@ -40,8 +40,10 @@ raven_dashboard_max_sse_subscribers: 256
 # e.g. raven_dashboard_broadcast_media_base_url: "https://your-host.example/static"
 raven_dashboard_broadcast_media_base_url: ""
 
-raven_dashboard_cors_allowed_origins:
-  - "https://dash.zirgate.com"
+# Override per deployment in secrets.yml: set to the public dashboard origin(s),
+# e.g. ["https://dashboard.example.com"]. Default is empty — the dev origin
+# stays a per-deploy decision rather than a shipped value.
+raven_dashboard_cors_allowed_origins: []
 
 # One-shot DB migration from Ansible control node.
 # Set to local path of dashboard.db before first deploy; leave empty afterwards.

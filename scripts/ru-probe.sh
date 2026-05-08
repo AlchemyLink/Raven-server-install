@@ -10,8 +10,8 @@
 #      whitelist on this carrier?
 #   2. TLS handshake with each Reality SNI in our pool   → did the SNI fall
 #      out of the L7 whitelist (DPI-level filter)?
-#   3. DNS resolution of every *.zirgate.com name        → did the carrier
-#      DNS resolver poison or block our domains?
+#   3. DNS resolution of each name in DNS_NAMES         → did the carrier
+#      DNS resolver poison or block the configured domains?
 #
 # The result is POSTed as a single JSON document to the dashboard ingest
 # endpoint. If three consecutive POSTs fail, falls back to the Telegram bot
