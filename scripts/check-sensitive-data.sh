@@ -148,6 +148,28 @@ if [ "$mode" = "--staged" ]; then
     done < <(git diff --cached --name-only --diff-filter=AM)
 fi
 
+# 9. vault_password.txt — block by filename in either mode. .gitignore covers
+# the common case but a stray `git add -f` (or a tweak to .gitignore) would
+# silently bypass it; this guard is filename-pattern based and applies even
+# if the file content is intentionally short / non-secret-looking.
+case "$mode" in
+    --staged)
+        vault_pw_files=$(git diff --cached --name-only --diff-filter=AM \
+                         | grep -E '(^|/)vault_password(\.txt)?$' || true)
+        ;;
+    --push)
+        vault_pw_files=$(git log --name-only --pretty=format: "$range" 2>/dev/null \
+                         | grep -E '(^|/)vault_password(\.txt)?$' \
+                         | sort -u || true)
+        ;;
+esac
+if [ -n "${vault_pw_files:-}" ]; then
+    findings+="VAULT_PASSWORD_FILE_STAGED:
+${vault_pw_files}
+
+"
+fi
+
 if [ -n "$findings" ]; then
     {
         echo
