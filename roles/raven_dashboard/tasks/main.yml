@@ -12,9 +12,17 @@
         cp roles/raven_dashboard/defaults/secrets.yml.example roles/raven_dashboard/defaults/secrets.yml
         ansible-vault encrypt roles/raven_dashboard/defaults/secrets.yml --vault-password-file vault_password.txt
     success_msg: "Raven-dashboard vars are valid"
+  tags: always
 
+# Resolves _raven_dashboard_assets / _raven_dashboard_arch / _raven_dashboard_version,
+# consumed by install.yml + frontend.yml. Tagged for both so tag-only runs
+# (e.g. --tags raven_dashboard_install) don't fail with undefined vars when
+# this block would otherwise be skipped.
 - name: Raven-dashboard | Resolve latest GitHub release
   when: raven_dashboard_local_binary is not defined or raven_dashboard_local_frontend_tar is not defined
+  tags:
+    - raven_dashboard_install
+    - raven_dashboard_frontend
   block:
     - name: Raven-dashboard | Validate GitHub token is set (private repo)
       ansible.builtin.assert:
