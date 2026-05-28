@@ -29,6 +29,23 @@ victoriametrics_service_name: "victoriametrics"
 victoriametrics_scrape_interval: "15s"
 victoriametrics_scrape_timeout: "5s"
 victoriametrics_scrape_config: "/etc/victoriametrics/scrape.yml"
+# VM auto-derives concurrent-select capacity from CPU count; on the 1-vCPU
+# monitoring droplet that caps at 2, so multi-panel Grafana dashboards serialise
+# behind 2 query slots and panels lag/timeout on load. Queries here are tiny
+# (~10-30ms) and CPU is idle, so raising the cap is safe and removes the stall.
+victoriametrics_max_concurrent_requests: 8
+# VM defaults to 60% of detected RAM for caches. On a 1GB box co-located with
+# Grafana (~330MB RSS) that over-subscribes RAM (swap was 0) → page-cache thrash
+# and memory-pressure stalls. Cap at 40% so VM and Grafana coexist with headroom.
+victoriametrics_memory_allowed_percent: 40
+# The MON droplet (1 vCPU / 1GB) ships with no swap. Co-locating VM + Grafana
+# leaves only ~120MB free, and heavy dashboard loads trigger hard memory-pressure
+# stalls (no reclaim headroom). A small swapfile gives the kernel room to reclaim
+# instead of freezing the box. swappiness kept low so it's safety-net, not hot path.
+victoriametrics_swap_enabled: true
+victoriametrics_swap_file: /swapfile
+victoriametrics_swap_size_mb: 2048
+victoriametrics_swappiness: 10
 # External label attached to every scraped sample. CompassVPN dashboard 23181
 # filters all queries by donor=~"$donor"; without this label, ~80% of panels
 # are empty because label_values(donor) returns nothing.
