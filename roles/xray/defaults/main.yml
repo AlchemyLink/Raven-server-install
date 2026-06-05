@@ -150,7 +150,7 @@ xray_v2_xhttp:
   listen: "127.0.0.1"                        # Behind nginx stream SNI routing
   network: "xhttp"
   xhttpSettings:
-    mode: "auto"
+    mode: "packet-up"
     path: "/api/v4/sync"
     scMaxPacketSize: 1048576
   reality:
