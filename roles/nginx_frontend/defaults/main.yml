@@ -29,16 +29,13 @@ nginx_frontend_stream_v2_reality_port: 4444                  # Must match xray_v
 nginx_frontend_stream_v2_xhttp_sni: "addons.mozilla.org"     # Must match xray_v2_xhttp.reality.server_names[0]
 nginx_frontend_stream_v2_xhttp_port: 2054                    # Must match xray_v2_xhttp.port
 
-# Fallback inbound — multi-SNI на StackExchange-инфраструктуре (один upstream)
-# Все 4 SNI идут на один backend port — Reality сама выбирает соединение по UIRD-маркеру.
-# StackExchange использует SNI-virtual-hosting → cert всегда совпадает с любым из этих SNI.
+# Fallback inbound — VLESS+XHTTP+Reality (2026-06-06: было Reality+Vision+TCP).
+# Single cover-SNI www.gstatic.com (PQC-match, H2, no-redirect, инфра-домен).
+# SNI должен совпадать с xray_fallback.reality.server_names И с realitySettings.dest.
 nginx_frontend_stream_fallback_enabled: true
 nginx_frontend_stream_fallback_port: 5443                    # Must match xray_fallback.port
 nginx_frontend_stream_fallback_snis:                          # Must match xray_fallback.reality.server_names
-  - "stackoverflow.com"
-  - "superuser.com"
-  - "serverfault.com"
-  - "unix.stackexchange.com"
+  - "www.gstatic.com"
 
 # ── Raven Dashboard SNI integration ──────────────────────────────────────────
 # Routes SNI <dashboard_domain> → separate nginx HTTPS server on dashboard_port.

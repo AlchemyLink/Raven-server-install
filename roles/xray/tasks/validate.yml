@@ -161,3 +161,30 @@
         fail_msg: >-
           xray_fallback.port ({{ xray_fallback.port }}) must differ from all other inbound ports.
         success_msg: "fallback port is unique: {{ xray_fallback.port }}"
+
+    - name: Xray | Validate fallback transport
+      ansible.builtin.assert:
+        that:
+          - (xray_fallback.network | default('xhttp')) in ['tcp', 'xhttp']
+        fail_msg: >-
+          xray_fallback.network must be 'tcp' (Reality+Vision) or 'xhttp' (Reality+XHTTP).
+        success_msg: "fallback transport: {{ xray_fallback.network | default('xhttp') }}"
+
+    # XHTTP is incompatible with xtls-rprx-vision flow, and VLESS Encryption in
+    # this stack forces Vision (Raven-subscribe generator + legacy templates).
+    # Therefore an XHTTP fallback MUST run with decryption=none and a fully
+    # specified xhttpSettings block (mode/path/scMaxPacketSize).
+    - name: Xray | Validate XHTTP fallback constraints
+      when: (xray_fallback.network | default('xhttp')) == 'xhttp'
+      ansible.builtin.assert:
+        that:
+          - (xray_vless_fallback_decryption | default('none')) == 'none'
+          - xray_fallback.xhttpSettings is defined
+          - xray_fallback.xhttpSettings.mode is defined
+          - xray_fallback.xhttpSettings.path is defined
+          - xray_fallback.xhttpSettings.scMaxPacketSize is defined
+        fail_msg: >-
+          XHTTP fallback requires xray_vless_fallback_decryption='none' (VLESS
+          Encryption forces Vision, which XHTTP cannot use) and a complete
+          xray_fallback.xhttpSettings (mode, path, scMaxPacketSize).
+        success_msg: "XHTTP fallback constraints satisfied (mode={{ xray_fallback.xhttpSettings.mode }}, path={{ xray_fallback.xhttpSettings.path }})"

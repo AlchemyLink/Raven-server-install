@@ -159,22 +159,41 @@ xray_v2_xhttp:
       - "addons.mozilla.org"
 
 # ── Fallback inbound (для прямого EU-direct подключения, минуя RU relay) ─────
-# Изолированный keypair (xray_fallback_reality), изолированный VLESS Encryption.
-# Multi-SNI на StackExchange-инфраструктуре (один IP, SNI-virtual-hosting).
-# НЕ включается в primary subscription — только в /sub/fallback/* (FallbackInboundTags).
+# Изолированный keypair (xray_fallback_reality). НЕ включается в primary
+# subscription — только в /sub/fallback/* (raven_subscribe_fallback_inbound_tags).
+#
+# 2026-06-06: транспорт переведён Reality+Vision+TCP → VLESS+XHTTP+Reality.
+# Причина: майско-июньская волна ТСПУ убивает именно Reality+Vision (M2 шейпинг
+# по числу параллельных TLS + M3 «TLS1.3 packet-hammering» на :443 — см.
+# net4people #546: «flow xtls-rprx-vision should be removed, mux applied»).
+# XHTTP с packet-up + xmux (инжектится Raven-subscribe) переживает M2/M3.
+#
+# Cover-домен (CNI): www.gstatic.com — эмпирически проверен 2026-06-06:
+#   PQC=YES (X25519MLKEM768 → матч с Chrome-uTLS), H2, root=404 (НЕ редирект),
+#   Google Trust Services, инфра-домен (не бренд-SNI → низкий сигнал в IP+SNI
+#   whitelist-модели РФ), географически близко к EU. Диверсифицирован от primary
+#   (addons.mozilla.org/Fastly). apple/microsoft отвергнуты: Akamai PQC-default
+#   31.01.2026 + bot-detection, swcdn без H2, www.microsoft.com редиректит,
+#   бренд-SNI палится в IP+SNI-детекции.
+#
+# ВАЖНО: XHTTP несовместим с Vision flow; VLESS Encryption в этом коде форсит
+# Vision (Raven-subscribe) → поэтому xray_vless_fallback_decryption ДОЛЖЕН быть
+# 'none' (см. assert в validate.yml). PQ-слой остаётся на Reality+TCP инбаундах.
 xray_fallback_enabled: true
 
 xray_fallback:
   tag: "vless-fallback-in"
   port: 5443                                   # Behind nginx stream SNI routing
   listen: "127.0.0.1"
+  network: "xhttp"
+  xhttpSettings:
+    mode: "packet-up"                          # RPRX: strongest compatibility — fallback = выживаемость > скорость
+    path: "/v2/assets/sync"                    # distinct от primary /api/v4/sync; уникальный per-deployment
+    scMaxPacketSize: 1048576
   reality:
-    dest: "stackoverflow.com:443"              # StackExchange shared infra (198.252.206.1)
-    server_names:                              # SNI-virtual-hosting → cert всегда совпадает с SNI
-      - "stackoverflow.com"
-      - "superuser.com"
-      - "serverfault.com"
-      - "unix.stackexchange.com"
+    dest: "www.gstatic.com:443"                # PQC=YES, H2, no-redirect, Google Trust, инфра-домен
+    server_names:
+      - "www.gstatic.com"
 
 # ── Vision testseed — custom TLS padding (Xray-core >= v25.12.8) ─────────────
 # Array of 4 uint32 values controlling Vision padding behavior.

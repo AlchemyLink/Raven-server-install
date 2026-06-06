@@ -222,13 +222,11 @@ raven_probe_targets:
   - {name: eu_mozilla,       sni: addons.mozilla.org, host_override: "{{ raven_probe_eu_host }}"}
   - {name: eu_google,        sni: dl.google.com,      host_override: "{{ raven_probe_eu_host }}"}
   - {name: eu_adobe,         sni: www.adobe.com,      host_override: "{{ raven_probe_eu_host }}"}
-  - {name: eu_stackoverflow, sni: stackoverflow.com,  host_override: "{{ raven_probe_eu_host }}"}
-  - {name: eu_superuser,     sni: superuser.com,      host_override: "{{ raven_probe_eu_host }}"}
-  - {name: eu_serverfault,   sni: serverfault.com,    host_override: "{{ raven_probe_eu_host }}"}
+  - {name: eu_gstatic,       sni: www.gstatic.com,    host_override: "{{ raven_probe_eu_host }}"}   # XHTTP fallback cover-SNI (2026-06-06)
   # Mode 1 — same SNI, no override (real CDN); detects ISP-wide SNI blocks
   - {name: isp_mozilla,       sni: addons.mozilla.org}
   - {name: isp_google,        sni: dl.google.com}
-  - {name: isp_stackoverflow, sni: stackoverflow.com}
+  - {name: isp_gstatic,       sni: www.gstatic.com}
   # Controls — should always work; if break, internet is just down
   - {name: ctl_yandex,     sni: ya.ru}
   - {name: ctl_cloudflare, sni: www.cloudflare.com}

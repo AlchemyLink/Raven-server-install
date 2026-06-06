@@ -3,12 +3,11 @@
 {% if xray_fallback_enabled | default(false) %}
 {% set _fb = xray_fallback %}
 {% set _fbr = xray_fallback_reality %}
-{% set _pq = xray_vless_fallback_decryption | default('none') != 'none' %}
 {% set _clients = [] %}
 {% for user in xray_users %}
 {%   set _ = _clients.append({
        "id": user.id,
-       "flow": ('xtls-rprx-vision' if _pq else (user.flow | default(xray_vless_default_flow))),
+       "flow": "",
        "email": ((user.email | default('') | trim) or user.id),
        "level": 0
      }) %}
@@ -25,9 +24,17 @@
         "clients": {{ _clients | to_json }},
         "decryption": "{{ xray_vless_fallback_decryption | default('none') }}"
       },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "routeOnly": true
+      },
       "streamSettings": {
-        "network": "tcp",
-        "security": "reality",
+        "network": "{{ _fb.network | default('xhttp') }}",
         "realitySettings": {
           "show": false,
           "dest": "{{ _fb.reality.dest }}",
@@ -44,16 +51,16 @@
             {% endfor %}
           ],
           "xver": 0
+        },
+        "security": "reality",
+        "xhttpSettings": {
+          "mode": "{{ _fb.xhttpSettings.mode }}",
+          "path": "{{ _fb.xhttpSettings.path }}",
+          "scMaxPacketSize": {{ _fb.xhttpSettings.scMaxPacketSize }},
+          "extra": {
+            "xPaddingBytes": "100-1000"
+          }
         }
-      },
-      "sniffing": {
-        "enabled": true,
-        "destOverride": [
-          "http",
-          "tls",
-          "quic"
-        ],
-        "routeOnly": true
       }
     }
 {% endif %}
