@@ -17,6 +17,9 @@
 {% if raven_subscribe_fallback_inbound_tags | default([]) | length > 0 %}
   "fallback_inbound_tags": {{ raven_subscribe_fallback_inbound_tags | to_json }},
 {% endif %}
+{% if raven_subscribe_killswitch_inbound_tags | default([]) | length > 0 %}
+  "killswitch_inbound_tags": {{ raven_subscribe_killswitch_inbound_tags | to_json }},
+{% endif %}
   "admin_token": "{{ raven_subscribe_admin_token }}",
   "rate_limit_sub_per_min": {{ raven_subscribe_rate_limit_sub_per_min }},
   "rate_limit_admin_per_min": {{ raven_subscribe_rate_limit_admin_per_min }},

@@ -88,6 +88,16 @@ raven_subscribe_fallback_inbound_tags:
   # itself the EU-direct escape-hatch, so this is the right place to A/B a direct candidate.
   - vless-experimental-in
 
+# Killswitch target tags — which inbounds the fallback killswitch (enable/disable +
+# reconcile loop) actually adds/removes from the running Xray via gRPC. DELIBERATELY
+# separate from fallback_inbound_tags (which is subscription ROUTING). Experimental is
+# routed on /sub/fallback/* but is NOT listed here, so the killswitch never tears it
+# down — it lives as a normal config.d inbound (like the primaries), with independent
+# control and immune to emergency VPN-kill. Empty/unset → server falls back to
+# fallback_inbound_tags (legacy behaviour, where the two sets were identical).
+raven_subscribe_killswitch_inbound_tags:
+  - vless-fallback-in
+
 # Bridge user sync — pushes all EU inbound users to xray-bridge transparent inbounds via gRPC.
 # Requires xray-bridge Stats API enabled and WireGuard tunnel between EU and RU VPS.
 # bridge_api_addr: gRPC address of xray-bridge API (reachable from EU via WireGuard)
