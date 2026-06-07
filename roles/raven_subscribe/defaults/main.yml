@@ -74,12 +74,19 @@ raven_subscribe_inbound_ports:
     vless-reality-v2-in: 443
     vless-xhttp-v2-in: 443
     vless-fallback-in: 443
+    vless-experimental-in: 443     # harmless until the inbound exists in config.d
 
 # Fallback subscription inbound allowlist — restricts /sub/fallback/* to outbounds
 # whose inbound tag is in this list. Empty = no filtering (legacy behaviour).
 # Should contain ONLY isolated fallback-only inbounds (NOT primary inbounds).
 raven_subscribe_fallback_inbound_tags:
   - vless-fallback-in
+  # Experimental anti-freeze sandbox. Served EU-direct on /sub/fallback/* alongside
+  # the fallback inbound; excluded from primary /sub/* (this list is blacklisted on
+  # primary, whitelisted on fallback). No-op until the inbound exists in config.d
+  # (xray_experimental_enabled=true on the EU host). The fallback subscription is
+  # itself the EU-direct escape-hatch, so this is the right place to A/B a direct candidate.
+  - vless-experimental-in
 
 # Bridge user sync — pushes all EU inbound users to xray-bridge transparent inbounds via gRPC.
 # Requires xray-bridge Stats API enabled and WireGuard tunnel between EU and RU VPS.

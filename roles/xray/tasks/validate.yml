@@ -188,3 +188,51 @@
           Encryption forces Vision, which XHTTP cannot use) and a complete
           xray_fallback.xhttpSettings (mode, path, scMaxPacketSize).
         success_msg: "XHTTP fallback constraints satisfied (mode={{ xray_fallback.xhttpSettings.mode }}, path={{ xray_fallback.xhttpSettings.path }})"
+
+- name: Xray | Validate experimental inbound when enabled
+  when: xray_experimental_enabled | default(false)
+  block:
+    - name: Xray | Validate experimental Reality keypair (isolated)
+      ansible.builtin.assert:
+        that:
+          - xray_experimental_reality is defined
+          - xray_experimental_reality.private_key is defined
+          - xray_experimental_reality.private_key != ''
+          - xray_experimental_reality.short_id is defined
+          - xray_experimental_reality.short_id | length > 0
+        fail_msg: >-
+          xray_experimental_reality is missing required keys (private_key, short_id).
+          Generate with: xray x25519 + openssl rand -hex 8.
+          Must be ISOLATED from xray_v2_reality / xray_fallback_reality.
+        success_msg: "experimental Reality keypair is valid"
+
+    - name: Xray | Validate experimental serverNames non-empty
+      ansible.builtin.assert:
+        that:
+          - xray_experimental.reality.server_names is defined
+          - xray_experimental.reality.server_names | length > 0
+        fail_msg: >-
+          xray_experimental.reality.server_names must contain at least one SNI.
+        success_msg: "experimental serverNames count: {{ xray_experimental.reality.server_names | length }}"
+
+    - name: Xray | Validate experimental port unique
+      ansible.builtin.assert:
+        that:
+          - not (xray_v2_inbounds_enabled | default(false)) or xray_experimental.port != xray_v2_vless.port
+          - not (xray_v2_inbounds_enabled | default(false)) or xray_experimental.port != xray_v2_xhttp.port
+          - not (xray_fallback_enabled | default(false)) or xray_experimental.port != xray_fallback.port
+        fail_msg: >-
+          xray_experimental.port ({{ xray_experimental.port }}) must differ from all other inbound ports.
+        success_msg: "experimental port is unique: {{ xray_experimental.port }}"
+
+    - name: Xray | Validate experimental XHTTP settings
+      ansible.builtin.assert:
+        that:
+          - (xray_experimental.network | default('xhttp')) == 'xhttp'
+          - xray_experimental.xhttpSettings is defined
+          - xray_experimental.xhttpSettings.mode is defined
+          - xray_experimental.xhttpSettings.path is defined
+        fail_msg: >-
+          experimental inbound requires network 'xhttp' and a complete
+          xray_experimental.xhttpSettings (mode, path).
+        success_msg: "experimental XHTTP settings OK (mode={{ xray_experimental.xhttpSettings.mode }}, path={{ xray_experimental.xhttpSettings.path }})"

@@ -1,0 +1,92 @@
+{
+  "inbounds": [
+{% if xray_experimental_enabled | default(false) %}
+{# ─────────────────────────────────────────────────────────────────────────────
+   EXPERIMENTAL inbound — sandbox для обхода TSPU "16-20 KB foreign-IP freeze".
+   НЕ трогает primary (201/211): изолированный keypair, порт, SNI, route.
+   Топология EU-direct (как fallback): отдаётся ТОЛЬКО на /sub/fallback/* через
+   raven_subscribe_fallback_inbound_tags → исключён из primary subscription.
+
+   Гипотеза (research 2026-06-07, net4people #490/#546, NTC):
+   TSPU замораживает TCP-сессию к иностранному IP после ~15-20 KB. Reality
+   прячет только handshake, не post-handshake объём. Лечение для DIRECT-канала:
+   XHTTP packet-up + МЕЛКИЕ POST-ы (scMaxEachPostBytes < окна заморозки) +
+   агрессивная ротация xmux, чтобы НИ ОДНО TCP-соединение не накопило >16 KB.
+   Конфликт-риск: слишком агрессивная ротация = сигнатура concurrent-TLS (M2)
+   / TLS1.3-hammer (M3). Это и есть переменная эксперимента — крутить через
+   xray_experimental.* без правки шаблона.
+
+   Отличия от fallback (220): БЕЗ PQ-слоя (VLESS Encryption=none) и БЕЗ Vision
+   (flow="") — PQ не помогает прямому TSPU-траверсу (design note PR #5067), а
+   Vision концентрирует объём в одном потоке = ровно то, что ловит freeze.
+   ───────────────────────────────────────────────────────────────────────── #}
+{% set _x = xray_experimental %}
+{% set _xr = xray_experimental_reality %}
+{% set _clients = [] %}
+{% for user in xray_users %}
+{%   set _ = _clients.append({
+       "id": user.id,
+       "flow": "",
+       "email": ((user.email | default('') | trim) or user.id),
+       "level": 0
+     }) %}
+{% endfor %}
+{% for c in (xray_extra_clients | default({})).get('221-in-experimental.json', []) %}
+{%   set _ = _clients.append(c) %}
+{% endfor %}
+    {
+      "listen": "{{ _x.listen | default('127.0.0.1') }}",
+      "port": {{ _x.port }},
+      "protocol": "vless",
+      "tag": "{{ _x.tag | default('vless-experimental-in') }}",
+      "settings": {
+        "clients": {{ _clients | to_json }},
+        "decryption": "none"
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "routeOnly": true
+      },
+      "streamSettings": {
+        "network": "{{ _x.network | default('xhttp') }}",
+        "realitySettings": {
+          "show": false,
+          "dest": "{{ _x.reality.dest }}",
+          "spiderX": "{{ _xr.spiderX | default('/') }}",
+          "serverNames": [
+            {% for name in _x.reality.server_names %}
+            "{{ name }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "privateKey": "{{ _xr.private_key }}",
+          "shortIds": [
+            {% for short_id in _xr.short_id %}
+            "{{ short_id }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "xver": 0
+        },
+        "security": "reality",
+        "xhttpSettings": {
+          "mode": "{{ _x.xhttpSettings.mode | default('packet-up') }}",
+          "path": "{{ _x.xhttpSettings.path }}",
+          "scMaxPacketSize": {{ _x.xhttpSettings.scMaxPacketSize | default(1048576) }},
+          "extra": {
+            "xPaddingBytes": "{{ _x.xhttpSettings.xPaddingBytes | default('100-1000') }}",
+            "scMaxEachPostBytes": "{{ _x.xhttpSettings.scMaxEachPostBytes | default('8000-15000') }}",
+            "scMinPostsIntervalMs": "{{ _x.xhttpSettings.scMinPostsIntervalMs | default('30') }}"
+          }
+{% if _x.xmux is defined and _x.xmux %}
+          ,"xmux": {{ _x.xmux | to_json }}
+{% endif %}
+        }
+      }
+    }
+{% endif %}
+  ]
+}

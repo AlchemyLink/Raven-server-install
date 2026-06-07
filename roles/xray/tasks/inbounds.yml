@@ -30,6 +30,7 @@
     - 201-in-vless-reality-v2.json
     - 211-in-xhttp-v2.json
     - 220-in-fallback.json
+    - 221-in-experimental.json
   failed_when: false   # missing file = fresh install, treated as no extras
   changed_when: false
   check_mode: false    # we need real content even in --check

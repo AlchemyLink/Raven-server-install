@@ -195,6 +195,65 @@ xray_fallback:
     server_names:
       - "www.gstatic.com"
 
+# ── Experimental inbound (sandbox для обхода TSPU "16-20 KB foreign-IP freeze") ─
+# DISABLED by default — включается только когда положишь изолированный keypair
+# (xray_experimental_reality) в secrets.yml и проверишь SNI с EU-вантажа.
+# Изолирован от primary (201/211) и fallback (220): свой порт/SNI/keypair.
+# Топология EU-direct: отдаётся ТОЛЬКО на /sub/fallback/* (см.
+# raven_subscribe_fallback_inbound_tags) → НЕ попадает в primary subscription,
+# поэтому не может сломать основные каналы. Шаблон: 221-in-experimental.json.j2.
+#
+# Назначение: крутить anti-freeze параметры (research 2026-06-07, net4people
+# #490/#546) НЕ трогая прод. Транспорт = VLESS+XHTTP packet-up БЕЗ PQ и БЕЗ
+# Vision (минимум переменных; Vision концентрирует объём = ловится freeze).
+# Главные ручки эксперимента — xhttpSettings.scMaxEachPostBytes и xmux.* ниже.
+xray_experimental_enabled: false
+
+xray_experimental:
+  tag: "vless-experimental-in"
+  port: 5444                                   # уникален: 4444/2054 primary, 5443 fallback
+  listen: "127.0.0.1"                          # за nginx stream SNI-роутингом
+  network: "xhttp"
+  xhttpSettings:
+    mode: "packet-up"                          # каждый upload — отдельный POST
+    path: "/v3/telemetry/batch"                # distinct от primary/fallback путей
+    scMaxPacketSize: 1048576
+    # ANTI-FREEZE #1: держим POST-ы мельче окна заморозки (~15-20 KB). Range →
+    # рандомизация размера (не фиксируем сигнатуру). Стартовое значение — крутить.
+    scMaxEachPostBytes: "8000-15000"
+    scMinPostsIntervalMs: "30"
+    xPaddingBytes: "100-1000"
+  # ANTI-FREEZE #2: client-side xmux (raven-subscribe пробрасывает явный блок как
+  # override дефолта, generator.go:532). Агрессивная ротация → ни одно TCP-соединение
+  # не копит >16 KB. ВНИМАНИЕ: чем агрессивнее, тем выше риск concurrent-TLS (M2)
+  # сигнатуры — это и есть переменная эксперимента. Дефолт generator-а (для сравнения):
+  # maxConcurrency 16-32 / cMaxReuseTimes 64-128 / hMaxReusableSecs 1800-3000.
+  xmux:
+    maxConcurrency: "8-16"                      # меньше потоков на соединение
+    maxConnections: 0                          # пул по concurrency (взаимоисключимо с maxConnections)
+    cMaxReuseTimes: "16-32"                     # быстрее ротация vs дефолт 64-128
+    hMaxRequestTimes: "200-400"
+    hMaxReusableSecs: "300-600"                 # 5-10 мин жизни соединения vs дефолт 30-50 мин
+    hKeepAlivePeriod: 0
+  reality:
+    # ВАЖНО: проверь с EU-вантажа ДО включения (H2 + HTTP 200 + no-redirect +
+    # TLS1.3). Должен отличаться от primary (addons.mozilla.org/dl.google.com) и
+    # fallback (www.adobe.com). Избегай apple/icloud и non-443 (Reality в
+    # v26.3.27 предупреждает — коррелирует с блокировкой IP). www.python.org —
+    # EU-проверен 2026-06-07: H2/200/no-redirect/TLS1.3 (Fastly). jsdelivr отвергнут
+    # (301→www.jsdelivr.com), wikipedia — RU-sensitive, lovelive-anime — 403.
+    dest: "www.python.org:443"
+    server_names:
+      - "www.python.org"
+
+# Изолированный Reality keypair для эксперимента — ТОЛЬКО в secrets.yml:
+#   xray_experimental_reality:
+#     private_key: "..."          # xray x25519
+#     spiderX: "/"
+#     short_id:
+#       - "..."                   # openssl rand -hex 8
+# Public key НЕ нужен — raven-subscribe выводит его из private (generator.go:438).
+
 # ── Vision testseed — custom TLS padding (Xray-core >= v25.12.8) ─────────────
 # Array of 4 uint32 values controlling Vision padding behavior.
 # Xray defaults: [900, 500, 900, 256]

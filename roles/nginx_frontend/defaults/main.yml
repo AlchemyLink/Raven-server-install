@@ -37,6 +37,13 @@ nginx_frontend_stream_fallback_port: 5443                    # Must match xray_f
 nginx_frontend_stream_fallback_snis:                          # Must match xray_fallback.reality.server_names
   - "www.gstatic.com"
 
+# Experimental inbound — VLESS+XHTTP+Reality sandbox (anti-freeze).
+# DISABLED by default. Enable ТОЛЬКО вместе с xray_experimental_enabled=true.
+# SNI/port ДОЛЖНЫ совпадать с xray_experimental.reality.server_names[0] и .port.
+nginx_frontend_stream_experimental_enabled: false
+nginx_frontend_stream_experimental_port: 5444                # Must match xray_experimental.port
+nginx_frontend_stream_experimental_sni: "www.python.org"    # Must match xray_experimental.reality.server_names[0]
+
 # ── Raven Dashboard SNI integration ──────────────────────────────────────────
 # Routes SNI <dashboard_domain> → separate nginx HTTPS server on dashboard_port.
 # Requires raven_dashboard role deployed and listening on dashboard_backend_port.
