@@ -6,9 +6,17 @@ obfs:
   type: {{ item.obfs_type }}
   {{ item.obfs_type }}:
     password: {{ item.obfs_password }}
+{% if item.auth_mode | default('password') == 'http' %}
+auth:
+  type: http
+  http:
+    url: {{ hysteria_auth_http_url }}
+    insecure: false
+{% else %}
 auth:
   type: password
   password: {{ hysteria_auth_password }}
+{% endif %}
 masquerade:
   type: proxy
   proxy:

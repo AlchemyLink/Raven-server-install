@@ -16,7 +16,12 @@ hysteria_conf_dir: "/etc/hysteria"
 hysteria_sni: "www.python.org"
 hysteria_masq_url: "https://www.python.org"
 
+# auth-backend URL for per-user instances (Raven-subscribe /hysteria/auth, loopback).
+hysteria_auth_http_url: "http://127.0.0.1:8080/hysteria/auth"
+
 # Instances. obfs key name == obfs_type (hysteria YAML: obfs.<type>.password).
+# auth_mode: "password" = shared static password (personal/native reserve, e.g. gecco);
+#            "http" = per-user via Raven auth-backend (subscription channel, e.g. salamander).
 hysteria_instances:
-  - { name: "gecco", port: 47012, obfs_type: "gecko", obfs_password: "{{ hysteria_gecko_obfs_password }}" }
-  - { name: "salamander", port: 47014, obfs_type: "salamander", obfs_password: "{{ hysteria_salamander_obfs_password }}" }
+  - { name: "gecco", port: 47012, obfs_type: "gecko", obfs_password: "{{ hysteria_gecko_obfs_password }}", auth_mode: "password" }
+  - { name: "salamander", port: 47014, obfs_type: "salamander", obfs_password: "{{ hysteria_salamander_obfs_password }}", auth_mode: "http" }
