@@ -30,7 +30,7 @@
   ansible.builtin.command: >-
     openssl req -x509 -nodes -newkey ec -pkeyopt ec_paramgen_curve:prime256v1
     -keyout {{ hysteria_conf_dir }}/key.pem -out {{ hysteria_conf_dir }}/cert.pem
-    -subj "/CN={{ hysteria_sni }}" -days 3650
+    -subj "/CN={{ hysteria_sni }}" -addext "subjectAltName=DNS:{{ hysteria_sni }}" -days 3650
   args:
     creates: "{{ hysteria_conf_dir }}/cert.pem"
 
