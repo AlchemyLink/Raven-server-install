@@ -32,13 +32,30 @@ relay_upstream_raven_port: 8443
 relay_stream_enabled: true
 relay_https_port: 8443                 # Local HTTPS port (behind stream, stub + Raven relay)
 
+# Listener hardening against connection-exhaustion floods (incident 2026-06-08).
+# nginx defaults the per-listener accept backlog to 511 regardless of net.core.somaxconn,
+# so a flood of SYN-less/empty connections overflows it and drops real clients' SYNs.
+relay_listen_backlog: 4096             # explicit listen backlog (somaxconn is 65535 via srv_prepare)
+relay_limit_conn_per_ip: 512           # max concurrent :443 conns per source IP (CGNAT-tolerant; was 128 — too low, rejected a legit user's xmux burst 2026-06-08)
+
+# Hysteria2 UDP reserve forwards (client → relay :port/udp → EU over WG mesh, bypassing the
+# DO cloud firewall which blocks public UDP). EU runs native hysteria servers (systemd):
+# 47012 = gecco obfs (strong, native/CLI client), 47014 = salamander obfs (Xray/v2rayN client).
+# Upstream is EU's WG IP (10.10.0.1) so traffic rides the existing wg0 tunnel.
+relay_hysteria_udp_forwards:
+  - { port: 47012, upstream: "10.10.0.1:47012", note: "gecco" }
+  - { port: 47014, upstream: "10.10.0.1:47014", note: "salamander" }
+
 # ── nginx ─────────────────────────────────────────────────────────────────────
 relay_nginx_user: "www-data"
 relay_webroot: "/var/www/{{ relay_domain }}"
 
 # Disable nginx access logs on RU relay for client privacy.
-# When false: nginx does not log client IPs, timing, or traffic volume.
-# Set to true only if you need RU-side traffic analysis and accept the privacy tradeoff.
+# When false: nginx does not log anything for the :443 stream.
+# When true: logs the stream via the privacy-preserving `relay_sni` format —
+#   SNI + session_time + status + upstream + byte counts, but NEVER the client IP.
+#   Used for first-hop diagnostics (Reality-vs-XHTTP drops, TSPU short-session detection).
+# Keep this false in steady state; enable per-run with `-e relay_access_log=true`.
 relay_access_log: false
 
 # ── Certbot ───────────────────────────────────────────────────────────────────

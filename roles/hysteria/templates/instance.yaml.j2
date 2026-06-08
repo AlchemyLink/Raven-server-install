@@ -1,0 +1,16 @@
+listen: :{{ item.port }}
+tls:
+  cert: {{ hysteria_conf_dir }}/cert.pem
+  key: {{ hysteria_conf_dir }}/key.pem
+obfs:
+  type: {{ item.obfs_type }}
+  {{ item.obfs_type }}:
+    password: {{ item.obfs_password }}
+auth:
+  type: password
+  password: {{ hysteria_auth_password }}
+masquerade:
+  type: proxy
+  proxy:
+    url: {{ hysteria_masq_url }}
+    rewriteHost: true

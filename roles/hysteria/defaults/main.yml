@@ -1,0 +1,22 @@
+---
+# Hysteria2 UDP reserve servers on EU (native apernet/hysteria). Two isolated instances:
+#   gecco      :47012 — gecko obfs (strong; native/CLI client)
+#   salamander :47014 — salamander obfs (Xray/v2rayN-compatible client)
+# Reached via the RU relay's nginx UDP forward over the WG mesh (see relay role
+# relay_hysteria_udp_forwards). Passwords live in vault (defaults/secrets.yml).
+
+hysteria_version: "app/v2.9.2"        # pinned apernet/hysteria release tag
+hysteria_arch: "linux-amd64"
+hysteria_github_repo: "apernet/hysteria"
+hysteria_bin_dir: "/opt/hysteria"
+hysteria_bin: "/opt/hysteria/hysteria"
+hysteria_conf_dir: "/etc/hysteria"
+
+# Cert CN + masquerade target (SNI the client presents; obfs hides it from DPI).
+hysteria_sni: "www.python.org"
+hysteria_masq_url: "https://www.python.org"
+
+# Instances. obfs key name == obfs_type (hysteria YAML: obfs.<type>.password).
+hysteria_instances:
+  - { name: "gecco", port: 47012, obfs_type: "gecko", obfs_password: "{{ hysteria_gecko_obfs_password }}" }
+  - { name: "salamander", port: 47014, obfs_type: "salamander", obfs_password: "{{ hysteria_salamander_obfs_password }}" }

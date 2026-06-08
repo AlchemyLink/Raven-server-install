@@ -1,0 +1,12 @@
+---
+- name: reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: restart hysteria
+  ansible.builtin.systemd:
+    name: "hysteria-{{ item.name }}"
+    state: restarted
+  loop: "{{ hysteria_instances }}"
+  loop_control:
+    label: "{{ item.name }}"

@@ -1,0 +1,12 @@
+[Unit]
+Description=Hysteria2 {{ item.name }} reserve ({{ item.obfs_type }} obfs)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart={{ hysteria_bin }} server -c {{ hysteria_conf_dir }}/{{ item.name }}.yaml
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

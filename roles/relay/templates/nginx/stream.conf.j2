@@ -21,6 +21,18 @@
 # This file is included inside stream {} block in nginx.conf
 
 {% if relay_stream_enabled %}
+# Per-source-IP concurrent-connection cap. Stops a single IP from exhausting nginx's
+# accept queue (incident 2026-06-08: one IP held 400+ empty SNI-less connections for 30s
+# each → listen backlog overflowed → real clients' SYNs dropped → content failed to load).
+# Lives in stream{} context (this file is included there).
+limit_conn_zone $binary_remote_addr zone=relay_perip:10m;
+{% if relay_access_log | default(false) %}
+# First-hop observability (client → RU). Privacy-preserving: NO client IP logged.
+# Only SNI + session_time (short sessions = TSPU killing the stream mid-flight)
+# + status + upstream + byte counts. Lets us see Reality-vs-XHTTP first-hop drops.
+log_format relay_sni '$ssl_preread_server_name sess=$session_time status=$status '
+                     'up=$upstream_addr in=$bytes_received out=$bytes_sent proto=$protocol';
+{% endif %}
 map $ssl_preread_server_name $relay_backend {
     {{ relay_domain }}     local_https;
     {{ relay_sub_my }}     local_https;
@@ -68,13 +80,29 @@ upstream eu_vpn {
     server {{ relay_upstream_host }}:{{ relay_upstream_port }};
 }
 
+{% for fwd in relay_hysteria_udp_forwards | default([]) %}
+# Hysteria2 UDP reserve forward ({{ fwd.note | default('') }}) — relay :{{ fwd.port }}/udp → EU
+upstream hy_udp_{{ fwd.port }} {
+    server {{ fwd.upstream }};
+}
 server {
-    listen 443 reuseport;
+    listen {{ fwd.port }} udp reuseport;
+    proxy_pass hy_udp_{{ fwd.port }};
+    proxy_timeout {{ fwd.timeout | default('120s') }};
+}
+{% endfor %}
+server {
+    listen 443 reuseport backlog={{ relay_listen_backlog | default(4096) }};
     proxy_pass $relay_backend;
     ssl_preread on;
+    # Cap concurrent connections per source IP (CGNAT-tolerant ceiling; xmux uses ~16-32
+    # per client). A flooder is bounded here instead of overrunning the whole listener.
+    limit_conn relay_perip {{ relay_limit_conn_per_ip | default(128) }};
     proxy_connect_timeout 10s;
     proxy_timeout 600s;
-{% if not relay_access_log | default(false) %}
+{% if relay_access_log | default(false) %}
+    access_log /var/log/nginx/relay-sni.log relay_sni;
+{% else %}
     access_log off;
 {% endif %}
 }

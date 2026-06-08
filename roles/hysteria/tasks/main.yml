@@ -1,0 +1,69 @@
+---
+- name: Hysteria | Validate secrets present
+  ansible.builtin.assert:
+    that:
+      - hysteria_auth_password is defined and hysteria_auth_password | length > 0
+      - hysteria_gecko_obfs_password is defined and hysteria_gecko_obfs_password | length > 0
+      - hysteria_salamander_obfs_password is defined and hysteria_salamander_obfs_password | length > 0
+    fail_msg: "hysteria secrets missing — check roles/hysteria/defaults/secrets.yml (vault)"
+
+- name: Hysteria | Ensure dirs
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ hysteria_bin_dir }}"
+    - "{{ hysteria_conf_dir }}"
+
+- name: Hysteria | Download binary (pinned, once)
+  ansible.builtin.get_url:
+    url: "https://github.com/{{ hysteria_github_repo }}/releases/download/{{ hysteria_version }}/hysteria-{{ hysteria_arch }}"
+    dest: "{{ hysteria_bin }}"
+    mode: "0755"
+    owner: root
+    group: root
+    force: false
+  notify: restart hysteria
+
+- name: Hysteria | Self-signed cert (only if absent — preserves the client cert pin)
+  ansible.builtin.command: >-
+    openssl req -x509 -nodes -newkey ec -pkeyopt ec_paramgen_curve:prime256v1
+    -keyout {{ hysteria_conf_dir }}/key.pem -out {{ hysteria_conf_dir }}/cert.pem
+    -subj "/CN={{ hysteria_sni }}" -days 3650
+  args:
+    creates: "{{ hysteria_conf_dir }}/cert.pem"
+
+- name: Hysteria | Instance configs
+  ansible.builtin.template:
+    src: instance.yaml.j2
+    dest: "{{ hysteria_conf_dir }}/{{ item.name }}.yaml"
+    owner: root
+    group: root
+    mode: "0640"
+  loop: "{{ hysteria_instances }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: restart hysteria
+
+- name: Hysteria | systemd units
+  ansible.builtin.template:
+    src: instance.service.j2
+    dest: "/etc/systemd/system/hysteria-{{ item.name }}.service"
+    mode: "0644"
+  loop: "{{ hysteria_instances }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify:
+    - reload systemd
+    - restart hysteria
+
+- name: Hysteria | Enable + start instances
+  ansible.builtin.systemd:
+    name: "hysteria-{{ item.name }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  loop: "{{ hysteria_instances }}"
+  loop_control:
+    label: "{{ item.name }}"
