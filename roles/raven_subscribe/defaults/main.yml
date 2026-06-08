@@ -135,6 +135,7 @@ raven_subscribe_hysteria_host: "{{ raven_subscribe_server_host }}"  # relay apex
 raven_subscribe_hysteria_port: 47014                                 # salamander instance (relay UDP forward)
 raven_subscribe_hysteria_obfs_type: "salamander"
 raven_subscribe_hysteria_sni: "www.python.org"                       # must match the self-signed cert CN
+raven_subscribe_hysteria_in_main_sub: false                          # true = append hy2 URI to /sub/{token}/links
 # raven_subscribe_hysteria_obfs_password + raven_subscribe_hysteria_cert_pin → vault secrets.yml
 
 ##### Set these in secrets.yml (ansible-vault encrypted) #####
