@@ -50,7 +50,16 @@ raven_subscribe_client_dns_servers: []
 
 # Balancer settings (used in generated client subscription configs)
 # Strategy: random, roundRobin, leastPing, leastLoad
-raven_subscribe_balancer_strategy: "leastPing"
+# NOTE: keep this "random" under the current RU DPI regime. leastPing/leastLoad
+# spin up an Observatory that has NO probe data at startup → the balancer routes
+# to FallbackTag (= the non-XHTTP Reality outbound, which TSPU resets on the RU
+# first hop) for the whole observatory cold-start window → clients see 5-10 min of
+# dead traffic before the first successful XHTTP probe flips them over, plus
+# mid-session re-balances that tear down connections ("обрывы"). "random" has no
+# Observatory: selector is XHTTP-only, so traffic routes to XHTTP immediately and
+# never flips. Revisit only if Reality first-hop becomes viable again (re-measure
+# with xray-lab). See Raven-subscribe internal/xray/generator.go balancer block.
+raven_subscribe_balancer_strategy: "random"
 raven_subscribe_balancer_probe_url: "https://www.gstatic.com/generate_204"
 raven_subscribe_balancer_probe_interval: "30s"
 
