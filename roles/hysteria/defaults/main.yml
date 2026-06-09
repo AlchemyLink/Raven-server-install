@@ -19,9 +19,30 @@ hysteria_masq_url: "https://www.python.org"
 # auth-backend URL for per-user instances (Raven-subscribe /hysteria/auth, loopback).
 hysteria_auth_http_url: "http://127.0.0.1:8080/hysteria/auth"
 
+# ── Publicly-trusted cert (drop allowInsecure — deprecated by the Xray engine ──
+# in Aug-2026). When true, instances marked `real_cert: true` use a Let's Encrypt
+# cert (certbot DNS-01 via Cloudflare) for hysteria_cert_domain instead of the
+# self-signed cert, and the per-user hysteria2:// URI carries NO insecure=1/pinSHA256
+# (Raven drops both when its cert_pin is empty) → works on Xray-engine clients (v2rayN)
+# too, not just native/sing-box. Opt-in: needs hysteria_cloudflare_api_token +
+# hysteria_certbot_email in vault. Off by default — self-signed + pin needs no cert
+# infra and keeps the domain out of CT logs (the dedicated subdomain accepts that
+# CT-log entry; see hysteria_raven_integration_plan).
+hysteria_real_cert_enabled: false
+hysteria_cert_domain: "hy2.example.com"          # vault overrides for prod (e.g. hy2.<domain>)
+hysteria_certbot_dns_propagation_seconds: 30
+hysteria_le_cert: "/etc/letsencrypt/live/{{ hysteria_cert_domain }}/fullchain.pem"
+hysteria_le_key: "/etc/letsencrypt/live/{{ hysteria_cert_domain }}/privkey.pem"
+# Self-signed cert (gecco / any instance without real_cert).
+hysteria_selfsigned_cert: "{{ hysteria_conf_dir }}/cert.pem"
+hysteria_selfsigned_key: "{{ hysteria_conf_dir }}/key.pem"
+# hysteria_cloudflare_api_token (Zone:DNS:Edit on the apex zone) + hysteria_certbot_email
+# → vault secrets.yml (only when hysteria_real_cert_enabled).
+
 # Instances. obfs key name == obfs_type (hysteria YAML: obfs.<type>.password).
 # auth_mode: "password" = shared static password (personal/native reserve, e.g. gecco);
 #            "http" = per-user via Raven auth-backend (subscription channel, e.g. salamander).
+# real_cert: true = use the LE cert (needs hysteria_real_cert_enabled); else self-signed.
 hysteria_instances:
   - { name: "gecco", port: 47012, obfs_type: "gecko", obfs_password: "{{ hysteria_gecko_obfs_password }}", auth_mode: "password" }
-  - { name: "salamander", port: 47014, obfs_type: "salamander", obfs_password: "{{ hysteria_salamander_obfs_password }}", auth_mode: "http" }
+  - { name: "salamander", port: 47014, obfs_type: "salamander", obfs_password: "{{ hysteria_salamander_obfs_password }}", auth_mode: "http", real_cert: true }

@@ -128,15 +128,20 @@ raven_subscribe_xray_service_name: "xray"
 # Requires Raven-subscribe built with the hysteria feature. Off by default; set
 # enabled=true + the vars below (obfs_password + cert_pin go in vault) to expose the
 # per-user hysteria2:// URI. Pairs with roles/hysteria (salamander :47014,
-# auth.type:http → /hysteria/auth) + relay_hysteria_udp_forwards. Self-signed cert +
-# pinSHA256-in-URI → no Certificate-Transparency leak of the SNI domain.
+# auth.type:http → /hysteria/auth) + relay_hysteria_udp_forwards.
+# cert_pin: set (hex sha256) for a self-signed server cert → URI carries insecure=1 +
+# pinSHA256 (no Certificate-Transparency leak, but the Xray engine drops allowInsecure
+# in Aug-2026). EMPTY ("") when the server has a publicly-trusted cert (roles/hysteria
+# hysteria_real_cert_enabled) → URI omits both → works on Xray-engine clients too; then
+# set sni to that real cert domain.
 raven_subscribe_hysteria_enabled: false
 raven_subscribe_hysteria_host: "{{ raven_subscribe_server_host }}"  # relay apex clients connect to
 raven_subscribe_hysteria_port: 47014                                 # salamander instance (relay UDP forward)
 raven_subscribe_hysteria_obfs_type: "salamander"
-raven_subscribe_hysteria_sni: "www.python.org"                       # must match the self-signed cert CN
+raven_subscribe_hysteria_sni: "www.python.org"                       # self-signed cert CN, or the real cert domain
+raven_subscribe_hysteria_cert_pin: ""                                # empty = real cert (no insecure); vault sets hex pin for self-signed
 raven_subscribe_hysteria_in_main_sub: false                          # true = append hy2 URI to /sub/{token}/links
-# raven_subscribe_hysteria_obfs_password + raven_subscribe_hysteria_cert_pin → vault secrets.yml
+# raven_subscribe_hysteria_obfs_password (+ cert_pin for self-signed) → vault secrets.yml
 
 ##### Set these in secrets.yml (ansible-vault encrypted) #####
 # raven_subscribe_server_host: ""     # EU VPS public IP or domain

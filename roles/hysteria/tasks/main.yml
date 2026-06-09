@@ -34,6 +34,12 @@
   args:
     creates: "{{ hysteria_conf_dir }}/cert.pem"
 
+# Publicly-trusted LE cert for instances with real_cert (salamander) so the client
+# URI carries no insecure=1/pinSHA256 — Xray-engine-safe past the Aug-2026 deadline.
+- name: Hysteria | Real cert (certbot DNS-01 Cloudflare)
+  ansible.builtin.import_tasks: certbot.yml
+  when: hysteria_real_cert_enabled | default(false)
+
 - name: Hysteria | Instance configs
   ansible.builtin.template:
     src: instance.yaml.j2

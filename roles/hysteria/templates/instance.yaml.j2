@@ -1,7 +1,8 @@
+{% set use_real_cert = (hysteria_real_cert_enabled | default(false)) and (item.real_cert | default(false)) %}
 listen: :{{ item.port }}
 tls:
-  cert: {{ hysteria_conf_dir }}/cert.pem
-  key: {{ hysteria_conf_dir }}/key.pem
+  cert: {{ hysteria_le_cert if use_real_cert else hysteria_selfsigned_cert }}
+  key: {{ hysteria_le_key if use_real_cert else hysteria_selfsigned_key }}
 obfs:
   type: {{ item.obfs_type }}
   {{ item.obfs_type }}:

@@ -1,0 +1,134 @@
+---
+# Publicly-trusted cert for the salamander instance so the client URI needs no
+# insecure=1 (the Xray engine drops allowInsecure in Aug-2026). Issued via certbot
+# DNS-01 over Cloudflare for hysteria_cert_domain — DNS-01 needs only a transient
+# _acme-challenge TXT (created via the CF API), no public A record for the subdomain.
+# Mirrors roles/relay/tasks/certbot.yml. Only runs when hysteria_real_cert_enabled.
+
+- name: Hysteria | Validate real-cert prerequisites
+  ansible.builtin.assert:
+    that:
+      - hysteria_cloudflare_api_token is defined and hysteria_cloudflare_api_token | length > 0
+      - hysteria_certbot_email is defined and hysteria_certbot_email | length > 0
+      - hysteria_cert_domain is defined and hysteria_cert_domain | length > 0
+      - "'.' in hysteria_cert_domain"
+    fail_msg: >-
+      hysteria_real_cert_enabled=true requires hysteria_cloudflare_api_token
+      (Zone:DNS:Edit on the apex zone), hysteria_certbot_email and a real
+      hysteria_cert_domain in vault. See roles/hysteria/defaults/secrets.yml.example.
+
+- name: Hysteria | Install snapd
+  ansible.builtin.apt:
+    name: snapd
+    state: present
+    update_cache: true
+
+- name: Hysteria | Remove apt certbot (incompatible with Python 3.11+)
+  ansible.builtin.apt:
+    name:
+      - certbot
+      - python3-certbot-nginx
+    state: absent
+    purge: true
+
+- name: Hysteria | Check if certbot is already installed
+  ansible.builtin.command: certbot --version
+  register: hysteria_certbot_check
+  changed_when: false
+  failed_when: false
+
+- name: Hysteria | Install certbot via snap
+  ansible.builtin.command:
+    cmd: snap install --classic certbot
+    creates: /snap/bin/certbot
+  register: hysteria_certbot_snap
+  failed_when: false
+  when: hysteria_certbot_check.rc != 0
+
+- name: Hysteria | Ensure certbot symlink (snap)
+  ansible.builtin.file:
+    src: /snap/bin/certbot
+    dest: /usr/bin/certbot
+    state: link
+    force: true
+  when: hysteria_certbot_snap is defined and hysteria_certbot_snap.rc is defined and hysteria_certbot_snap.rc == 0
+
+- name: Hysteria | Allow certbot snap plugins with root access
+  ansible.builtin.command: snap set certbot trust-plugin-with-root=ok
+  changed_when: false
+
+- name: Hysteria | Install certbot-dns-cloudflare snap plugin
+  ansible.builtin.command:
+    cmd: snap install certbot-dns-cloudflare
+    creates: /snap/certbot-dns-cloudflare
+
+- name: Hysteria | Connect certbot:plugin to certbot-dns-cloudflare
+  ansible.builtin.command: snap connect certbot:plugin certbot-dns-cloudflare
+  changed_when: false
+
+- name: Hysteria | Deploy Cloudflare credentials file (DNS-01)
+  ansible.builtin.copy:
+    content: "dns_cloudflare_api_token = {{ hysteria_cloudflare_api_token }}\n"
+    dest: /etc/letsencrypt/cloudflare-hysteria.ini
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Hysteria | Ensure certbot deploy-hook dir exists
+  ansible.builtin.file:
+    path: /etc/letsencrypt/renewal-hooks/deploy
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# Restart the salamander instance on every future renewal (the snap timer runs
+# certbot renew out-of-band). Guarded to our lineage + only when the unit exists,
+# so it is a no-op on first issuance (the role's restart handler covers that).
+- name: Hysteria | Install certbot deploy-hook (restart salamander on renewal)
+  ansible.builtin.copy:
+    dest: /etc/letsencrypt/renewal-hooks/deploy/restart-hysteria.sh
+    owner: root
+    group: root
+    mode: "0750"
+    content: |
+      #!/bin/sh
+      # Managed by Ansible (roles/hysteria). Restart the hysteria salamander
+      # instance when its LE cert renews so it picks up the new cert/key.
+      case "$RENEWED_LINEAGE" in
+        */{{ hysteria_cert_domain }})
+          systemctl is-active --quiet hysteria-salamander \
+            && systemctl restart hysteria-salamander ;;
+      esac
+
+- name: Hysteria | Check existing cert domains
+  # certbot ≤2.x prints "Domains:", certbot ≥3.x prints "Identifiers:" — accept both.
+  ansible.builtin.shell:
+    cmd: |
+      certbot certificates --cert-name {{ hysteria_cert_domain }} 2>/dev/null \
+        | grep -E '^[[:space:]]*(Domains|Identifiers):' \
+        | awk -F': ' '{print $2}' | xargs -n1 | sort | tr '\n' ' '
+  register: hysteria_cert_domains
+  changed_when: false
+  failed_when: false
+
+- name: Hysteria | Obtain Let's Encrypt certificate (DNS-01 via Cloudflare)
+  ansible.builtin.command:
+    cmd: >
+      certbot certonly --dns-cloudflare
+      --dns-cloudflare-credentials /etc/letsencrypt/cloudflare-hysteria.ini
+      --dns-cloudflare-propagation-seconds {{ hysteria_certbot_dns_propagation_seconds }}
+      --non-interactive
+      --agree-tos
+      --cert-name {{ hysteria_cert_domain }}
+      --email {{ hysteria_certbot_email }}
+      -d {{ hysteria_cert_domain }}
+  when: hysteria_cert_domains.stdout | default('') | trim != hysteria_cert_domain
+  notify: restart hysteria
+
+- name: Hysteria | Ensure certbot renewal timer is enabled
+  ansible.builtin.service:
+    name: snap.certbot.renew.timer
+    enabled: true
+    state: started
