@@ -36,7 +36,17 @@ relay_https_port: 8443                 # Local HTTPS port (behind stream, stub +
 # nginx defaults the per-listener accept backlog to 511 regardless of net.core.somaxconn,
 # so a flood of SYN-less/empty connections overflows it and drops real clients' SYNs.
 relay_listen_backlog: 4096             # explicit listen backlog (somaxconn is 65535 via srv_prepare)
-relay_limit_conn_per_ip: 512           # max concurrent :443 conns per source IP (CGNAT-tolerant; was 128 — too low, rejected a legit user's xmux burst 2026-06-08)
+# Per-source-IP concurrent :443 cap (limit_conn, keyed on $binary_remote_addr in the stream).
+# For CGNAT'd RU mobile (hundreds of users behind one carrier IP) this is SHARED across many
+# real users. 512 was still too low — one MTS CGNAT IP (85.140.3.114) hit it 108× on 2026-06-09
+# ("limiting connections … while initializing session" → dropped legit VPN connects). Raised to
+# 2048. MUST stay < relay_worker_connections so one IP at the cap can't exhaust the whole worker.
+relay_limit_conn_per_ip: 2048
+# nginx event capacity. Distro default worker_connections=1024 is a hard ceiling for the WHOLE
+# relay (1 vCPU → 1 worker); with the per-IP cap at 2048 the global pool must be well above it.
+# fd limit ≥ 2×conns. Applied to nginx.conf by tasks/nginx.yml.
+relay_worker_connections: 16384
+relay_worker_rlimit_nofile: 32768
 
 # Hysteria2 UDP reserve forwards (client → relay :port/udp → EU over WG mesh, bypassing the
 # DO cloud firewall which blocks public UDP). EU runs native hysteria servers (systemd):
