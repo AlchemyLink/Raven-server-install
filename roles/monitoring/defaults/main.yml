@@ -88,7 +88,11 @@ node_exporter_service_name: "node_exporter"
 # count, accepts, connections by state; scraped by EU vmagent over WireGuard).
 # Listen on per-host WG IP so multi-RU works. Falls back to global wg_ru_ip
 # (10.10.0.2) for hosts without an explicit wg_ip — matches scrape.yml.j2 logic.
-nginx_exporter_version: "latest"
+# Pinned (was "latest") — the GitHub releases/latest API call rate-limited/flaked on RU
+# deploys ("dict object has no attribute 'json'") and aborted the play before the service
+# (re)started. Pinning removes that fetch entirely; the binary is downloaded on the control
+# machine (good GitHub access) and shipped to RU. Bump manually when upgrading.
+nginx_exporter_version: "v1.5.1"
 nginx_exporter_listen: "{{ hostvars[inventory_hostname].wg_ip | default(wg_ru_ip) }}:9113"
 nginx_exporter_bin_dir: "/usr/local/bin"
 nginx_stub_status_port: 8081                   # localhost-only nginx server block
