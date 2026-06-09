@@ -7,6 +7,12 @@ raven_subscribe_db_dir: "/var/lib/xray-subscription"
 raven_subscribe_service_name: "xray-subscription"
 
 raven_subscribe_listen_addr: "127.0.0.1:8080"
+# Dedicated Prometheus listener (/metrics): raven_fallback_enabled gauge +
+# raven_fallback_denied_total counter (added after the 2026-06-09 forgotten-fallback
+# incident). Loopback-only — must never share the public sub vhost. vmagent scrapes
+# it as job "raven-subscribe" (monitoring role). Empty string = metrics disabled.
+# Requires raven-subscribe >= v0.3.4; older binaries ignore the unknown field.
+raven_subscribe_metrics_listen: "127.0.0.1:9091"
 raven_subscribe_sync_interval_seconds: 60
 # 0 = disabled (2026-06-09). Per-IP limiting at the origin is wrong for our audience:
 # RU mobile users sit behind carrier-grade NAT (hundreds/thousands share one public IP),

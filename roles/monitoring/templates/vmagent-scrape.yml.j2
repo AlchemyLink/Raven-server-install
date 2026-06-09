@@ -78,6 +78,20 @@ scrape_configs:
           server: mon
           instance: "{{ hostvars[groups['mon'][0]].ansible_host }}"
 
+{% if raven_subscribe_metrics_addr | default('') != '' %}
+  # raven-subscribe app metrics: raven_fallback_enabled (Model A invariant,
+  # 1 = steady state) and raven_fallback_denied_total (user-facing 403s from a
+  # disabled fallback). Added after the 2026-06-09 forgotten-fallback incident.
+  # Also gives up{job="raven-subscribe"} a real series for the down-alert.
+  - job_name: raven-subscribe
+    static_configs:
+      - targets:
+          - {{ raven_subscribe_metrics_addr }}
+        labels:
+          server: eu
+          instance: "{{ hostvars['vm_my_srv']['ansible_host'] }}"
+{% endif %}
+
   # raven-dashboard app metrics: raven_users_total/active, http_responses,
   # worker_last_tick_age_seconds (broadcast/quota/sync background workers),
   # schema_version, goroutines, mem stats.

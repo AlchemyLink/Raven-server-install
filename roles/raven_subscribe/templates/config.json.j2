@@ -1,5 +1,8 @@
 {
   "listen_addr": "{{ raven_subscribe_listen_addr }}",
+{% if raven_subscribe_metrics_listen | default('') != '' %}
+  "metrics_listen": "{{ raven_subscribe_metrics_listen }}",
+{% endif %}
   "server_host": "{{ raven_subscribe_server_host }}",
   "config_dir": "{{ raven_subscribe_xray_config_dir }}",
   "db_path": "{{ raven_subscribe_db_dir }}/db.sqlite",

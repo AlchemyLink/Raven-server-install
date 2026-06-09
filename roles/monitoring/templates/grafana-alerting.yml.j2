@@ -230,6 +230,92 @@ groups:
           severity: warning
 
   - orgId: 1
+    name: raven-fallback
+    folder: Raven
+    interval: 1m
+    rules:
+
+      # Fallback Model A invariant: enabled=true is the steady state, false only
+      # during short sanitization windows. Fires when the flag stays off for 2h —
+      # catches the forgotten-rollback pattern (killswitch 2026-04-30, fallback
+      # 2026-06-07..09) before users accumulate days of 403s.
+      - uid: fallback-disabled-stuck
+        title: "Fallback выключен дольше 2 часов"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "raven_fallback_enabled"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: NoData
+        execErrState: Error
+        for: 2h
+        annotations:
+          summary: "Глобальный fallback-флаг выключен более 2 часов"
+          description: "raven_fallback_enabled == 0 дольше окна санации. По Decision Fallback Model A steady state = enabled. Все /sub/fallback/* отвечают 403, killswitch держит fallback-инбаунд вне рантайма Xray. Включить: дашборд Emergency или POST /api/fallback/enable."
+        labels:
+          severity: warning
+
+      # User impact: clients actually hitting the disabled fallback. Low threshold —
+      # during the 2026-06-09 incident there were ~27 denials/day across 8 users.
+      - uid: fallback-denied-requests
+        title: "Пользователи получают 403 на fallback-подписке"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 1800
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "sum(increase(raven_fallback_denied_total[30m]))"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              conditions:
+                - evaluator:
+                    params: [3]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "Fallback-подписка отдаёт 403 реальным клиентам"
+          description: "Более 3 отклонённых fallback-запросов за 30 минут при выключенном глобальном флаге. Клиенты с fallback-URL не могут обновить подписку (инцидент 2026-06-09). Если санация не идёт прямо сейчас — включить fallback."
+        labels:
+          severity: warning
+
+  - orgId: 1
     name: raven-dpi
     folder: Raven
     interval: 1m
