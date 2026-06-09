@@ -11,7 +11,7 @@ raven_subscribe_listen_addr: "127.0.0.1:8080"
 # raven_fallback_denied_total counter (added after the 2026-06-09 forgotten-fallback
 # incident). Loopback-only — must never share the public sub vhost. vmagent scrapes
 # it as job "raven-subscribe" (monitoring role). Empty string = metrics disabled.
-# Requires raven-subscribe >= v0.3.4; older binaries ignore the unknown field.
+# Requires raven-subscribe >= v0.3.10; older binaries ignore the unknown field.
 raven_subscribe_metrics_listen: "127.0.0.1:9091"
 raven_subscribe_sync_interval_seconds: 60
 # 0 = disabled (2026-06-09). Per-IP limiting at the origin is wrong for our audience:
@@ -99,15 +99,28 @@ raven_subscribe_inbound_ports:
 
 # Fallback subscription inbound allowlist — restricts /sub/fallback/* to outbounds
 # whose inbound tag is in this list. Empty = no filtering (legacy behaviour).
-# Should contain ONLY isolated fallback-only inbounds (NOT primary inbounds).
+# Normally ONLY isolated fallback-only inbounds (see the reality-v2 exception below).
+# This list is blacklisted on primary /sub/* and whitelisted on /sub/fallback/*.
 raven_subscribe_fallback_inbound_tags:
   - vless-fallback-in
-  # Experimental anti-freeze sandbox. Served EU-direct on /sub/fallback/* alongside
-  # the fallback inbound; excluded from primary /sub/* (this list is blacklisted on
-  # primary, whitelisted on fallback). No-op until the inbound exists in config.d
-  # (xray_experimental_enabled=true on the EU host). The fallback subscription is
-  # itself the EU-direct escape-hatch, so this is the right place to A/B a direct candidate.
+  # Experimental 221 — STAGING CLONE of primary XHTTP (211). Served on /sub/fallback/*
+  # (excluded from primary /sub/*: this list is blacklisted on primary, whitelisted on
+  # fallback) to a dedicated test token. No-op until xray_experimental_enabled=true on EU.
   - vless-experimental-in
+  # Retired primary transport: raw Reality+Vision. TSPU resets it on the RU first hop,
+  # so we blacklist it from the PRIMARY sub here (intentional exception to "fallback-only"
+  # above — a dead primary hidden from clients, not an isolated fallback). On /sub/fallback/*
+  # it lands as the balancer FallbackTag, which the `random` strategy never routes to → inert.
+  # NOT in killswitch_inbound_tags, so the inbound keeps listening; restore by removing this
+  # line if the first hop revives (re-measure with xray-lab).
+  - vless-reality-v2-in
+
+# Relay topology for the experimental clone: override its subscription host to the relay
+# apex (server_host) so it is reached like 211 (client→relay→EU), NOT EU-direct like the
+# real fallback (220). fallback_inbound_hosts overrides host per-tag ONLY for /sub/fallback/*
+# requests; vless-fallback-in stays on fallback_server_host (EU-direct), unaffected.
+raven_subscribe_fallback_inbound_hosts:
+  vless-experimental-in: "{{ raven_subscribe_server_host }}"
 
 # Killswitch target tags — which inbounds the fallback killswitch (enable/disable +
 # reconcile loop) actually adds/removes from the running Xray via gRPC. DELIBERATELY
