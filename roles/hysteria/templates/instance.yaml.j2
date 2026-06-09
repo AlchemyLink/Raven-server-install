@@ -23,3 +23,8 @@ masquerade:
   proxy:
     url: {{ hysteria_masq_url }}
     rewriteHost: true
+{% if item.traffic_stats_port is defined %}
+trafficStats:
+  listen: 127.0.0.1:{{ item.traffic_stats_port }}
+  secret: {{ hysteria_traffic_stats_secret }}
+{% endif %}

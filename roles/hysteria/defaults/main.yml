@@ -39,10 +39,18 @@ hysteria_selfsigned_key: "{{ hysteria_conf_dir }}/key.pem"
 # hysteria_cloudflare_api_token (Zone:DNS:Edit on the apex zone) + hysteria_certbot_email
 # → vault secrets.yml (only when hysteria_real_cert_enabled).
 
+# trafficStats API secret (Authorization header). Required when any instance sets
+# traffic_stats_port. Vault overrides; the SAME value goes into the monitoring vault as
+# xray_stats_exporter_hysteria_secret so the exporter can scrape per-user hy2 traffic.
+hysteria_traffic_stats_secret: ""
+
 # Instances. obfs key name == obfs_type (hysteria YAML: obfs.<type>.password).
 # auth_mode: "password" = shared static password (personal/native reserve, e.g. gecco);
 #            "http" = per-user via Raven auth-backend (subscription channel, e.g. salamander).
 # real_cert: true = use the LE cert (needs hysteria_real_cert_enabled); else self-signed.
+# traffic_stats_port: loopback port for hysteria's trafficStats HTTP API (/traffic, /online)
+#   — per-user byte counters scraped by xray-stats-exporter (--hysteria-endpoint). Only
+#   meaningful on auth_mode:http instances (per-user ids); password-auth ids are useless.
 hysteria_instances:
   - { name: "gecco", port: 47012, obfs_type: "gecko", obfs_password: "{{ hysteria_gecko_obfs_password }}", auth_mode: "password" }
-  - { name: "salamander", port: 47014, obfs_type: "salamander", obfs_password: "{{ hysteria_salamander_obfs_password }}", auth_mode: "http", real_cert: true }
+  - { name: "salamander", port: 47014, obfs_type: "salamander", obfs_password: "{{ hysteria_salamander_obfs_password }}", auth_mode: "http", real_cert: true, traffic_stats_port: 9555 }

@@ -121,6 +121,14 @@ xray_stats_exporter_geo_asn_db: "/var/lib/xray-exporter/GeoLite2-ASN.mmdb"
 # disables anonymisation (raw emails — pre-A2 behaviour).
 xray_stats_anonymize_secret: ""
 
+# Hysteria2 trafficStats source for xray-stats-exporter (per-user hy2 reserve traffic:
+# hysteria_user_uplink/downlink_bytes_total{email}, hysteria_user_online, hysteria_up).
+# Endpoint = the salamander instance's traffic_stats_port (hysteria role, loopback).
+# Secret must equal hysteria_traffic_stats_secret from the hysteria vault. Empty = off.
+# Requires xray-stats-exporter >= v1.1.0 (older binaries reject the unknown flags).
+xray_stats_exporter_hysteria_endpoint: ""
+xray_stats_exporter_hysteria_secret: ""
+
 # NOTE: xray-exporter-bridge / xray-stats-exporter-bridge vars were removed 2026-06-09 —
 # the RU xray-bridge was decommissioned (C5 Phase 3); their tasks/templates/handlers/scrape
 # jobs are gone. RU is now a pure SNI relay (node_exporter only).
