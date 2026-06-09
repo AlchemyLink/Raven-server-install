@@ -66,6 +66,16 @@
   ansible.builtin.command: snap connect certbot:plugin certbot-dns-cloudflare
   changed_when: false
 
+- name: Hysteria | Ensure /etc/letsencrypt exists
+  # certbot installed via snap does not create /etc/letsencrypt until its first run,
+  # so the credentials copy below would fail on a host that has never run certbot.
+  ansible.builtin.file:
+    path: /etc/letsencrypt
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Hysteria | Deploy Cloudflare credentials file (DNS-01)
   ansible.builtin.copy:
     content: "dns_cloudflare_api_token = {{ hysteria_cloudflare_api_token }}\n"
