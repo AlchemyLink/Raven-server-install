@@ -77,7 +77,7 @@
 
     {
       "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
-      "description": "Длительность TLS handshake'а в миллисекундах. На рабочих целях — десятки мс. 5000 мс = таймаут (handshake не завершился, скорее всего DPI). Резкий рост на одном vantage при стабильности на другом = path-specific деградация.\n\nЛегенда формата vantage/имя — например ru/eu_mozilla.",
+      "description": "Длительность TLS handshake'а в миллисекундах. На рабочих целях — десятки мс. 5000 мс = таймаут (handshake не завершился, скорее всего DPI). Резкий рост на одном vantage при стабильности на другом = path-specific деградация.\n\nЛегенда формата vantage/имя — например ru/eu_python.",
       "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "lineWidth": 1, "fillOpacity": 0, "showPoints": "never", "spanNulls": false}, "unit": "ms"}, "overrides": []},
       "gridPos": {"h": 9, "w": 12, "x": 0, "y": 37},
       "id": 31,

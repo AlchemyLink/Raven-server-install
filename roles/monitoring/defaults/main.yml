@@ -117,38 +117,9 @@ xray_stats_exporter_geo_asn_db: "/var/lib/xray-exporter/GeoLite2-ASN.mmdb"
 # disables anonymisation (raw emails — pre-A2 behaviour).
 xray_stats_anonymize_secret: ""
 
-# xray-exporter-bridge (compassvpn/xray-exporter for RU xray-bridge, runs on vm_my_ru)
-# Listens on WireGuard interface — EU VictoriaMetrics scrapes via 10.10.0.2:9553.
-# Shares the same binary as EU xray-exporter (same GitHub repo / version).
-xray_bridge_exporter_listen: "10.10.0.2:9553"
-xray_bridge_exporter_metrics_path: "/scrape"
-xray_bridge_exporter_xray_endpoint: "10.10.0.2:10086"
-xray_bridge_exporter_log_path: "/var/log/xray-bridge/access.log"
-xray_bridge_exporter_log_time_window: 5
-xray_bridge_exporter_bin_dir: "/usr/local/bin"
-xray_bridge_exporter_data_dir: "/var/lib/xray-exporter-bridge"
-xray_bridge_exporter_service_name: "xray-exporter-bridge"
-xray_bridge_exporter_user: "xraybridgeuser"
-xray_bridge_exporter_group: "xraybridgeuser"
-
-# xray-stats-exporter-bridge (per-user traffic for RU xray-bridge, runs on vm_my_ru)
-# Listens on WireGuard interface — EU VictoriaMetrics scrapes via 10.10.0.2:9552.
-# GeoLite2 DBs are synced from EU /var/lib/xray-exporter/ via control machine.
-# error-log-path enables DPI detection metrics (R4A) — TLS handshake failures,
-# TCP RST events, active probes recorded as xray_handshake_failure_total etc.
-xray_bridge_stats_exporter_listen: "10.10.0.2:9552"
-xray_bridge_stats_exporter_metrics_path: "/metrics"
-xray_bridge_stats_exporter_xray_endpoint: "10.10.0.2:10086"
-xray_bridge_stats_exporter_bin_dir: "/usr/local/bin"
-xray_bridge_stats_exporter_service_name: "xray-stats-exporter-bridge"
-xray_bridge_stats_exporter_user: "xraybridgeuser"
-xray_bridge_stats_exporter_group: "xraybridgeuser"
-xray_bridge_stats_exporter_log_path: "/var/log/xray-bridge/access.log"
-xray_bridge_stats_exporter_error_log_path: "/var/log/xray-bridge/error.log"
-xray_bridge_stats_exporter_data_dir: "/var/lib/xray-stats-exporter-bridge"
-xray_bridge_stats_exporter_geo_city_db: "/var/lib/xray-stats-exporter-bridge/GeoLite2-City.mmdb"
-xray_bridge_stats_exporter_geo_asn_db: "/var/lib/xray-stats-exporter-bridge/GeoLite2-ASN.mmdb"
-# xray_bridge_stats_exporter_local_binary: path to pre-built binary on control machine (optional)
+# NOTE: xray-exporter-bridge / xray-stats-exporter-bridge vars were removed 2026-06-09 —
+# the RU xray-bridge was decommissioned (C5 Phase 3); their tasks/templates/handlers/scrape
+# jobs are gone. RU is now a pure SNI relay (node_exporter only).
 
 # raven-subscribe health probe (VictoriaMetrics scrapes /health → up metric)
 raven_subscribe_scrape_addr: "127.0.0.1:8080"
@@ -182,28 +153,28 @@ blackbox_group: "blackbox"
 # Inbound probes — TCP+TLS handshake to each SNI via nginx :443
 # probe_success == 0 → inbound or nginx is down → critical alert
 blackbox_inbound_probes:
-  # EU VPS inbounds (via EU nginx :443, SNI-routed to Xray)
-  - name: "vless-reality"
-    target: "{{ hostvars['vm_my_srv']['ansible_host'] }}:443"
-    sni: "askubuntu.com"
-    server: "eu"
-  - name: "vless-xhttp"
-    target: "{{ hostvars['vm_my_srv']['ansible_host'] }}:443"
-    sni: "www.adobe.com"
-    server: "eu"
+  # EU VPS inbounds (via EU nginx :443, SNI-routed to Xray). SNIs MUST match the live
+  # nginx_frontend stream map (cross-check roles/nginx_frontend/defaults/main.yml):
+  #   dl.google.com → vless-reality-v2-in, www.python.org → vless-xhttp-v2-in,
+  #   www.adobe.com → vless-fallback-in. V2-only since architecture simplification;
+  #   v1 (askubuntu/old-adobe) and the decommissioned RU xray-bridge probe were removed.
   - name: "vless-reality-v2"
     target: "{{ hostvars['vm_my_srv']['ansible_host'] }}:443"
     sni: "dl.google.com"
     server: "eu"
   - name: "vless-xhttp-v2"
     target: "{{ hostvars['vm_my_srv']['ansible_host'] }}:443"
-    sni: "addons.mozilla.org"
+    sni: "www.python.org"
     server: "eu"
-  # RU VPS — xray-bridge inbound (via RU nginx :443)
-  - name: "xray-bridge"
-    target: "{{ hostvars['vm_my_ru']['ansible_host'] }}:443"
-    sni: "www.wikipedia.org"
-    server: "ru"
+  # NOTE: vless-fallback-in (XHTTP+Reality, cover www.adobe.com) is intentionally NOT
+  # blackbox-probed. Its Reality handshake does not complete via blackbox's Go tcp_tls
+  # prober (instant RST), even though the path is healthy — verified 2026-06-09 with
+  # `openssl s_client -connect EU:443 -servername www.adobe.com` → Verify code 0. A
+  # permanent false-red is worse than no probe; fallback health is covered by raven-probe
+  # `eu_adobe` (same cover-SNI) + the xray_inbound_*_bytes_total{inbound="vless-fallback-in"}
+  # traffic series. (reality-v2/xhttp-v2 on google/python covers DO complete the Go handshake.)
+  # NOTE: hysteria2 reserve (:47014) is UDP/QUIC — the blackbox tcp prober cannot probe it.
+  # Its reachability is covered by raven-probe from RU; no blackbox entry here by design.
 
 # raven-probe — layered Reality-aware connectivity probe (DNS/TCP/TLS/HTTP).
 # Deployed on RU peers; vmagent scrapes via WG mesh.
@@ -218,15 +189,16 @@ raven_probe_timeout: "5s"
 raven_probe_vantage: "{{ inventory_hostname | regex_replace('^vm_my_', '') }}"  # ru / ru2 / ...
 raven_probe_eu_host: "{{ hostvars['vm_my_srv'].ansible_host }}"
 raven_probe_targets:
-  # Mode 2 — cover-SNI to OUR EU; detects path-specific DPI (PIN DC vs Beget pattern)
-  - {name: eu_mozilla,       sni: addons.mozilla.org, host_override: "{{ raven_probe_eu_host }}"}
+  # Mode 2 — cover-SNI to OUR EU; detects path-specific DPI (PIN DC vs Beget pattern).
+  # SNIs track the live inbound covers: python=XHTTP-v2 (migrated from mozilla 2026-06-07),
+  # google=Reality-v2, adobe=fallback.
+  - {name: eu_python,        sni: www.python.org,     host_override: "{{ raven_probe_eu_host }}"}   # = XHTTP-v2 cover-SNI
   - {name: eu_google,        sni: dl.google.com,      host_override: "{{ raven_probe_eu_host }}"}
-  - {name: eu_adobe,         sni: www.adobe.com,      host_override: "{{ raven_probe_eu_host }}"}
-  - {name: eu_gstatic,       sni: www.gstatic.com,    host_override: "{{ raven_probe_eu_host }}"}   # XHTTP fallback cover-SNI (2026-06-06)
+  - {name: eu_adobe,         sni: www.adobe.com,      host_override: "{{ raven_probe_eu_host }}"}   # = fallback cover-SNI
   # Mode 1 — same SNI, no override (real CDN); detects ISP-wide SNI blocks
-  - {name: isp_mozilla,       sni: addons.mozilla.org}
+  - {name: isp_python,        sni: www.python.org}
   - {name: isp_google,        sni: dl.google.com}
-  - {name: isp_gstatic,       sni: www.gstatic.com}
+  - {name: isp_adobe,         sni: www.adobe.com}
   # Controls — should always work; if break, internet is just down
   - {name: ctl_yandex,     sni: ya.ru}
   - {name: ctl_cloudflare, sni: www.cloudflare.com}
