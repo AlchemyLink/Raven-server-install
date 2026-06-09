@@ -8,7 +8,13 @@ raven_subscribe_service_name: "xray-subscription"
 
 raven_subscribe_listen_addr: "127.0.0.1:8080"
 raven_subscribe_sync_interval_seconds: 60
-raven_subscribe_rate_limit_sub_per_min: 60
+# 0 = disabled (2026-06-09). Per-IP limiting at the origin is wrong for our audience:
+# RU mobile users sit behind carrier-grade NAT (hundreds/thousands share one public IP),
+# so a per-IP /sub bucket is shared across many real users → mass 429 "can't fetch subscription"
+# (the burst is only perMin/6, capped 20). The endpoint is protected by an unguessable 64-hex
+# token + Cloudflare edge DDoS/rate protection, so the origin per-IP limit added little. Matches
+# rate_limit_admin_per_min=0. Raise to a finite value only if origin abuse is observed.
+raven_subscribe_rate_limit_sub_per_min: 0
 raven_subscribe_rate_limit_admin_per_min: 30
 
 # DNS servers injected into generated client subscription configs.
