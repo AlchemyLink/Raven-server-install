@@ -74,7 +74,12 @@ upstream sub_https {
 
 {% endif %}
 server {
-    listen 443 reuseport;
+    # Explicit accept backlog — nginx defaults this to 511 regardless of
+    # net.core.somaxconn (65535 via srv_prepare), so a burst of SYN-less/empty
+    # connections overflows it and drops real clients' SYNs. Same flood vector
+    # the RU relay was hardened against (incident 2026-06-08); EU is the next
+    # hop and equally exposed if its IP is hit directly.
+    listen 443 reuseport backlog={{ nginx_frontend_listen_backlog | default(4096) }};
     proxy_pass $sni_backend;
     ssl_preread on;
     proxy_connect_timeout 10s;
