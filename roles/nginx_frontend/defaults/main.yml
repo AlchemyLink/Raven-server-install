@@ -15,6 +15,15 @@ nginx_frontend_listen_port: 8443
 # ── Raven-subscribe upstream ──────────────────────────────────────────────────
 nginx_frontend_raven_port: 8080    # Must match raven_subscribe_listen_addr port
 
+# ── Listener hardening (mirror of relay role, incident 2026-06-08) ────────────
+# nginx defaults the per-listener accept backlog to 511 regardless of
+# net.core.somaxconn, and worker_connections to 1024 — both too low to absorb a
+# connection-exhaustion flood on the public :443. The RU relay was hardened
+# after the flood; EU frontend is the next hop and equally exposed on its own IP.
+nginx_frontend_listen_backlog: 4096
+nginx_frontend_worker_connections: 16384
+nginx_frontend_worker_rlimit_nofile: 32768
+
 # ── SNI stream routing on :443 ───────────────────────────────────────────────
 # nginx stream with ssl_preread reads SNI from TLS ClientHello and routes:
 #   SNI = primary v2 inbounds → Xray Reality v2 (mldsa65)

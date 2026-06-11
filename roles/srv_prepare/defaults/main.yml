@@ -65,3 +65,23 @@ srv_prepare_bbr_settings:
   net.netfilter.nf_conntrack_buckets: 131072
   # Reduce VPN slot retention — 5 days default is too generous for short flows
   net.netfilter.nf_conntrack_tcp_timeout_established: 3600
+  # PMTU blackhole recovery. The client path (client → RU TSPU → relay → WG tunnel
+  # → EU) stacks TLS-in-XHTTP inside WireGuard (MTU 1420); censored networks often
+  # drop ICMP "fragmentation needed", so PMTUD silently fails and large/sustained
+  # transfers stall while the handshake succeeds. mtu_probing=1 makes the kernel
+  # fall back to probing when a blackhole is detected. icmp_echo_ignore_all only
+  # blocks echo, not frag-needed, so server-side PMTUD still works — this guards
+  # the path the servers can't see.
+  net.ipv4.tcp_mtu_probing: 1
+  # SYN-flood defense. The relay already took a SYN/empty-connection flood
+  # (incident 2026-06-08); with the enlarged SYN backlog above, keep syncookies
+  # explicit rather than relying on the distro default.
+  net.ipv4.tcp_syncookies: 1
+  # Forwarding-host hardening (these boxes run ip_forward + WG mesh). Refuse
+  # ICMP redirects and source-routed packets — no legitimate use here, removes
+  # an MITM/route-injection vector. NOTE: rp_filter intentionally NOT set —
+  # strict reverse-path filtering can drop legit packets under the asymmetric
+  # WG-mesh routing; left to the distro default pending a mesh-tested change.
+  net.ipv4.conf.all.accept_redirects: 0
+  net.ipv4.conf.all.send_redirects: 0
+  net.ipv4.conf.all.accept_source_route: 0
