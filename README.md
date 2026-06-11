@@ -19,10 +19,11 @@ Ansible playbooks for deploying a production-ready self-hosted VPN server stack 
 - V2 parallel inbounds with isolated Reality keys for forward secrecy
 - Post-quantum VLESS Encryption (mlkem768x25519plus, Xray-core ≥ 26.x)
 - nginx SNI routing on port 443 — all VPN traffic goes through standard HTTPS port
-- Optional RU chain proxy (`xray_bridge` role) — RU VPS accepts client connections with EU keys, chains to EU via XHTTP
-- Optional Hysteria2 via [sing-box](https://github.com/SagerNet/sing-box)
-- [Raven-subscribe](https://github.com/AlchemyLink/Raven-subscribe) — subscription server: auto-discovers users, serves client configs via personal URLs
-- [xray-stats-exporter](https://github.com/AlchemyLink/xray-stats-exporter) + VictoriaMetrics + Grafana — monitoring with per-user and per-inbound traffic dashboards
+- RU VPS as an SNI stream relay (nginx `ssl_preread`) — forwards client traffic to the EU server over a hardened front (per-IP conn limits, explicit listen backlog) suited to CGNAT'd mobile audiences
+- Optional RU chain proxy (`xray_bridge` role, default off) — RU VPS terminates client connections with EU keys and chains to EU via XHTTP
+- Optional Hysteria2 **reserve channel** (`hysteria` role) — native hysteria server on EU, reached via an RU nginx UDP relay over the WireGuard mesh, with per-user auth/revocation through Raven's `/hysteria/auth`
+- [Raven-subscribe](https://github.com/AlchemyLink/Raven-subscribe) — subscription server: auto-discovers users, serves client configs via personal URLs, emergency rotation + fallback killswitch + Prometheus metrics
+- [xray-stats-exporter](https://github.com/AlchemyLink/xray-stats-exporter) + VictoriaMetrics + Grafana — monitoring with per-user and per-inbound traffic dashboards (Xray **and** Hysteria2 traffic), plus Raven fallback-state alerts
 - Systemd services with config validation before every reload
 - Ad and tracker blocking via geosite routing rules
 - BBR congestion control and sysctl tuning (`srv_prepare` role)
@@ -40,7 +41,7 @@ Ansible playbooks for deploying a production-ready self-hosted VPN server stack 
 - [Examples](#examples)
 - [DNS Setup](#dns-setup)
 - [VLESS Encryption (optional)](#vless-encryption-optional)
-- [Hysteria2 / sing-box (optional)](#hysteria2--sing-box-optional)
+- [Hysteria2 reserve channel (optional)](#hysteria2-reserve-channel-optional)
 - [Testing](#testing)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
@@ -63,10 +64,23 @@ Client  ──VLESS+XHTTP────►  VPS:443 (nginx SNI) ──► VPS:2053
 Client  ──subscription───►  VPS:443 (nginx SNI) ──► VPS:8443 (nginx HTTPS) ──► Raven:8080
 ```
 
-### Dual-server with transparent RU bridge (recommended for CIS users)
+### Dual-server with RU relay (recommended for CIS users)
 
-EU VPS runs Xray + nginx_frontend + Raven-subscribe.
-RU VPS runs an SNI relay + xray_bridge. Clients use their **existing EU configs unchanged** — RU nginx routes each SNI to the bridge, which accepts connections using EU Reality keys and chains to EU via XHTTP.
+EU VPS runs Xray + nginx_frontend + Raven-subscribe. RU VPS runs an **SNI stream relay**: nginx reads the TLS SNI with `ssl_preread` and transparently forwards each connection to the EU server, so the censored first hop lands on an in-country IP while the real VPN endpoint stays abroad. Clients use their normal configs pointed at the RU relay domain; the relay is not a proxy and never terminates TLS for VPN traffic — it just passes bytes through.
+
+```
+Client  ──VLESS+Reality / XHTTP──►  RU VPS :443 (nginx SNI ssl_preread, hardened)
+                                          │  transparent passthrough
+                                          ▼
+                                    EU VPS :443 (nginx SNI) ──► Xray ──► Internet
+Client  ──subscription───────────►  RU VPS :443 ──► EU :8443 (nginx HTTPS) ──► Raven:8080
+```
+
+The relay front is hardened for CGNAT'd mobile audiences (per-IP `limit_conn`, explicit listen backlog, raised `worker_connections`) — a single carrier IP can carry hundreds of real users. The Hysteria2 reserve rides the same RU host via nginx UDP forwards to the EU hysteria server over the WireGuard mesh (the cloud firewall blocks public UDP, so it tunnels through WG).
+
+#### Optional: transparent RU chain proxy (`xray_bridge`, default off)
+
+Instead of passthrough, the RU VPS can terminate client connections with **EU Reality keys** and chain to EU over XHTTP (`relay_transparent_enabled: true` + the `xray_bridge` role). Clients keep their existing EU configs unchanged. This is an advanced mode — heavier to operate and currently kept as a tested-but-inactive option; the plain SNI relay above is the default and recommended path.
 
 ```
 Client (unchanged EU config)
@@ -82,7 +96,7 @@ RU VPS :443 (nginx SNI routing)
 EU VPS :443 (nginx SNI) → Xray XHTTP :2054 → Internet
 ```
 
-Raven-subscribe on EU automatically syncs users to bridge inbounds via WireGuard+gRPC.
+In bridge mode, Raven-subscribe on EU automatically syncs users to bridge inbounds via WireGuard+gRPC.
 
 ### Role map
 
@@ -93,11 +107,11 @@ Raven-subscribe on EU automatically syncs users to bridge inbounds via WireGuard
 | `raven_subscribe` | EU | `role_raven_subscribe.yml` | Subscription server, gRPC sync with Xray and bridge |
 | `raven_dashboard` | EU | `role_raven_dashboard.yml` | [Raven Dashboard](https://github.com/AlchemyLink/raven-dashboard) — admin panel (TOTP-gated user CRUD, broadcast, sync-health card). Vue SPA + Go backend, served on `dash.<domain>` SNI |
 | `nginx_frontend` | EU | `role_nginx_frontend.yml` | nginx SNI routing on :443, HTTPS proxy on :8443, dashboard vhost with `/screenshots/*` static path |
-| `monitoring` | EU+RU | `role_monitoring.yml` | xray-stats-exporter + VictoriaMetrics + Grafana |
-| `wireguard` | EU+RU | `role_wireguard.yml` | WireGuard mesh — EU↔RU tunnel for monitoring and bridge sync |
-| `sing-box-playbook` | EU | `role_sing-box.yml` | sing-box + Hysteria2 (optional) |
-| `relay` | RU | `role_relay.yml` | nginx SNI relay on :443 — forwards or routes VPN traffic |
-| `xray_bridge` | RU | `role_xray_bridge.yml` | Xray chain proxy — accepts client connections, chains to EU via XHTTP |
+| `monitoring` | EU+RU | `role_monitoring.yml` | xray-stats-exporter + VictoriaMetrics + Grafana; scrapes Xray and Hysteria2 per-user traffic + Raven `/metrics` (fallback-state alerts) |
+| `wireguard` | EU+RU | `role_wireguard.yml` | WireGuard mesh — EU↔RU tunnel for monitoring, hysteria UDP forwarding, and bridge sync |
+| `hysteria` | EU | `role_hysteria.yml` | Native Hysteria2 reserve server; per-user auth/revocation via Raven `/hysteria/auth` (optional) |
+| `relay` | RU | `role_relay.yml` | nginx SNI stream relay on :443 (passthrough to EU) + Hysteria2 UDP forwards over WG; CGNAT-hardened front |
+| `xray_bridge` | RU | `role_xray_bridge.yml` | Optional Xray chain proxy (default off) — terminates client connections with EU keys, chains to EU via XHTTP |
 
 ---
 
@@ -472,6 +486,14 @@ xray_bridge_transparent_enabled: true
 xray_bridge_api_address: "10.10.0.2"         # WireGuard IP of RU VPS
 ```
 
+### `roles/hysteria/defaults/secrets.yml` (optional, Hysteria2 reserve)
+
+```yaml
+hysteria_auth_password: "STRONG_RANDOM_PASSWORD"        # shared key, validated via /hysteria/auth
+hysteria_gecko_obfs_password: "RANDOM_PASSWORD"         # gecko obfuscation (native/CLI client)
+hysteria_salamander_obfs_password: "RANDOM_PASSWORD"    # salamander obfuscation (Xray/v2rayN client)
+```
+
 ---
 
 ## Configuration
@@ -701,15 +723,23 @@ Both must be set together or both `"none"`. When enabled, `flow` is forced to `x
 
 ---
 
-## Hysteria2 / sing-box (optional)
+## Hysteria2 reserve channel (optional)
+
+A QUIC-based **reserve transport** for when the primary TCP/XHTTP path is under a blocking wave. A native [hysteria](https://github.com/apernet/hysteria) server runs on the EU host; the RU relay forwards its UDP port to EU over the WireGuard mesh (the cloud firewall blocks public UDP). Each connection is authorized per-user against Raven's `/hysteria/auth`, so revocation and per-user traffic stats work the same as for Xray.
 
 ```bash
-cp roles/sing-box-playbook/defaults/secrets.yml.example roles/sing-box-playbook/defaults/secrets.yml
-ansible-vault encrypt roles/sing-box-playbook/defaults/secrets.yml --vault-password-file vault_password.txt
-ansible-playbook roles/role_sing-box.yml -i roles/hosts.yml --vault-password-file vault_password.txt
+cp roles/hysteria/defaults/secrets.yml.example roles/hysteria/defaults/secrets.yml
+# Edit: obfs password, SNI, optional real cert domain, traffic-stats secret
+ansible-vault encrypt roles/hysteria/defaults/secrets.yml --vault-password-file vault_password.txt
+
+# Deploy the EU hysteria server(s)
+ansible-playbook roles/role_hysteria.yml -i roles/hosts.yml --vault-password-file vault_password.txt
+
+# The relay role already forwards the hysteria UDP port to EU over WG
+# (relay_hysteria_udp_forwards) — redeploy relay if you changed ports.
 ```
 
-Then set `raven_subscribe_singbox_enabled: true` and redeploy Raven-subscribe.
+Then enable the reserve in Raven-subscribe (`hysteria` config block, per-user `hy2_enabled`) and redeploy it — see the [Raven-subscribe Hysteria2 docs](https://github.com/AlchemyLink/Raven-subscribe#per-user-hysteria2-reserve-native).
 
 ---
 
@@ -804,9 +834,10 @@ This project is in **alpha testing**. Contributions and bug reports are very wel
 ## Related Projects
 
 - [Raven-subscribe](https://github.com/AlchemyLink/Raven-subscribe) — subscription server (Go)
-- [xray-stats-exporter](https://github.com/AlchemyLink/xray-stats-exporter) — Prometheus exporter for Xray traffic metrics
+- [raven-dashboard](https://github.com/AlchemyLink/raven-dashboard) — admin panel (Go + Vue 3)
+- [xray-stats-exporter](https://github.com/AlchemyLink/xray-stats-exporter) — Prometheus exporter for Xray (and Hysteria2) traffic metrics
 - [Xray-core](https://github.com/XTLS/Xray-core) — the VPN core
-- [sing-box](https://github.com/SagerNet/sing-box) — alternative VPN core (Hysteria2)
+- [hysteria](https://github.com/apernet/hysteria) — QUIC-based reserve transport
 
 ---
 
