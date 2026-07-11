@@ -1,0 +1,106 @@
+---
+# role_xray_node — provision a homogeneous multi-node Xray node.
+#
+# A "node" is a second (third, …) Xray entry that is IDENTICAL to the EU
+# primary: same inbounds, same REALITY keys, same users, same outbounds. It is
+# therefore the *same* `xray` role run against extra hosts — not a fork — so the
+# node can never drift from the primary (shared REALITY private key = one trust
+# domain). The only per-node differences are:
+#   - the host it runs on (its own WireGuard address),
+#   - the Xray gRPC API binds to that WireGuard address (not loopback) so the
+#     Raven-subscribe control plane can provision users over the tunnel.
+#
+# Transport security: the API is plaintext gRPC bound to the node's WireGuard
+# address — encryption + mutual auth live at the WG layer (the recommended
+# default). A public API address instead of WG requires mTLS termination in
+# front of Xray; that is intentionally NOT automated here (see README).
+#
+# Prerequisites:
+#   1. The node host is in the `nodes` inventory group with its own `wg_ip`
+#      (and per-host `wg_private_key` / `wg_public_key`) — see hosts.yml.example.
+#   2. WireGuard mesh deployed so EU ↔ node tunnel is up:
+#        ansible-playbook roles/role_wireguard.yml -i roles/hosts.yml \
+#          --vault-password-file vault_password.txt --limit vm_my_srv,<node>
+#   3. xray/defaults/secrets.yml holds the shared REALITY keys + users (the node
+#      is homogeneous with EU, so it reuses the EU secrets verbatim).
+#
+# Deployment:
+#   ansible-playbook roles/role_xray_node.yml -i roles/hosts.yml \
+#     --vault-password-file vault_password.txt --limit <node>
+#
+# After the node is up, register it in Raven-subscribe config.json under `nodes`
+# with api_addr = "<wg_ip>:10085" (see Raven-subscribe README → Multi-node).
+# Public data-path fronting (nginx SNI on :443 → loopback inbounds) reuses the
+# existing nginx_frontend role, deployed to the node the same way as on EU.
+#
+# Tags: inherits all xray_* tags (xray_install, xray_inbounds, xray_api, …);
+#       xray_node_service covers the node-only systemd/ufw post-tasks.
+
+- name: Configure homogeneous multi-node Xray node
+  hosts: nodes
+  become: true
+  become_method: sudo
+  gather_facts: true
+
+  vars_files:
+    - "xray/defaults/secrets.yml"
+
+  # Bind the Xray gRPC API to this node's WireGuard address so the control plane
+  # reaches HandlerService over the tunnel. Falls back to loopback if a host has
+  # no wg_ip (degrades to an unreachable-but-safe local API rather than public).
+  vars:
+    xray_api_listen_address: "{{ wg_ip | default(xray_api.inbound.address) }}"
+
+  roles:
+    - role: srv_prepare
+      tags: [srv_prepare]
+    - role: xray
+
+  post_tasks:
+    # Xray binds its API to the WireGuard address, so wg-quick@wg0 must be up
+    # before Xray starts or it fails with "bind: cannot assign requested
+    # address" on boot. A drop-in adds the ordering without touching the shared
+    # xray.service unit (EU keeps its dependency-free unit).
+    - name: Xray Node | Ensure xray.service drop-in dir exists
+      ansible.builtin.file:
+        path: /etc/systemd/system/xray.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      tags: xray_node_service
+
+    - name: Xray Node | Order Xray after WireGuard (API binds the WG address)
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/xray.service.d/10-wireguard.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          # Managed by role_xray_node.yml — the Xray gRPC API binds the node's
+          # WireGuard address, so WireGuard must be up first.
+          [Unit]
+          After=wg-quick@{{ wg_interface | default('wg0') }}.service
+          Wants=wg-quick@{{ wg_interface | default('wg0') }}.service
+      notify:
+        - Reload systemd
+        - Restart xray
+      tags: xray_node_service
+
+    - name: Xray Node | Check whether ufw is present
+      ansible.builtin.stat:
+        path: /usr/sbin/ufw
+      register: _xray_node_ufw
+      tags: xray_node_service
+
+    - name: Xray Node | Allow the gRPC API only from the WireGuard subnet
+      community.general.ufw:
+        rule: allow
+        src: "{{ wg_network | default('10.10.0.0/24') }}"
+        port: "{{ xray_api.inbound.port | string }}"
+        proto: tcp
+        comment: "Xray node gRPC API via WireGuard"
+      when:
+        - xray_api.enable | default(false)
+        - _xray_node_ufw.stat.exists
+      tags: xray_node_service

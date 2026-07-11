@@ -2,10 +2,10 @@
 Address = {{ wg_eu_ip }}/24
 PrivateKey = {{ wg_eu_private_key }}
 ListenPort = {{ wg_port }}
-{% for h in groups['ru'] %}
+{% for h in (groups['ru'] | default([])) + (groups['nodes'] | default([])) %}
 
 [Peer]
-# RU server
+# {{ 'multi-node node' if h in (groups['nodes'] | default([])) else 'RU server' }}: {{ h }}
 PublicKey = {{ hostvars[h].wg_public_key | default(wg_ru_public_key) }}
 AllowedIPs = {{ hostvars[h].wg_ip | default(wg_ru_ip) }}/32
 PersistentKeepalive = 25
