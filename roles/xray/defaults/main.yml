@@ -90,6 +90,14 @@ xray_api:
     protocol: "dokodemo-door"                 # Protocol for API (dokodemo-door)"
     tag: "api-inbound"
 
+# Effective address the API listener binds to. Defaults to the loopback address
+# above (single-node). A multi-node node overrides this with its WireGuard
+# address (e.g. 10.10.0.3) so the Raven control plane can reach HandlerService
+# over the tunnel — see role_xray_node.yml. validate.yml still refuses any
+# public IP (plaintext gRPC = full admin control); a public API requires mTLS
+# termination in front, which this role does not automate.
+xray_api_listen_address: "{{ xray_api.inbound.address }}"
+
 # ── Freedom outbound: Finalmask (anti-DPI, v26.3.27+) ───────────────────────
 # Rendered as freedom.settings.finalmask.tcpmasks (Xray v26.3.27 API).
 # Supports stacking: add more tcpmasks entries (e.g. sudoku) when needed.

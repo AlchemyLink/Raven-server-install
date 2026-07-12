@@ -2,7 +2,7 @@
   {% if xray_api.enable %}
   "api": {
     "tag": "{{ xray_api.inbound.tag }}",
-    "listen": "{{ xray_api.inbound.address }}:{{ xray_api.inbound.port }}",
+    "listen": "{{ xray_api_listen_address | default(xray_api.inbound.address) }}:{{ xray_api.inbound.port }}",
     "services": [
       {% for service in xray_api.services %}
       "{{ service }}"{{ "," if not loop.last }}

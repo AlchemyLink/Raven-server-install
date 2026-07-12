@@ -9,7 +9,9 @@
   when: inventory_hostname == 'vm_my_srv'
   tags: wireguard_eu
 
-- name: Configure WireGuard on RU
+- name: Configure WireGuard on RU / multi-node nodes (spoke peering to EU)
   ansible.builtin.import_tasks: ru.yml
-  when: inventory_hostname in groups['ru']
+  when: >-
+    inventory_hostname in (groups['ru'] | default([]))
+    or inventory_hostname in (groups['nodes'] | default([]))
   tags: wireguard_ru
