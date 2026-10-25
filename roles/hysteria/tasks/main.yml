@@ -16,10 +16,11 @@
     - "{{ hysteria_bin_dir }}"
     - "{{ hysteria_conf_dir }}"
 
-- name: Hysteria | Download binary (pinned, once)
+- name: Hysteria | Download binary (pinned, checksum-verified)
   ansible.builtin.get_url:
     url: "https://github.com/{{ hysteria_github_repo }}/releases/download/{{ hysteria_version }}/hysteria-{{ hysteria_arch }}"
     dest: "{{ hysteria_bin }}"
+    checksum: "sha256:{{ hysteria_sha256 }}"
     mode: "0755"
     owner: root
     group: root
