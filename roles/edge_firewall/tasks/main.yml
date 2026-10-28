@@ -1,0 +1,96 @@
+---
+- name: Edge firewall | Validate vars
+  ansible.builtin.assert:
+    that:
+      - edge_firewall_iface | length > 0
+      - edge_firewall_relay_only_tcp | length == 0 or edge_firewall_relay_ips | length > 0
+      - edge_firewall_wg_only_udp | length == 0 or edge_firewall_wg_peer_ips | length > 0
+      - ansible_host not in edge_firewall_blackhole_ips
+    fail_msg: >-
+      edge_firewall: relay/WG allowlists resolved empty (check groups 'ru' / 'nodes'
+      in the inventory), or ansible_host is listed in edge_firewall_blackhole_ips —
+      that would cut Ansible off the host.
+    success_msg: "edge_firewall vars are valid"
+
+- name: Edge firewall | Install nftables CLI
+  ansible.builtin.apt:
+    name: nftables
+    state: present
+    update_cache: false
+
+- name: Edge firewall | Ensure rules directory exists
+  ansible.builtin.file:
+    path: "{{ edge_firewall_rules_path | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Edge firewall | Deploy nftables rules
+  ansible.builtin.template:
+    src: raven-guard.nft.j2
+    dest: "{{ edge_firewall_rules_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "/usr/sbin/nft -c -f %s"
+  register: _edge_firewall_rules
+
+- name: Edge firewall | Deploy systemd unit
+  ansible.builtin.template:
+    src: raven-guard.service.j2
+    dest: "/etc/systemd/system/{{ edge_firewall_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  register: _edge_firewall_unit
+
+- name: Edge firewall | Apply with auto-rollback safety net
+  when:
+    - _edge_firewall_rules is changed or _edge_firewall_unit is changed
+    - not ansible_check_mode
+  block:
+    - name: Edge firewall | Clear a leftover rollback timer
+      ansible.builtin.systemd:
+        name: "{{ edge_firewall_service_name }}-rollback.timer"
+        state: stopped
+      failed_when: false
+
+    - name: Edge firewall | Arm rollback timer
+      ansible.builtin.command: >-
+        systemd-run --unit={{ edge_firewall_service_name }}-rollback
+        --on-active={{ edge_firewall_rollback_seconds }}
+        /usr/sbin/nft delete table inet {{ edge_firewall_table }}
+      when: edge_firewall_rollback_seconds | int > 0
+      changed_when: true
+
+    # nft -f on the idempotent file swaps the table atomically; a service restart
+    # would leave a short window with no table between ExecStop and ExecStart.
+    - name: Edge firewall | Load rules
+      ansible.builtin.command: "/usr/sbin/nft -f {{ edge_firewall_rules_path }}"
+      changed_when: true
+
+    - name: Edge firewall | Drop the SSH connection to prove a fresh one still works
+      ansible.builtin.meta: reset_connection
+
+    - name: Edge firewall | Reconnect over SSH
+      ansible.builtin.wait_for_connection:
+        timeout: 60
+
+    - name: Edge firewall | Cancel rollback timer
+      ansible.builtin.systemd:
+        name: "{{ edge_firewall_service_name }}-rollback.timer"
+        state: stopped
+      when: edge_firewall_rollback_seconds | int > 0
+
+- name: Edge firewall | Enable unit so the table survives reboots
+  ansible.builtin.systemd:
+    name: "{{ edge_firewall_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Edge firewall | Verify table is loaded
+  ansible.builtin.command: "/usr/sbin/nft list table inet {{ edge_firewall_table }}"
+  changed_when: false
+  when: not ansible_check_mode

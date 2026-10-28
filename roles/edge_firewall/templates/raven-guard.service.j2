@@ -1,0 +1,16 @@
+# {{ ansible_managed }}
+[Unit]
+Description=raven-guard nftables table (public-surface hardening)
+# Own table only; never touches docker rules. Do NOT enable nftables.service (flush ruleset).
+DefaultDependencies=no
+Before=network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f {{ edge_firewall_rules_path }}
+ExecStop=/usr/sbin/nft delete table inet {{ edge_firewall_table }}
+
+[Install]
+WantedBy=multi-user.target

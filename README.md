@@ -108,6 +108,7 @@ In bridge mode, Raven-subscribe on EU automatically syncs users to bridge inboun
 | `raven_dashboard` | EU | `role_raven_dashboard.yml` | [Raven Dashboard](https://github.com/AlchemyLink/raven-dashboard) — admin panel (TOTP-gated user CRUD, broadcast, sync-health card). Vue SPA + Go backend, served on `dash.<domain>` SNI |
 | `nginx_frontend` | EU | `role_nginx_frontend.yml` | nginx SNI routing on :443, HTTPS proxy on :8443, dashboard vhost with `/screenshots/*` static path |
 | `monitoring` | EU+RU | `role_monitoring.yml` | xray-stats-exporter + VictoriaMetrics + Grafana; scrapes Xray and Hysteria2 per-user traffic + Raven `/metrics` (fallback-state alerts) |
+| `edge_firewall` | EU | `role_edge_firewall.yml` | Docker-safe nftables table on the public interface: blackholes retired/banned IPs, keeps internal backends and Hysteria2/WireGuard ports reachable only from the relay/peers, auto-rollback on apply (optional) |
 | `wireguard` | EU+RU | `role_wireguard.yml` | WireGuard mesh — EU↔RU tunnel for monitoring, hysteria UDP forwarding, and bridge sync |
 | `hysteria` | EU | `role_hysteria.yml` | Native Hysteria2 reserve server; per-user auth/revocation via Raven `/hysteria/auth` (optional) |
 | `relay` | RU | `role_relay.yml` | nginx SNI stream relay on :443 (passthrough to EU) + Hysteria2 UDP forwards over WG; CGNAT-hardened front |
@@ -373,6 +374,23 @@ Deploys Xray chain proxy on the RU VPS. Accepts client connections using EU Real
 Creates a WireGuard mesh between EU and RU VPS. Required for:
 - Raven-subscribe → bridge gRPC sync (EU pushes users to RU bridge via WireGuard)
 - Monitoring (vmagent on EU pushes metrics to VictoriaMetrics on RU)
+
+---
+
+### `edge_firewall` role
+
+Optional public-surface hardening for the EU host. Installs its own nftables table (`inet raven_guard`) loaded by a `raven-guard` systemd unit; only the public interface (`edge_firewall_iface`, default `eth0`) is filtered, so `wg0`, the VPC interface and docker are untouched.
+
+- `edge_firewall_blackhole_ips` — public IPs still bound to the host that must stay silent (e.g. the original droplet IP after moving to a reserved IP because it got banned). Set per host in `roles/hosts.yml`.
+- Internal backends (`8444`, `8445`) dropped; `8443` only from RU relays; Hysteria2 ports only via `wg0`; WireGuard `51820` only from `ru` + `nodes` hosts.
+- Applying arms a transient rollback timer (`edge_firewall_rollback_seconds`, default 180) that deletes the table unless Ansible reconnects over SSH afterwards.
+
+Do **not** enable `nftables.service`: Debian's stock `/etc/nftables.conf` runs `flush ruleset` and would wipe docker's rules.
+
+```bash
+ansible-playbook roles/role_edge_firewall.yml -i roles/hosts.yml --check --diff
+ansible-playbook roles/role_edge_firewall.yml -i roles/hosts.yml
+```
 
 ---
 
