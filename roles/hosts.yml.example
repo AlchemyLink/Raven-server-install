@@ -20,6 +20,7 @@ all:
               relay_cloudflare_enforce: true
               relay_bridge_enabled: false
               relay_bridge_sni: ""
+              # relay_upstream_via_wg: true  # VPN sessions → EU over wg0 (needs the wireguard role)
             # Add a second RU here when scaling, e.g.:
             # vm_my_ru_b:
             #   ansible_host: "SECOND_RU_VPS_IP"

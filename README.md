@@ -504,6 +504,9 @@ xray_bridge_api_address: "10.10.0.2"         # WireGuard IP of RU VPS
 | `relay_transparent_enabled` | `false` | Route EU SNIs to xray_bridge transparent inbounds |
 | `relay_bridge_enabled` | `false` | Enable bridge-specific SNI routing (www.wikipedia.org → :5443) |
 | `relay_bridge_sni` | `""` | SNI that routes to xray_bridge main inbound |
+| `relay_upstream_via_wg` | `false` | Forward VPN sessions to EU over the WireGuard tunnel (UDP on the wire, survives TCP-only IP bans); public IP stays as nginx `backup` |
+| `relay_upstream_wg_host` | `10.10.0.1` | EU wg0 address used when `relay_upstream_via_wg` is on (= `wg_eu_ip`) |
+| `relay_upstream_wg_fail_timeout` | `30s` | After a failed tunnel connect, how long nginx sticks to the backup |
 
 ---
 

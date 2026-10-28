@@ -24,6 +24,22 @@ relay_upstream_port: 443
 # Port where nginx_frontend HTTPS listens on EU server (Raven-subscribe behind it)
 relay_upstream_raven_port: 8443
 
+# ── VPN upstream over WireGuard ───────────────────────────────────────────────
+# When true, the :443 stream forwards VPN sessions to EU's WireGuard address instead
+# of its public IP, so the RU→EU hop is a UDP tunnel rather than plain TCP:
+#   • a per-IP TCP ban of the EU address (the 2026-09/10 waves were TCP-only) no
+#     longer breaks the main chain;
+#   • border DPI sees one WireGuard flow, not thousands of TLS sessions to a foreign IP.
+# The public IP stays in the upstream as `backup`: nginx uses it only while the
+# tunnel upstream fails (connect timeout → marked down for
+# relay_upstream_wg_fail_timeout, then retried). Requires the wireguard role on both
+# hosts (same tunnel the Hysteria2 forwards already use). Only the stream is affected;
+# the HTTPS relay for relay_sub_my (:8443) keeps using relay_upstream_host.
+# Rollback = set false and re-run `--tags relay_stream` (graceful nginx reload).
+relay_upstream_via_wg: false
+relay_upstream_wg_host: "10.10.0.1"        # EU wg0 address (wireguard role: wg_eu_ip)
+relay_upstream_wg_fail_timeout: "30s"      # how long a failed tunnel attempt sticks to backup
+
 
 # ── SNI stream routing on :443 ───────────────────────────────────────────────
 # nginx stream with ssl_preread reads SNI from TLS ClientHello and routes:

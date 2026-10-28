@@ -532,6 +532,9 @@ singbox:
 | `relay_domain` | `example.com` | Домен RU VPS — stub-сайт и SNI routing |
 | `relay_sub_my` | `my.example.com` | Поддомен, проксируемый на EU Raven-subscribe |
 | `relay_upstream_host` | `EU_VPS_IP` | IP EU сервера (задать в secrets.yml) |
+| `relay_upstream_via_wg` | `false` | Отправлять VPN-сессии на EU через WireGuard-туннель (на проводе UDP, переживает TCP-баны IP); публичный IP остаётся как nginx `backup` |
+| `relay_upstream_wg_host` | `10.10.0.1` | Адрес wg0 EU при включённом `relay_upstream_via_wg` (= `wg_eu_ip`) |
+| `relay_upstream_wg_fail_timeout` | `30s` | Сколько nginx держится на backup после неудачного коннекта в туннель |
 
 ---
 
