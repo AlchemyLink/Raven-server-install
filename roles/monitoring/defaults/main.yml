@@ -77,6 +77,8 @@ monitoring_eu_host: "{{ hostvars['vm_my_srv']['ansible_host'] }}"
 # Stable `instance` label for EU scrape jobs. Decoupled from the IP so rotating the EU
 # public/reserved IP (e.g. after an RU IP ban) does not split Grafana series.
 monitoring_eu_instance: "eu"
+# HAProxy prometheus-exporter port on RU relays (relay role: relay_haproxy_metrics_bind).
+monitoring_relay_haproxy_metrics_port: 8405
 monitoring_ru_host: "{{ hostvars['vm_my_ru']['ansible_host'] }}"
 
 # node_exporter (system metrics: CPU, RAM, disk, network)

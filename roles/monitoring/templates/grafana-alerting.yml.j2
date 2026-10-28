@@ -155,6 +155,117 @@ groups:
         labels:
           severity: warning
 
+      - uid: relay-eu-path-down
+        title: "Relay: путь до EU недоступен"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "max by (instance, server) (haproxy_server_status{proxy=\"eu_vpn\", state=\"UP\"})"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Error
+        for: 2m
+        annotations:
+          summary: "Relay {% raw %}{{ $labels.instance }}{% endraw %}: путь {% raw %}{{ $labels.server }}{% endraw %} до EU не проходит TLS-проверку"
+          description: "HAProxy на relay выводит путь {% raw %}{{ $labels.server }}{% endraw %} (eu_wg = туннель wg0, eu_pub = публичный IP EU) из ротации: TLS-handshake с cover-SNI через него не проходит 2+ минуты. Трафик идёт по оставшимся путям. Проверьте `wg show` / бан IP EU."
+        labels:
+          severity: warning
+
+      - uid: relay-eu-all-paths-down
+        title: "Relay: EU недоступен ни одним путём"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "max by (instance) (haproxy_backend_status{proxy=\"eu_vpn\", state=\"UP\"})"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 1m
+        annotations:
+          summary: "Relay {% raw %}{{ $labels.instance }}{% endraw %}: EU недоступен по всем путям"
+          description: "Бэкенд eu_vpn HAProxy на relay в состоянии DOWN: ни туннель wg0, ни публичный IP EU не проходят TLS-проверку. VPN через этот relay не работает. NoData тоже алертит: HAProxy не скрейпится."
+        labels:
+          severity: critical
+
+      - uid: relay-eu-path-flapping
+        title: "Relay: путь до EU нестабилен"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 1800
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "max by (instance, server) (increase(haproxy_server_check_failures_total{proxy=\"eu_vpn\"}[30m]))"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              conditions:
+                - evaluator:
+                    params: [3]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: OK
+        for: 5m
+        annotations:
+          summary: "Relay {% raw %}{{ $labels.instance }}{% endraw %}: путь {% raw %}{{ $labels.server }}{% endraw %} моргает"
+          description: "Больше 3 провалов TLS-проверки пути {% raw %}{{ $labels.server }}{% endraw %} за 30 минут: туннель деградирует (потери/рукопожатие) или EU под нагрузкой. Пользователи ещё не страдают, но стоит посмотреть раньше, чем путь уйдёт в DOWN."
+        labels:
+          severity: warning
+
       - uid: inbound-probe-down
         title: "Inbound недоступен (blackbox probe)"
         condition: C
