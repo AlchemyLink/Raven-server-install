@@ -507,6 +507,7 @@ xray_bridge_api_address: "10.10.0.2"         # WireGuard IP of RU VPS
 | `relay_upstream_via_wg` | `false` | Forward VPN sessions to EU over the WireGuard tunnel (UDP on the wire, survives TCP-only IP bans); public IP stays as nginx `backup` |
 | `relay_upstream_wg_host` | `10.10.0.1` | EU wg0 address used when `relay_upstream_via_wg` is on (= `wg_eu_ip`) |
 | `relay_upstream_wg_fail_timeout` | `30s` | After a failed tunnel connect, how long nginx sticks to the backup |
+| `relay_upstream_connect_timeout` | `5s` | `proxy_connect_timeout` of the :443 stream (bounds the stall while a dead upstream is skipped) |
 
 ---
 

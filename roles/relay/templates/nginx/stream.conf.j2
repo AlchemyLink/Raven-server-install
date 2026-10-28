@@ -109,7 +109,9 @@ server {
     # Cap concurrent connections per source IP (CGNAT-tolerant ceiling; xmux uses ~16-32
     # per client). A flooder is bounded here instead of overrunning the whole listener.
     limit_conn relay_perip {{ relay_limit_conn_per_ip | default(128) }};
-    proxy_connect_timeout 10s;
+    # EU is ~45 ms away; a short connect timeout bounds the stall a client sees
+    # while a dead upstream (e.g. a black-holed tunnel) is detected and skipped.
+    proxy_connect_timeout {{ relay_upstream_connect_timeout | default('10s') }};
     proxy_timeout 600s;
 {% if relay_access_log | default(false) %}
     access_log /var/log/nginx/relay-sni.log relay_sni;

@@ -39,6 +39,9 @@ relay_upstream_raven_port: 8443
 relay_upstream_via_wg: false
 relay_upstream_wg_host: "10.10.0.1"        # EU wg0 address (wireguard role: wg_eu_ip)
 relay_upstream_wg_fail_timeout: "30s"      # how long a failed tunnel attempt sticks to backup
+# nginx proxy_connect_timeout for the :443 stream. Bounds the stall one client sees
+# while a dead upstream is detected before nginx moves to the next server.
+relay_upstream_connect_timeout: "5s"
 
 
 # ── SNI stream routing on :443 ───────────────────────────────────────────────

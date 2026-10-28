@@ -535,6 +535,7 @@ singbox:
 | `relay_upstream_via_wg` | `false` | Отправлять VPN-сессии на EU через WireGuard-туннель (на проводе UDP, переживает TCP-баны IP); публичный IP остаётся как nginx `backup` |
 | `relay_upstream_wg_host` | `10.10.0.1` | Адрес wg0 EU при включённом `relay_upstream_via_wg` (= `wg_eu_ip`) |
 | `relay_upstream_wg_fail_timeout` | `30s` | Сколько nginx держится на backup после неудачного коннекта в туннель |
+| `relay_upstream_connect_timeout` | `5s` | `proxy_connect_timeout` stream-сервера :443 (ограничивает паузу, пока мёртвый апстрим пропускается) |
 
 ---
 
