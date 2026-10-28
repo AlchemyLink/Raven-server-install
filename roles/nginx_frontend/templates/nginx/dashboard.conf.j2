@@ -12,8 +12,8 @@ server {
 {% endif %}
     server_name {{ nginx_frontend_dashboard_sni }};
 
-    ssl_certificate     /etc/nginx/ssl/dash.zirgate.com.crt;
-    ssl_certificate_key /etc/nginx/ssl/dash.zirgate.com.key;
+    ssl_certificate     /etc/ssl/cloudflare/origin.pem;
+    ssl_certificate_key /etc/ssl/cloudflare/origin.key;
 
     ssl_protocols       TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers off;

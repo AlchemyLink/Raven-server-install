@@ -15,6 +15,15 @@ nginx_frontend_listen_port: 8443
 # ── Raven-subscribe upstream ──────────────────────────────────────────────────
 nginx_frontend_raven_port: 8080    # Must match raven_subscribe_listen_addr port
 
+# ── Listener hardening (mirror of relay role, incident 2026-06-08) ────────────
+# nginx defaults the per-listener accept backlog to 511 regardless of
+# net.core.somaxconn, and worker_connections to 1024 — both too low to absorb a
+# connection-exhaustion flood on the public :443. The RU relay was hardened
+# after the flood; EU frontend is the next hop and equally exposed on its own IP.
+nginx_frontend_listen_backlog: 4096
+nginx_frontend_worker_connections: 16384
+nginx_frontend_worker_rlimit_nofile: 32768
+
 # ── SNI stream routing on :443 ───────────────────────────────────────────────
 # nginx stream with ssl_preread reads SNI from TLS ClientHello and routes:
 #   SNI = primary v2 inbounds → Xray Reality v2 (mldsa65)
@@ -26,16 +35,16 @@ nginx_frontend_stream_enabled: true
 nginx_frontend_stream_v2_enabled: true
 nginx_frontend_stream_v2_reality_sni: "dl.google.com"        # Must match xray_v2_vless.reality.server_names[0]
 nginx_frontend_stream_v2_reality_port: 4444                  # Must match xray_v2_vless.port
-nginx_frontend_stream_v2_xhttp_sni: "addons.mozilla.org"     # Must match xray_v2_xhttp.reality.server_names[0]
+nginx_frontend_stream_v2_xhttp_sni: "www.python.org"         # Must match xray_v2_xhttp.reality.server_names[0] (migrated from addons.mozilla.org 2026-06-07)
 nginx_frontend_stream_v2_xhttp_port: 2054                    # Must match xray_v2_xhttp.port
 
-# Fallback inbound — VLESS+XHTTP+Reality (2026-06-06: было Reality+Vision+TCP).
-# Single cover-SNI www.gstatic.com (PQC-match, H2, no-redirect, инфра-домен).
+# Fallback inbound — VLESS+XHTTP+Reality (2026-06-06).
+# Single cover-SNI www.adobe.com (H2, 200, no-redirect, datacenter-friendly).
 # SNI должен совпадать с xray_fallback.reality.server_names И с realitySettings.dest.
 nginx_frontend_stream_fallback_enabled: true
 nginx_frontend_stream_fallback_port: 5443                    # Must match xray_fallback.port
 nginx_frontend_stream_fallback_snis:                          # Must match xray_fallback.reality.server_names
-  - "www.gstatic.com"
+  - "www.adobe.com"
 
 # Experimental inbound — VLESS+XHTTP+Reality sandbox (anti-freeze).
 # DISABLED by default. Enable ТОЛЬКО вместе с xray_experimental_enabled=true.
