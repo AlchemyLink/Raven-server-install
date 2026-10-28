@@ -73,6 +73,12 @@
   {%- set _fb_tag = (xray_fallback.tag | default('vless-fallback-in')) if xray_fallback is defined else 'vless-fallback-in' -%}
   {%- set _ = ns.enc_map.update({_fb_tag: xray_vless_fallback_client_encryption}) -%}
 {%- endif -%}
+{#- Experimental 221 is a clone of 211 → reuse the v2 (xhttp) client encryption so the
+    generator emits Vision + PQ for vless-experimental-in, identical to vless-xhttp-v2-in. -#}
+{%- if xray_experimental_enabled | default(false) and xray_vless_client_encryption is defined and xray_vless_client_encryption != '' -%}
+  {%- set _exp_tag = (xray_experimental.tag | default('vless-experimental-in')) if xray_experimental is defined else 'vless-experimental-in' -%}
+  {%- set _ = ns.enc_map.update({_exp_tag: xray_vless_client_encryption}) -%}
+{%- endif -%}
 {% if ns.enc_map | length > 0 %},
   "vless_client_encryption": {{ ns.enc_map | to_json }}{% endif %}
 }

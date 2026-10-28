@@ -37,6 +37,10 @@
         "security": "reality",
         "realitySettings": {
           "show": false,
+          {% set _mcv = xray_bridge_reality_min_client_ver | default("") | trim %}
+          {% if _mcv %}
+          "minClientVer": "{{ _mcv }}",
+          {% endif %}
           "dest": "{{ xray_reality_dest }}",
           "spiderX": "{{ xray_reality.spiderX | default('/') }}",
           "serverNames": [
@@ -102,6 +106,10 @@
         "security": "reality",
         "realitySettings": {
           "show": false,
+          {% set _mcv = xray_bridge_reality_min_client_ver | default("") | trim %}
+          {% if _mcv %}
+          "minClientVer": "{{ _mcv }}",
+          {% endif %}
           "dest": "{{ xray_xhttp.reality.dest }}",
           "spiderX": "{{ xray_reality.spiderX | default('/') }}",
           "serverNames": [
@@ -174,6 +182,10 @@
         "security": "reality",
         "realitySettings": {
           "show": false,
+          {% set _mcv = xray_bridge_reality_min_client_ver | default("") | trim %}
+          {% if _mcv %}
+          "minClientVer": "{{ _mcv }}",
+          {% endif %}
           "dest": "{{ xray_v2_vless.reality.dest }}",
           "spiderX": "{{ _v2r.spiderX | default('/') }}",
           "serverNames": [
@@ -239,6 +251,10 @@
         "security": "reality",
         "realitySettings": {
           "show": false,
+          {% set _mcv = xray_bridge_reality_min_client_ver | default("") | trim %}
+          {% if _mcv %}
+          "minClientVer": "{{ _mcv }}",
+          {% endif %}
           "dest": "{{ xray_v2_xhttp.reality.dest }}",
           "spiderX": "{{ _v2r.spiderX | default('/') }}",
           "serverNames": [
