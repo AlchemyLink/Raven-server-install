@@ -43,6 +43,40 @@ relay_upstream_wg_fail_timeout: "30s"      # how long a failed tunnel attempt st
 # while a dead upstream is detected before nginx moves to the next server.
 relay_upstream_connect_timeout: "5s"
 
+# ── HAProxy hop with ACTIVE health checks (optional, recommended) ─────────────
+# nginx can only notice an upstream when connect() fails; a tunnel that is up
+# but losing packets keeps receiving traffic. With relay_haproxy_enabled the
+# :443 stream sends VPN sessions to a local HAProxy (127.0.0.1:relay_haproxy_port)
+# whose backend lists every PATH to EU and checks each one every few seconds
+# with a real TLS handshake using a Reality cover SNI — i.e. the full chain
+# nginx-stream → Xray on EU. A failing path is pulled in fall×interval seconds
+# and returns after rise×interval. nginx keeps the EU public IP as its own
+# backup in case HAProxy itself is down. Traffic stays raw TCP (no PROXY
+# protocol, checks only use TLS). HAProxy does not log (privacy).
+# Rollout: `--tags relay_haproxy` first (installs + checks, nginx untouched),
+# inspect `echo "show servers state" | socat - /run/haproxy/admin.sock`, then
+# `--tags relay_stream` to point nginx at it (graceful reload).
+relay_haproxy_enabled: false
+relay_haproxy_port: 14443                  # loopback only; 4443/4444/2053/2054 are taken by xray_bridge on RU
+# SNI for health checks — must be one the EU stream map routes to an Xray
+# Reality inbound (e.g. your XHTTP cover), never a tcp_close default.
+relay_haproxy_check_sni: "www.python.org"
+relay_haproxy_check_interval: "3s"
+relay_haproxy_check_fall: 2
+relay_haproxy_check_rise: 2
+relay_haproxy_connect_timeout: "2s"        # EU is ~45 ms away; bounds the stall on a dead path
+relay_haproxy_idle_timeout: "600s"         # = nginx proxy_timeout on the stream
+relay_haproxy_maxconn: "{{ relay_worker_connections }}"
+# Paths to EU in priority order; non-backup servers share traffic, backups are
+# used only when every primary is down. Add a second tunnel here when you have one.
+relay_haproxy_paths:
+  - { name: "eu_wg", host: "{{ relay_upstream_wg_host }}" }
+  - { name: "eu_pub", host: "{{ relay_upstream_host }}", backup: true }
+# Prometheus metrics (haproxy_server_up etc.) on the WG address, for the EU
+# vmagent to scrape and alert on. Empty bind disables the frontend.
+relay_haproxy_metrics_enabled: true
+relay_haproxy_metrics_bind: "{{ (wg_ip ~ ':8405') if wg_ip is defined else '' }}"
+
 
 # ── SNI stream routing on :443 ───────────────────────────────────────────────
 # nginx stream with ssl_preread reads SNI from TLS ClientHello and routes:

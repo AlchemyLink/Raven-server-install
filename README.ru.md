@@ -536,6 +536,9 @@ singbox:
 | `relay_upstream_wg_host` | `10.10.0.1` | Адрес wg0 EU при включённом `relay_upstream_via_wg` (= `wg_eu_ip`) |
 | `relay_upstream_wg_fail_timeout` | `30s` | Сколько nginx держится на backup после неудачного коннекта в туннель |
 | `relay_upstream_connect_timeout` | `5s` | `proxy_connect_timeout` stream-сервера :443 (ограничивает паузу, пока мёртвый апстрим пропускается) |
+| `relay_haproxy_enabled` | `false` | Пускать VPN-сессии через локальный HAProxy, который проверяет каждый путь до EU настоящим TLS-handshake (`relay_haproxy_check_sni`) и переключает за секунды; nginx держит публичный IP как собственный backup |
+| `relay_haproxy_paths` | wg0 primary, публичный IP backup | Пути до EU для бэкенда HAProxy (`name`, `host`, `port`, `backup`) |
+| `relay_haproxy_metrics_bind` | `<wg_ip>:8405` | Prometheus-эндпоинт с up/down по путям для vmagent на EU; пустое значение отключает |
 
 ---
 

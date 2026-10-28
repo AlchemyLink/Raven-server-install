@@ -13,7 +13,9 @@
 #   {{ relay_transparent_reality_v2_sni }} → xray-bridge transparent :{{ relay_transparent_reality_v2_port }} (EU Reality v2)
 #   {{ relay_transparent_xhttp_v2_sni }}   → xray-bridge transparent :{{ relay_transparent_xhttp_v2_port }} (EU XHTTP v2)
 {% endif %}
-{% if relay_upstream_via_wg | default(false) %}
+{% if relay_haproxy_enabled | default(false) %}
+#   everything else (VPN)  → local HAProxy 127.0.0.1:{{ relay_haproxy_port }} (active checks over every path to EU), backup {{ relay_upstream_host }}:{{ relay_upstream_port }}
+{% elif relay_upstream_via_wg | default(false) %}
 #   everything else (VPN)  → EU over wg0 ({{ relay_upstream_wg_host }}:{{ relay_upstream_port }}), backup {{ relay_upstream_host }}:{{ relay_upstream_port }}
 {% else %}
 #   everything else (VPN)  → EU server ({{ relay_upstream_host }}:{{ relay_upstream_port }})
@@ -81,7 +83,13 @@ upstream xray_bridge_xhttp_v2 {
 
 {% endif %}
 upstream eu_vpn {
-{% if relay_upstream_via_wg | default(false) %}
+{% if relay_haproxy_enabled | default(false) %}
+    # Primary: local HAProxy hop that owns the path choice to EU and checks every
+    # path actively (TLS handshake with the Reality cover SNI).
+    # Backup: EU public IP directly, used only while HAProxy itself is down.
+    server 127.0.0.1:{{ relay_haproxy_port }} max_fails=1 fail_timeout=10s;
+    server {{ relay_upstream_host }}:{{ relay_upstream_port }} backup;
+{% elif relay_upstream_via_wg | default(false) %}
     # Primary: EU over the wg0 tunnel (UDP on the wire; survives TCP-only IP bans).
     # Backup: EU public IP, used only while the tunnel upstream is marked down.
     server {{ relay_upstream_wg_host }}:{{ relay_upstream_port }} max_fails=1 fail_timeout={{ relay_upstream_wg_fail_timeout }};

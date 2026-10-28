@@ -508,6 +508,9 @@ xray_bridge_api_address: "10.10.0.2"         # WireGuard IP of RU VPS
 | `relay_upstream_wg_host` | `10.10.0.1` | EU wg0 address used when `relay_upstream_via_wg` is on (= `wg_eu_ip`) |
 | `relay_upstream_wg_fail_timeout` | `30s` | After a failed tunnel connect, how long nginx sticks to the backup |
 | `relay_upstream_connect_timeout` | `5s` | `proxy_connect_timeout` of the :443 stream (bounds the stall while a dead upstream is skipped) |
+| `relay_haproxy_enabled` | `false` | Send VPN sessions through a local HAProxy hop that checks every path to EU with a real TLS handshake (`relay_haproxy_check_sni`) and fails over in seconds; nginx keeps the public IP as its own backup |
+| `relay_haproxy_paths` | wg0 primary, public IP backup | Paths to EU for the HAProxy backend (`name`, `host`, `port`, `backup`) |
+| `relay_haproxy_metrics_bind` | `<wg_ip>:8405` | Prometheus endpoint with per-path up/down for the EU vmagent; empty disables |
 
 ---
 
