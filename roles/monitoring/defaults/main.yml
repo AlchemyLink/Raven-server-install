@@ -74,6 +74,9 @@ monitoring_private_subnet: "10.114.0.0/20"
 # Server public IPs — derived from inventory; used in Grafana dashboards and alerts.
 # Override in group_vars/host_vars if inventory structure differs.
 monitoring_eu_host: "{{ hostvars['vm_my_srv']['ansible_host'] }}"
+# Stable `instance` label for EU scrape jobs. Decoupled from the IP so rotating the EU
+# public/reserved IP (e.g. after an RU IP ban) does not split Grafana series.
+monitoring_eu_instance: "eu"
 monitoring_ru_host: "{{ hostvars['vm_my_ru']['ansible_host'] }}"
 
 # node_exporter (system metrics: CPU, RAM, disk, network)
