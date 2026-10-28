@@ -19,10 +19,11 @@ Ansible-плейбуки для развёртывания production-ready са
 - V2 параллельные inbound'ы с изолированными Reality-ключами для прямой секретности
 - Опциональное пост-квантовое VLESS Encryption (mlkem768x25519plus, Xray-core ≥ 26.x)
 - nginx SNI routing на порту 443 — весь VPN-трафик идёт через стандартный HTTPS-порт
-- Опциональный прозрачный цепочечный прокси для RU VPS (`xray_bridge`) — клиенты используют EU-конфиги без изменений
-- Опциональный Hysteria2 через [sing-box](https://github.com/SagerNet/sing-box)
-- [Raven-subscribe](https://github.com/AlchemyLink/Raven-subscribe) — сервер подписок: автоматически находит пользователей, раздаёт клиентские конфиги по персональным ссылкам
-- [xray-stats-exporter](https://github.com/AlchemyLink/xray-stats-exporter) + VictoriaMetrics + Grafana — мониторинг с дашбордами трафика по пользователям и протоколам
+- RU VPS как SNI stream relay (nginx `ssl_preread`) — прозрачно форвардит трафик клиентов на EU-сервер через харднутый фронт (per-IP лимиты соединений, явный listen backlog), пригодный для CGNAT-мобильной аудитории
+- Опциональный прозрачный цепочечный прокси для RU VPS (`xray_bridge`, по умолчанию выключен) — RU VPS терминирует подключения с EU-ключами и цепочкой передаёт на EU через XHTTP
+- Опциональный **резервный канал Hysteria2** (роль `hysteria`) — нативный hysteria-сервер на EU, достижимый через UDP-relay на RU nginx поверх WireGuard-меша, с per-user авторизацией/отзывом через `/hysteria/auth` Raven
+- [Raven-subscribe](https://github.com/AlchemyLink/Raven-subscribe) — сервер подписок: автоматически находит пользователей, раздаёт клиентские конфиги по персональным ссылкам, экстренная ротация + killswitch резерва + метрики Prometheus
+- [xray-stats-exporter](https://github.com/AlchemyLink/xray-stats-exporter) + VictoriaMetrics + Grafana — мониторинг с дашбордами трафика по пользователям и протоколам (трафик Xray **и** Hysteria2), плюс алерты состояния fallback Raven
 - systemd-сервисы с валидацией конфига перед каждым перезапуском
 - Блокировка рекламы и публичных трекеров (`geosite:category-ads-all`)
 - BBR и тюнинг sysctl (роль `srv_prepare`)
@@ -40,7 +41,7 @@ Ansible-плейбуки для развёртывания production-ready са
 - [Примеры](#примеры)
 - [DNS-записи](#dns-записи)
 - [VLESS Encryption (опционально)](#vless-encryption-опционально)
-- [Hysteria2 / sing-box (опционально)](#hysteria2--sing-box-опционально)
+- [Резервный канал Hysteria2 (опционально)](#резервный-канал-hysteria2-опционально)
 - [Тестирование](#тестирование)
 - [Решение проблем](#решение-проблем)
 - [Как помочь проекту](#как-помочь-проекту)
@@ -63,10 +64,23 @@ Ansible-плейбуки для развёртывания production-ready са
 Клиент  ──подписка───────►  VPS:443 (nginx SNI) ──► VPS:8443 (nginx HTTPS) ──► Raven:8080
 ```
 
-### Два сервера с прозрачным RU-мостом (рекомендуется для пользователей из СНГ)
+### Два сервера с RU-relay (рекомендуется для пользователей из СНГ)
 
-EU VPS: Xray + nginx_frontend + Raven-subscribe.
-RU VPS: SNI relay + xray_bridge. Клиенты используют **существующие EU-конфиги без изменений** — nginx на RU маршрутизирует каждый SNI на мост, который принимает подключения с EU-ключами Reality и цепочкой передаёт трафик на EU через XHTTP.
+EU VPS: Xray + nginx_frontend + Raven-subscribe. RU VPS работает как **SNI stream relay**: nginx читает TLS SNI через `ssl_preread` и прозрачно форвардит каждое соединение на EU-сервер — так цензурируемый первый хоп приходится на внутристрановой IP, а реальная VPN-точка остаётся за рубежом. Клиенты используют обычные конфиги, нацеленные на домен RU-relay; relay не является прокси и не терминирует TLS для VPN-трафика — он просто проксирует байты.
+
+```
+Клиент  ──VLESS+Reality / XHTTP──►  RU VPS :443 (nginx SNI ssl_preread, харднутый)
+                                          │  прозрачный passthrough
+                                          ▼
+                                    EU VPS :443 (nginx SNI) ──► Xray ──► Интернет
+Клиент  ──подписка────────────────►  RU VPS :443 ──► EU :8443 (nginx HTTPS) ──► Raven:8080
+```
+
+Фронт relay захарднен под CGNAT-мобильную аудиторию (per-IP `limit_conn`, явный listen backlog, поднятый `worker_connections`) — за одним IP оператора могут быть сотни реальных пользователей. Резерв Hysteria2 едет через тот же RU-хост по UDP-форвардам nginx на EU hysteria-сервер поверх WireGuard-меша (облачный фаервол блокирует публичный UDP, поэтому трафик идёт через WG).
+
+#### Опционально: прозрачный RU цепочечный прокси (`xray_bridge`, по умолчанию выключен)
+
+Вместо passthrough RU VPS может терминировать подключения клиентов с **EU-ключами Reality** и цепочкой передавать на EU через XHTTP (`relay_transparent_enabled: true` + роль `xray_bridge`). Клиенты используют существующие EU-конфиги без изменений. Это продвинутый режим — тяжелее в эксплуатации и сейчас держится как протестированная, но неактивная опция; обычный SNI-relay выше — путь по умолчанию и рекомендуемый.
 
 ```
 Клиент (EU-конфиг без изменений)
@@ -82,7 +96,7 @@ RU VPS :443 (nginx SNI routing)
 EU VPS :443 (nginx SNI) → Xray XHTTP :2054 → Интернет
 ```
 
-Raven-subscribe на EU автоматически синхронизирует пользователей с inbound'ами моста через WireGuard+gRPC.
+В режиме моста Raven-subscribe на EU автоматически синхронизирует пользователей с inbound'ами моста через WireGuard+gRPC.
 
 ### Карта ролей
 
@@ -93,11 +107,11 @@ Raven-subscribe на EU автоматически синхронизирует 
 | `raven_subscribe` | EU | `role_raven_subscribe.yml` | Сервер подписок, gRPC-синхронизация с Xray и мостом |
 | `raven_dashboard` | EU | `role_raven_dashboard.yml` | [Raven Dashboard](https://github.com/AlchemyLink/raven-dashboard) — админ-панель (TOTP-gated CRUD пользователей, broadcast, sync-health card). Vue SPA + Go backend на SNI `dash.<domain>` |
 | `nginx_frontend` | EU | `role_nginx_frontend.yml` | nginx SNI routing на :443, HTTPS прокси на :8443, отдельный vhost для дашборда со static path `/screenshots/*` |
-| `monitoring` | EU+RU | `role_monitoring.yml` | xray-stats-exporter + VictoriaMetrics + Grafana |
-| `wireguard` | EU+RU | `role_wireguard.yml` | WireGuard mesh — туннель EU↔RU для мониторинга и синхронизации моста |
-| `sing-box-playbook` | EU | `role_sing-box.yml` | sing-box + Hysteria2 (опционально) |
-| `relay` | RU | `role_relay.yml` | nginx SNI relay на :443 — маршрутизирует VPN-трафик |
-| `xray_bridge` | RU | `role_xray_bridge.yml` | Xray цепочечный прокси — принимает подключения, цепочкой на EU через XHTTP |
+| `monitoring` | EU+RU | `role_monitoring.yml` | xray-stats-exporter + VictoriaMetrics + Grafana; скрейпит per-user трафик Xray и Hysteria2 + `/metrics` Raven (алерты состояния fallback) |
+| `wireguard` | EU+RU | `role_wireguard.yml` | WireGuard mesh — туннель EU↔RU для мониторинга, UDP-форвардинга hysteria и синхронизации моста |
+| `hysteria` | EU | `role_hysteria.yml` | Нативный резервный Hysteria2-сервер; per-user авторизация/отзыв через `/hysteria/auth` Raven (опционально) |
+| `relay` | RU | `role_relay.yml` | nginx SNI stream relay на :443 (passthrough на EU) + UDP-форварды Hysteria2 поверх WG; CGNAT-харднутый фронт |
+| `xray_bridge` | RU | `role_xray_bridge.yml` | Опциональный Xray цепочечный прокси (по умолчанию выключен) — терминирует подключения с EU-ключами, цепочкой на EU через XHTTP |
 
 ---
 
@@ -147,10 +161,14 @@ all:
         vm_my_srv:
           ansible_host: "IP_EU_VPS"
           ansible_port: 22
-        vm_my_ru2:                        # опционально: RU VPS для relay + bridge
-          ansible_host: "IP_RU_VPS"
-          ansible_port: 22
-          ansible_user: deploy
+      children:
+        ru:                               # RU-роли таргетят ГРУППУ, а не имя хоста —
+          hosts:                          # шаблоны идут циклом по groups['ru'], поэтому
+            vm_my_ru:                     # новые RU-ноды добавляются слотами сюда же
+              ansible_host: "IP_RU_VPS"
+              ansible_port: 22
+              ansible_user: deploy
+              wg_ip: 10.10.0.2
       vars:
         ansible_user: deploy
         ansible_python_interpreter: /usr/bin/python3
@@ -485,17 +503,12 @@ xray_bridge_transparent_enabled: true
 xray_bridge_api_address: "10.10.0.2"         # WireGuard IP RU VPS
 ```
 
-### `roles/sing-box-playbook/defaults/secrets.yml`
+### `roles/hysteria/defaults/secrets.yml` (опционально, для резерва Hysteria2)
 
 ```yaml
-singbox_hysteria2_users:
-  - name: "alice@example.com"
-    password: "СИЛЬНЫЙ_СЛУЧАЙНЫЙ_ПАРОЛЬ"
-
-singbox:
-  tls_server_name: "media.example.com"
-  tls_acme_domain: "media.example.com"
-  tls_acme_email: "admin@example.com"
+hysteria_auth_password: "СИЛЬНЫЙ_СЛУЧАЙНЫЙ_ПАРОЛЬ"           # общий ключ, проверяется через /hysteria/auth
+hysteria_gecko_obfs_password: "СЛУЧАЙНЫЙ_ПАРОЛЬ"            # обфускация gecko (нативный/CLI-клиент)
+hysteria_salamander_obfs_password: "СЛУЧАЙНЫЙ_ПАРОЛЬ"       # обфускация salamander (Xray/v2rayN-клиент)
 ```
 
 ---
@@ -702,15 +715,23 @@ xray_vless_client_encryption: "mlkem768x25519plus.PUBLIC..." # передаёт�
 
 ---
 
-## Hysteria2 / sing-box (опционально)
+## Резервный канал Hysteria2 (опционально)
+
+QUIC-**резервный транспорт** на случай, когда основной TCP/XHTTP-путь под волной блокировок. Нативный сервер [hysteria](https://github.com/apernet/hysteria) работает на EU-хосте; RU-relay форвардит его UDP-порт на EU поверх WireGuard-меша (облачный фаервол блокирует публичный UDP). Каждое подключение авторизуется per-user по `/hysteria/auth` Raven — отзыв и per-user статистика трафика работают так же, как для Xray.
 
 ```bash
-cp roles/sing-box-playbook/defaults/secrets.yml.example roles/sing-box-playbook/defaults/secrets.yml
-ansible-vault encrypt roles/sing-box-playbook/defaults/secrets.yml --vault-password-file vault_password.txt
-ansible-playbook roles/role_sing-box.yml -i roles/hosts.yml --vault-password-file vault_password.txt
+cp roles/hysteria/defaults/secrets.yml.example roles/hysteria/defaults/secrets.yml
+# Заполнить: пароль obfs, SNI, опционально домен реального сертификата, секрет traffic-stats
+ansible-vault encrypt roles/hysteria/defaults/secrets.yml --vault-password-file vault_password.txt
+
+# Деплой EU hysteria-сервера(ов)
+ansible-playbook roles/role_hysteria.yml -i roles/hosts.yml --vault-password-file vault_password.txt
+
+# Роль relay уже форвардит UDP-порт hysteria на EU поверх WG
+# (relay_hysteria_udp_forwards) — передеплойте relay, если меняли порты.
 ```
 
-После деплоя установите `raven_subscribe_singbox_enabled: true` в `raven_subscribe/defaults/secrets.yml` и передеплойте Raven-subscribe. Он обнаружит Hysteria2-пользователей и будет раздавать их через `/sub/{token}/singbox` и `/sub/{token}/hysteria2`.
+После этого включите резерв в Raven-subscribe (блок конфига `hysteria`, per-user `hy2_enabled`) и передеплойте его — см. [документацию Hysteria2 в Raven-subscribe](https://github.com/AlchemyLink/Raven-subscribe/blob/main/README.ru.md#персональный-резерв-hysteria2-нативный).
 
 ---
 
@@ -774,7 +795,7 @@ ansible-vault encrypt roles/raven_subscribe/defaults/secrets.yml --vault-passwor
 
 ### `no hosts matched` — плейбук пропускает все хосты
 
-Проверьте, что `roles/hosts.yml` содержит `vm_my_srv` (для EU ролей) и `vm_my_ru2` (для RU ролей). Плейбуки таргетируют именно эти имена хостов.
+Проверьте, что `roles/hosts.yml` содержит хост `vm_my_srv` (EU-роли таргетят его по имени) и непустую группу `ru` (RU-роли таргетят *группу*, поэтому RU-хост вне неё ни с чем не сматчится). Учтите: `roles/relay/inventory.ini` пуст и не используется — для relay-плейбука передавайте `-i roles/hosts.yml`.
 
 ### nginx не перезапускается после деплоя конфига
 
@@ -805,9 +826,10 @@ ansible-playbook roles/role_nginx_frontend.yml -i roles/hosts.yml \
 ## Связанные проекты
 
 - [Raven-subscribe](https://github.com/AlchemyLink/Raven-subscribe) — сервер подписок (Go): автоматически находит пользователей из конфигов Xray, синхронизирует через gRPC API, раздаёт персональные ссылки подписки в форматах Xray JSON / sing-box JSON / share-ссылки
-- [xray-stats-exporter](https://github.com/AlchemyLink/xray-stats-exporter) — Prometheus exporter для метрик трафика Xray по пользователям и inbound'ам
+- [raven-dashboard](https://github.com/AlchemyLink/raven-dashboard) — админ-панель (Go + Vue 3)
+- [xray-stats-exporter](https://github.com/AlchemyLink/xray-stats-exporter) — Prometheus exporter для метрик трафика Xray (и Hysteria2) по пользователям и inbound'ам
 - [Xray-core](https://github.com/XTLS/Xray-core) — ядро VPN
-- [sing-box](https://github.com/SagerNet/sing-box) — альтернативное ядро VPN (Hysteria2)
+- [hysteria](https://github.com/apernet/hysteria) — QUIC-резервный транспорт
 
 ---
 
