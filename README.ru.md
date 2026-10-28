@@ -365,6 +365,8 @@ ansible-playbook roles/role_raven_dashboard.yml -i roles/hosts.yml \
 - Синхронизации gRPC Raven-subscribe → мост (EU пушит пользователей на RU мост через WireGuard)
 - Мониторинга (vmagent на EU пушит метрики на VictoriaMetrics на RU)
 
+**Второй туннель AmneziaWG (`wg_awg_enabled: true`, тег `wireguard_awg`).** У обычного WireGuard фиксированная сигнатура на проводе; AmneziaWG 3.x добавляет шифрование заголовков, паддинг, junk-пакеты и случайные хвосты, сохраняя криптографию WireGuard. Роль поднимает `awg0` (подсеть `10.11.0.0/24`, UDP `wg_awg_port`) рядом с `wg0` на userspace `amneziawg-go`, собранном на контроллере из закреплённого тега, плюс закреплённый релиз `amneziawg-tools`, так что от ядра хоста ничего не зависит. Ключи, PSK, `HeaderProtectionKey` и размеры паддинга `S1`–`S4` лежат в vault (см. `secrets.yml.example`). Изменения конфига применяются на месте через `awg syncconf` (сессии живут); порт разрешить только с RU в `edge_firewall_wg_only_udp`, затем добавить `10.11.0.1` как путь в `relay_haproxy_paths` relay.
+
 ---
 
 ### Роль `monitoring`

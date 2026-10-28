@@ -67,11 +67,22 @@ relay_haproxy_check_rise: 2
 relay_haproxy_connect_timeout: "2s"        # EU is ~45 ms away; bounds the stall on a dead path
 relay_haproxy_idle_timeout: "600s"         # = nginx proxy_timeout on the stream
 relay_haproxy_maxconn: "{{ relay_worker_connections }}"
-# Paths to EU in priority order; non-backup servers share traffic, backups are
-# used only when every primary is down. Add a second tunnel here when you have one.
-relay_haproxy_paths:
-  - { name: "eu_wg", host: "{{ relay_upstream_wg_host }}" }
-  - { name: "eu_pub", host: "{{ relay_upstream_host }}", backup: true }
+# Paths to EU. Non-backup servers share traffic, backups are used only when
+# every primary is down. The AmneziaWG tunnel (wireguard role, awg0) joins via
+# relay_upstream_awg_mode so it can be soaked as a checked-but-idle backup
+# before taking traffic:
+#   off     — not in the backend
+#   backup  — health-checked, used only when wg0 and the public IP are down
+#   primary — takes traffic; wg0 and the public IP become backups
+relay_upstream_awg_mode: "off"
+relay_upstream_awg_host: "10.11.0.1"       # EU awg0 address (wireguard role: wg_awg_eu_ip)
+relay_haproxy_paths: >-
+  {{
+    ([{'name': 'eu_awg', 'host': relay_upstream_awg_host, 'backup': relay_upstream_awg_mode == 'backup'}]
+      if relay_upstream_awg_mode in ['backup', 'primary'] else [])
+    + [{'name': 'eu_wg', 'host': relay_upstream_wg_host, 'backup': relay_upstream_awg_mode == 'primary'}]
+    + [{'name': 'eu_pub', 'host': relay_upstream_host, 'backup': true}]
+  }}
 # Prometheus metrics (haproxy_server_up etc.) on the WG address, for the EU
 # vmagent to scrape and alert on. Empty bind disables the frontend.
 relay_haproxy_metrics_enabled: true
