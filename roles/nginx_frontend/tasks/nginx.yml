@@ -1,4 +1,22 @@
 ---
+# Lift the distro defaults (worker_connections 1024, default fd limit) so the
+# public :443 stream can absorb a connection flood. Mirrors relay/tasks/nginx.yml;
+# pairs with the explicit listen backlog in stream.conf.j2. Idempotent.
+- name: Nginx frontend | Set nginx worker_rlimit_nofile (fd headroom)
+  ansible.builtin.lineinfile:
+    path: /etc/nginx/nginx.conf
+    regexp: '^\s*worker_rlimit_nofile\s'
+    line: "worker_rlimit_nofile {{ nginx_frontend_worker_rlimit_nofile }};"
+    insertafter: '^worker_processes'
+  notify: Reload nginx
+
+- name: Nginx frontend | Raise nginx worker_connections (flood headroom)
+  ansible.builtin.lineinfile:
+    path: /etc/nginx/nginx.conf
+    regexp: '^\s*worker_connections\s+\d+;'
+    line: "    worker_connections  {{ nginx_frontend_worker_connections }};"
+  notify: Reload nginx
+
 - name: Nginx frontend | Create letsencrypt webroot
   ansible.builtin.file:
     path: /var/www/letsencrypt

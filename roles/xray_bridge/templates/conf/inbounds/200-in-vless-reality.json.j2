@@ -34,6 +34,10 @@
         "security": "reality",
         "realitySettings": {
           "show": false,
+          {% set _mcv = xray_bridge_reality_min_client_ver | default("") | trim %}
+          {% if _mcv %}
+          "minClientVer": "{{ _mcv }}",
+          {% endif %}
           "dest": "{{ xray_bridge_reality_dest }}",
           "spiderX": "{{ xray_bridge_reality.spiderX | default('/') }}",
           "xver": 0,
