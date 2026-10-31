@@ -377,6 +377,8 @@ Creates a WireGuard mesh between EU and RU VPS. Required for:
 - Raven-subscribe → bridge gRPC sync (EU pushes users to RU bridge via WireGuard)
 - Monitoring (vmagent on EU pushes metrics to VictoriaMetrics on RU)
 
+**AmneziaWG second tunnel (`wg_awg_enabled: true`, tag `wireguard_awg`).** Plain WireGuard has a fixed on-the-wire signature; AmneziaWG 3.x adds header encryption, padding, junk packets and random trailers while keeping the WireGuard crypto. The role brings up `awg0` (subnet `10.11.0.0/24`, UDP `wg_awg_port`) next to `wg0` using userspace `amneziawg-go` built on the controller from the pinned tag plus the pinned `amneziawg-tools` release, so nothing depends on the host kernel. Keys, PSK, `HeaderProtectionKey` and the `S1`–`S4` padding sizes live in the vault (see `secrets.yml.example`). Config changes are applied in place with `awg syncconf` (sessions survive); allow the port from RU peers only in `edge_firewall_wg_only_udp`, then add `10.11.0.1` as a path in the relay's `relay_haproxy_paths`.
+
 ---
 
 ### `monitoring` role

@@ -5,3 +5,19 @@
     state: restarted
     daemon_reload: true
   when: ansible_facts['service_mgr'] == "systemd"
+
+# awg0 (AmneziaWG) — key/peer changes are applied in place with awg syncconf so
+# the interface and the TCP sessions riding it survive; only a binary or unit
+# change needs a real restart.
+- name: Sync awg0 config
+  ansible.builtin.systemd:
+    name: "awg-quick@{{ wg_awg_interface }}"
+    state: reloaded
+  when: ansible_facts['service_mgr'] == "systemd"
+
+- name: Restart awg0
+  ansible.builtin.systemd:
+    name: "awg-quick@{{ wg_awg_interface }}"
+    state: restarted
+    daemon_reload: true
+  when: ansible_facts['service_mgr'] == "systemd"

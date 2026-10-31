@@ -1,0 +1,21 @@
+# {{ ansible_managed }}
+# awg-quick@.service from amneziawg-tools, pointed at our /usr/local/bin copies
+# and the userspace amneziawg-go implementation.
+[Unit]
+Description=AmneziaWG (amneziawg-go) via awg-quick for %I
+After=network-online.target nss-lookup.target
+Wants=network-online.target nss-lookup.target
+Documentation=https://docs.amnezia.org/documentation/amnezia-wg/
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment=WG_QUICK_USERSPACE_IMPLEMENTATION={{ wg_awg_go_bin }}
+Environment=WG_ENDPOINT_RESOLUTION_RETRIES=infinity
+ExecStart={{ wg_awg_tools_bin_dir }}/awg-quick up %i
+ExecStop={{ wg_awg_tools_bin_dir }}/awg-quick down %i
+# Reload = apply key/peer changes in place, the interface and its sessions stay up.
+ExecReload=/bin/bash -c 'exec {{ wg_awg_tools_bin_dir }}/awg syncconf %i <(exec {{ wg_awg_tools_bin_dir }}/awg-quick strip %i)'
+
+[Install]
+WantedBy=multi-user.target
