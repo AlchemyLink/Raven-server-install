@@ -232,6 +232,18 @@ raven_probe_interval: "5m"
 raven_probe_timeout: "5s"
 raven_probe_vantage: "{{ inventory_hostname | regex_replace('^vm_my_', '') }}"  # ru / ru2 / ...
 raven_probe_eu_host: "{{ hostvars['vm_my_srv'].ansible_host }}"
+# Build: the role compiles raven-probe on the controller from raven_probe_repo_path.
+# Needs Go >= 1.26 on the controller (quic-go); set raven_probe_go_bin if `go`
+# on PATH is older (Fedora's /usr/bin/go) — e.g. /usr/local/go/bin/go.
+raven_probe_go_bin: "go"
+# Default ClientHello shape (chrome = what Xray clients send). Per-target override below.
+raven_probe_fingerprint: "chrome"
+# Vantage-level canaries -> raven_probe_vantage_mode (open/whitelist/offline/degraded).
+# Neutral hosts only: a white-listed one, a years-old registry-blocked one, a foreign resolver.
+raven_probe_controls:
+  whitelisted: ya.ru
+  blocked: twitter.com
+  dns_udp_server: 8.8.8.8
 raven_probe_targets:
   # Mode 2 — cover-SNI to OUR EU; detects path-specific DPI (PIN DC vs Beget pattern).
   # SNIs track the live inbound covers: python=XHTTP-v2 (migrated from mozilla 2026-06-07),
@@ -243,6 +255,15 @@ raven_probe_targets:
   - {name: isp_python,        sni: www.python.org}
   - {name: isp_google,        sni: dl.google.com}
   - {name: isp_adobe,         sni: www.adobe.com}
-  # Controls — should always work; if break, internet is just down
+  # Controls — should always work; if break, internet is just down.
+  # ctl_cloudflare carries the QUIC rung (UDP/443 alive?) and uses the Firefox
+  # hello: on some RU ISPs Cloudflare IPs drop Chrome/Go-shaped hellos (two-segment
+  # post-quantum ClientHello) while Firefox passes — seen 2026-10-31 from AS42610.
   - {name: ctl_yandex,     sni: ya.ru}
-  - {name: ctl_cloudflare, sni: www.cloudflare.com}
+  - {name: ctl_cloudflare, sni: www.cloudflare.com, fingerprint: firefox, quic: true}
+  # Firefox-shaped twin of the primary cover: if eu_python freezes and this one
+  # does not, the penalty is fingerprint-keyed, not SNI/IP-keyed.
+  - {name: eu_python_ff,   sni: www.python.org,     host_override: "{{ raven_probe_eu_host }}", fingerprint: firefox}
+  # proto (real VLESS/XHTTP through `xray run` -> SOCKS) is NOT enabled on the
+  # relay by default: it would put a client credential on the RU host. Enable
+  # per-host via raven_probe_targets override on vantages that already hold one.
