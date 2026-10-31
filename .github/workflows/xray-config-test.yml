@@ -18,8 +18,14 @@ jobs:
           sudo apt-get install -y -qq ansible unzip curl openssl
 
       - name: Install Xray (for -test)
+        # Test with the exact version production runs: read the role's pin so
+        # CI can never drift from xray_version_pin again (it sat on v26.2.6,
+        # which rejects the Finalmask fragment shape v26.3.27 configs use).
         run: |
-          curl -fsSL -o /tmp/xray.zip "https://github.com/XTLS/Xray-core/releases/download/v26.2.6/Xray-linux-64.zip"
+          VER=$(sed -nE 's/^xray_version_pin:[[:space:]]*"?(v[0-9.]+)"?.*/\1/p' roles/xray/defaults/main.yml)
+          test -n "$VER" || { echo "xray_version_pin not found"; exit 1; }
+          echo "Xray $VER (from roles/xray/defaults/main.yml)"
+          curl -fsSL -o /tmp/xray.zip "https://github.com/XTLS/Xray-core/releases/download/${VER}/Xray-linux-64.zip"
           sudo unzip -q -o /tmp/xray.zip xray -d /usr/local/bin
           sudo chmod +x /usr/local/bin/xray
 
