@@ -1,0 +1,11 @@
+[Unit]
+Description=Run monitoring heartbeat every {{ monitoring_heartbeat_interval }}
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec={{ monitoring_heartbeat_interval }}
+RandomizedDelaySec=30s
+AccuracySec=15s
+
+[Install]
+WantedBy=timers.target

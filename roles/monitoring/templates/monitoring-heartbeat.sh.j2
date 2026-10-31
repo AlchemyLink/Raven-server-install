@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+# Checks Grafana + VictoriaMetrics health on MON over the VPC and posts to
+# Telegram on state change (OK -> FAIL after N consecutive misses, FAIL -> OK).
+set -u
+
+STATE_DIR="{{ monitoring_heartbeat_state_dir }}"
+GRAFANA_URL="{{ monitoring_heartbeat_grafana_url }}"
+VM_URL="{{ monitoring_heartbeat_vm_url }}"
+FAIL_AFTER=3            # consecutive failed ticks before alerting (ticks every {{ monitoring_heartbeat_interval }})
+CURL="curl -sS -m 8 -o /dev/null -w %{http_code}"
+
+# shellcheck disable=SC1091
+. /etc/monitoring-heartbeat.env
+
+mkdir -p "$STATE_DIR"
+STATE_FILE="$STATE_DIR/state"      # OK | FAIL
+COUNT_FILE="$STATE_DIR/fail_count"
+prev_state=$(cat "$STATE_FILE" 2>/dev/null || echo OK)
+fail_count=$(cat "$COUNT_FILE" 2>/dev/null || echo 0)
+
+notify() {
+  # $1 = text (HTML). Silent if the bot is not configured.
+  [ -n "${TG_BOT_TOKEN:-}" ] && [ -n "${TG_CHAT_ID:-}" ] || return 0
+  curl -sS -m 10 -o /dev/null \
+    --data-urlencode "chat_id=${TG_CHAT_ID}" \
+    --data-urlencode "parse_mode=HTML" \
+    --data-urlencode "text=$1" \
+    "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" || true
+}
+
+problems=()
+code=$($CURL "$GRAFANA_URL" 2>/dev/null || echo 000)
+[ "$code" = "200" ] || problems+=("Grafana /api/health → HTTP ${code}")
+code=$($CURL "$VM_URL" 2>/dev/null || echo 000)
+[ "$code" = "200" ] || problems+=("VictoriaMetrics /health → HTTP ${code}")
+
+if [ -z "${problems[*]:-}" ]; then
+  echo 0 > "$COUNT_FILE"
+  if [ "$prev_state" = "FAIL" ]; then
+    echo OK > "$STATE_FILE"
+    notify "✅ <b>Мониторинг восстановлен</b> (heartbeat с EU)%0AGrafana и VictoriaMetrics на MON снова отвечают."
+    logger -t monitoring-heartbeat "recovered"
+  fi
+  exit 0
+fi
+
+fail_count=$((fail_count + 1))
+echo "$fail_count" > "$COUNT_FILE"
+logger -t monitoring-heartbeat "check failed (${fail_count}/${FAIL_AFTER}): ${problems[*]}"
+if [ "$fail_count" -ge "$FAIL_AFTER" ] && [ "$prev_state" != "FAIL" ]; then
+  echo FAIL > "$STATE_FILE"
+  msg="🔴 <b>Мониторинг недоступен</b> (heartbeat с EU)"
+  for p in "${problems[@]}"; do msg="${msg}%0A• ${p}"; done
+  msg="${msg}%0AПроверь: <code>ssh mon</code> → <code>systemctl status grafana-server victoriametrics</code>; VPC EU→MON."
+  notify "$msg"
+fi
+exit 1

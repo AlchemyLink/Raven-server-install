@@ -1,7 +1,7 @@
 ---
 
 # xray-exporter
-xray_exporter_version: "latest"               # "latest" or pinned e.g. "v0.2.0"
+xray_exporter_version: "v0.6.9"                # pinned 2026-10-31 (was "latest"); matches prod
 xray_exporter_github_repo: "compassvpn/xray-exporter"
 xray_exporter_listen: "127.0.0.1:9550"
 xray_exporter_metrics_path: "/scrape"
@@ -15,14 +15,15 @@ xray_exporter_user: "xrayuser"               # same user as Xray — needs read 
 xray_exporter_group: "xrayuser"
 
 # VictoriaMetrics
-victoriametrics_version: "latest"            # "latest" or pinned e.g. "v1.101.0"
+victoriametrics_version: "v1.145.0"          # pinned 2026-10-31 (was "latest"); matches prod
 victoriametrics_github_repo: "VictoriaMetrics/VictoriaMetrics"
 victoriametrics_listen: "{{ hostvars[groups['mon'][0]].private_ip }}:8428"  # MON private IP (DO VPC eth1) — EU vmagent push + Grafana datasource
 # VictoriaMetrics retention. Format follows VM's -retentionPeriod flag:
-# Nd (days), NM (months), Ny (years). Reduced from 1M to 14d as part of A2
-# seizure-risk reduction — bounds the historical traffic-pattern dataset that
-# would be available to anyone who gains physical access to the RU TSDB.
-victoriametrics_retention: "14d"
+# Nd (days), NM (months), Ny (years). Was 1M -> 14d in A2 (2026-05) when the
+# TSDB lived on RU. Since 2026-05-05 it lives on the dedicated EU MON host and
+# per-user labels are pseudonymised, so 90d is acceptable and is the minimum
+# that makes 30-day SLO windows and 7-day same-hour baselines computable.
+victoriametrics_retention: "90d"
 victoriametrics_data_dir: "/var/lib/victoriametrics"
 victoriametrics_bin_dir: "/usr/local/bin"
 victoriametrics_service_name: "victoriametrics"
@@ -54,7 +55,7 @@ victoriametrics_user: "victoriametrics"
 victoriametrics_group: "victoriametrics"
 
 # vmagent (EU VPS — scrapes EU exporters, pushes to MON VictoriaMetrics via DO private network)
-vmagent_version: "latest"
+vmagent_version: "v1.145.0"                 # pinned 2026-10-31; keep in lockstep with victoriametrics_version
 vmagent_listen: "127.0.0.1:8429"
 vmagent_remote_write_url: "http://{{ hostvars[groups['mon'][0]].private_ip }}:8428/api/v1/write"
 vmagent_data_dir: "/var/lib/vmagent"
@@ -82,7 +83,7 @@ monitoring_relay_haproxy_metrics_port: 8405
 monitoring_ru_host: "{{ hostvars['vm_my_ru']['ansible_host'] }}"
 
 # node_exporter (system metrics: CPU, RAM, disk, network)
-node_exporter_version: "latest"
+node_exporter_version: "v1.12.1"              # pinned 2026-10-31 (EU already on 1.12.1; RU/MON upgrade from 1.11.1 on next full run)
 node_exporter_listen: "127.0.0.1:9100"         # EU: localhost only
 node_exporter_ru_listen: "10.10.0.2:9100"      # RU: WireGuard interface only
 node_exporter_ru_scrape: "10.10.0.2:9100"      # EU scrapes RU via WireGuard
@@ -108,7 +109,7 @@ nginx_stub_status_port: 8081                   # localhost-only nginx server blo
 # downloads it; pin via xray_stats_exporter_version, or override the whole
 # fetch with -e xray_stats_exporter_local_binary=/path for a hand-built drop.
 xray_stats_exporter_github_repo: "AlchemyLink/xray-stats-exporter"
-xray_stats_exporter_version: "latest"
+xray_stats_exporter_version: "v1.1.0"         # pinned 2026-10-31 (Hysteria support); prod binary = this tag
 xray_stats_exporter_listen: "127.0.0.1:9551"
 xray_stats_exporter_metrics_path: "/metrics"
 xray_stats_exporter_xray_endpoint: "127.0.0.1:10085"
@@ -160,11 +161,31 @@ grafana_dashboard_datasource_placeholder: "${DS_GRAFANACLOUD-COMPASSVPN-PROM}"
 grafana_prometheus_datasource_name: "grafanacloud-compassvpn-prom"
 grafana_prometheus_datasource_uid: "grafanacloud-compassvpn-prom"
 # grafana_admin_password: set in secrets.yml (ansible-vault)
+grafana_version: "13.0.2"                    # "latest" or pinned; pinned 2026-10-31 to the prod build
+
+# Alert delivery (Grafana unified alerting -> Telegram). Both values live in
+# secrets.yml; the bot can be the same one raven-dashboard uses. With
+# grafana_alert_telegram_enabled=false no contact point / policy is provisioned
+# and rules fire into Grafana's default (empty) receiver — the state prod was in
+# until 2026-10-31.
+grafana_alert_telegram_enabled: "{{ (grafana_alert_telegram_bot_token | default('') | length > 0) and (grafana_alert_telegram_chat_id | default('') | string | length > 0) }}"
+grafana_alert_repeat_critical: "4h"
+grafana_alert_repeat_warning: "12h"
+grafana_alert_watchdog_repeat: "24h"
+
+# EU-side heartbeat: a systemd timer on vm_my_srv that checks Grafana and
+# VictoriaMetrics health over the VPC and posts to Telegram on state change.
+# Independent of Grafana itself, so "MON is dead" still gets reported.
+monitoring_heartbeat_enabled: true
+monitoring_heartbeat_interval: "5min"
+monitoring_heartbeat_grafana_url: "http://{{ hostvars[groups['mon'][0]].private_ip }}:13000/api/health"
+monitoring_heartbeat_vm_url: "http://{{ hostvars[groups['mon'][0]].private_ip }}:8428/health"
+monitoring_heartbeat_state_dir: "/var/lib/monitoring-heartbeat"
 # victoriametrics_auth_username: set in secrets.yml (ansible-vault)
 # victoriametrics_auth_password: set in secrets.yml (ansible-vault)
 
 # Blackbox exporter — active TCP+TLS probes for each Xray inbound
-blackbox_version: "latest"
+blackbox_version: "v0.28.0"                  # pinned 2026-10-31; matches prod
 blackbox_github_repo: "prometheus/blackbox_exporter"
 blackbox_listen: "127.0.0.1:9115"
 blackbox_bin_dir: "/usr/local/bin"
