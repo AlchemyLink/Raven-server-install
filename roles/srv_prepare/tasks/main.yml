@@ -90,6 +90,22 @@
         name: tcp_bbr
         state: present
 
+    # The net.netfilter.nf_conntrack_* keys only exist once the conntrack
+    # module is loaded. On a fresh host nothing (no docker, no iptables rule)
+    # has loaded it yet, so the sysctl task below fails with "cannot stat".
+    - name: Ensure conntrack module is loaded (needed for nf_conntrack sysctls)
+      community.general.modprobe:
+        name: nf_conntrack
+        state: present
+
+    - name: Persist conntrack module load across reboots
+      ansible.builtin.copy:
+        dest: /etc/modules-load.d/nf_conntrack.conf
+        content: "nf_conntrack\n"
+        owner: root
+        group: root
+        mode: "0644"
+
     - name: Add BBR and Cubic to sysctl configuration
       ansible.posix.sysctl:
         name: "{{ item.key }}"
