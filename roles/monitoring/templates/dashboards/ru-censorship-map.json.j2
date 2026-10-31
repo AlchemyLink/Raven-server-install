@@ -7,7 +7,7 @@
  ],
  "timezone": "browser",
  "schemaVersion": 39,
- "version": 1,
+ "version": 2,
  "refresh": "15m",
  "time": {
   "from": "now-7d",
@@ -40,7 +40,10 @@
     "x": 0,
     "y": 3
    },
-   "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+   "datasource": {
+    "type": "prometheus",
+    "uid": "{{ grafana_prometheus_datasource_uid }}"
+   },
    "targets": [
     {
      "refId": "A",
@@ -84,17 +87,20 @@
    "options": {
     "view": {
      "id": "coords",
-     "lat": 58,
-     "lon": 75,
-     "zoom": 2.3
+     "lat": 60,
+     "lon": 95,
+     "zoom": 2.6,
+     "allLayers": true
     },
     "controls": {
      "showZoom": true,
      "mouseWheelZoom": true
     },
     "basemap": {
-     "type": "default",
-     "name": "base"
+     "type": "osm-standard",
+     "name": "OpenStreetMap",
+     "config": {},
+     "opacity": 0.85
     },
     "layers": [
      {
@@ -110,21 +116,32 @@
        "style": {
         "size": {
          "field": "Value",
-         "min": 8,
-         "max": 40,
-         "fixed": 10
+         "min": 10,
+         "max": 34,
+         "fixed": 14
         },
         "color": {
          "field": "Value"
         },
-        "opacity": 0.75,
+        "opacity": 0.8,
         "text": {
          "field": "district_name",
          "mode": "field"
         },
         "textConfig": {
          "fontSize": 11,
-         "offsetY": -18
+         "offsetX": 0,
+         "offsetY": -22,
+         "textAlign": "center",
+         "textBaseline": "bottom"
+        },
+        "symbol": {
+         "mode": "fixed",
+         "fixed": "img/icons/marker/circle.svg"
+        },
+        "symbolAlign": {
+         "horizontal": "center",
+         "vertical": "center"
         }
        }
       },
@@ -146,7 +163,10 @@
     "x": 12,
     "y": 3
    },
-   "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+   "datasource": {
+    "type": "prometheus",
+    "uid": "{{ grafana_prometheus_datasource_uid }}"
+   },
    "targets": [
     {
      "refId": "A",
@@ -188,17 +208,20 @@
    "options": {
     "view": {
      "id": "coords",
-     "lat": 58,
-     "lon": 75,
-     "zoom": 2.3
+     "lat": 60,
+     "lon": 95,
+     "zoom": 2.6,
+     "allLayers": true
     },
     "controls": {
      "showZoom": true,
      "mouseWheelZoom": true
     },
     "basemap": {
-     "type": "default",
-     "name": "base"
+     "type": "osm-standard",
+     "name": "OpenStreetMap",
+     "config": {},
+     "opacity": 0.85
     },
     "layers": [
      {
@@ -214,21 +237,32 @@
        "style": {
         "size": {
          "field": "Value",
-         "min": 6,
-         "max": 36,
-         "fixed": 8
+         "min": 10,
+         "max": 34,
+         "fixed": 14
         },
         "color": {
          "field": "Value"
         },
-        "opacity": 0.75,
+        "opacity": 0.8,
         "text": {
          "field": "district_name",
          "mode": "field"
         },
         "textConfig": {
          "fontSize": 11,
-         "offsetY": -16
+         "offsetX": 0,
+         "offsetY": -22,
+         "textAlign": "center",
+         "textBaseline": "bottom"
+        },
+        "symbol": {
+         "mode": "fixed",
+         "fixed": "img/icons/marker/circle.svg"
+        },
+        "symbolAlign": {
+         "horizontal": "center",
+         "vertical": "center"
         }
        }
       },
@@ -250,7 +284,10 @@
     "x": 0,
     "y": 17
    },
-   "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+   "datasource": {
+    "type": "prometheus",
+    "uid": "{{ grafana_prometheus_datasource_uid }}"
+   },
    "targets": [
     {
      "refId": "A",
@@ -338,7 +375,10 @@
     "x": 0,
     "y": 31
    },
-   "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+   "datasource": {
+    "type": "prometheus",
+    "uid": "{{ grafana_prometheus_datasource_uid }}"
+   },
    "targets": [
     {
      "refId": "A",
@@ -386,7 +426,10 @@
     "x": 12,
     "y": 31
    },
-   "datasource": {"type": "prometheus", "uid": "{{ grafana_prometheus_datasource_uid }}"},
+   "datasource": {
+    "type": "prometheus",
+    "uid": "{{ grafana_prometheus_datasource_uid }}"
+   },
    "targets": [
     {
      "refId": "A",
