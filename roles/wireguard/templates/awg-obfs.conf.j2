@@ -1,0 +1,11 @@
+{# AmneziaWG obfuscation block, identical on both ends (except Jc/Jmin/Jmax, #}
+{# which only matter on the initiator). Included by awg0-*.conf.j2.         #}
+Jc = {{ wg_awg_jc }}
+Jmin = {{ wg_awg_jmin }}
+Jmax = {{ wg_awg_jmax }}
+S1 = {{ wg_awg_s1 }}
+S2 = {{ wg_awg_s2 }}
+S3 = {{ wg_awg_s3 }}
+S4 = {{ wg_awg_s4 }}
+HeaderProtectionKey = {{ wg_awg_header_protection_key }}
+RandomTrailers = {{ 'on' if wg_awg_random_trailers else 'off' }}
