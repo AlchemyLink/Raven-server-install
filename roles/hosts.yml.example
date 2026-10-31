@@ -20,6 +20,8 @@ all:
               relay_cloudflare_enforce: true
               relay_bridge_enabled: false
               relay_bridge_sni: ""
+              # relay_upstream_via_wg: true  # VPN sessions → EU over wg0 (needs the wireguard role)
+              # relay_haproxy_enabled: true  # local HAProxy hop with active TLS checks over every path to EU
             # Add a second RU here when scaling, e.g.:
             # vm_my_ru_b:
             #   ansible_host: "SECOND_RU_VPS_IP"

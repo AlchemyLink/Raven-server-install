@@ -1,0 +1,42 @@
+---
+- name: Relay | Install HAProxy (+ socat for the admin socket)
+  ansible.builtin.apt:
+    name:
+      - haproxy
+      - socat
+    state: present
+    update_cache: false
+
+- name: Relay | Ensure HAProxy systemd drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/haproxy.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Relay | Deploy HAProxy systemd drop-in (start after wg0, always restart)
+  ansible.builtin.template:
+    src: haproxy/override.conf.j2
+    dest: /etc/systemd/system/haproxy.service.d/override.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart haproxy
+
+- name: Relay | Deploy HAProxy config
+  ansible.builtin.template:
+    src: haproxy/haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "/usr/sbin/haproxy -c -f %s"
+  notify: Reload haproxy
+
+- name: Relay | Ensure HAProxy is enabled and running
+  ansible.builtin.systemd:
+    name: haproxy
+    enabled: true
+    state: started
+    daemon_reload: true

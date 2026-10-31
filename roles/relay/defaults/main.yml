@@ -24,6 +24,59 @@ relay_upstream_port: 443
 # Port where nginx_frontend HTTPS listens on EU server (Raven-subscribe behind it)
 relay_upstream_raven_port: 8443
 
+# ── VPN upstream over WireGuard ───────────────────────────────────────────────
+# When true, the :443 stream forwards VPN sessions to EU's WireGuard address instead
+# of its public IP, so the RU→EU hop is a UDP tunnel rather than plain TCP:
+#   • a per-IP TCP ban of the EU address (the 2026-09/10 waves were TCP-only) no
+#     longer breaks the main chain;
+#   • border DPI sees one WireGuard flow, not thousands of TLS sessions to a foreign IP.
+# The public IP stays in the upstream as `backup`: nginx uses it only while the
+# tunnel upstream fails (connect timeout → marked down for
+# relay_upstream_wg_fail_timeout, then retried). Requires the wireguard role on both
+# hosts (same tunnel the Hysteria2 forwards already use). Only the stream is affected;
+# the HTTPS relay for relay_sub_my (:8443) keeps using relay_upstream_host.
+# Rollback = set false and re-run `--tags relay_stream` (graceful nginx reload).
+relay_upstream_via_wg: false
+relay_upstream_wg_host: "10.10.0.1"        # EU wg0 address (wireguard role: wg_eu_ip)
+relay_upstream_wg_fail_timeout: "30s"      # how long a failed tunnel attempt sticks to backup
+# nginx proxy_connect_timeout for the :443 stream. Bounds the stall one client sees
+# while a dead upstream is detected before nginx moves to the next server.
+relay_upstream_connect_timeout: "5s"
+
+# ── HAProxy hop with ACTIVE health checks (optional, recommended) ─────────────
+# nginx can only notice an upstream when connect() fails; a tunnel that is up
+# but losing packets keeps receiving traffic. With relay_haproxy_enabled the
+# :443 stream sends VPN sessions to a local HAProxy (127.0.0.1:relay_haproxy_port)
+# whose backend lists every PATH to EU and checks each one every few seconds
+# with a real TLS handshake using a Reality cover SNI — i.e. the full chain
+# nginx-stream → Xray on EU. A failing path is pulled in fall×interval seconds
+# and returns after rise×interval. nginx keeps the EU public IP as its own
+# backup in case HAProxy itself is down. Traffic stays raw TCP (no PROXY
+# protocol, checks only use TLS). HAProxy does not log (privacy).
+# Rollout: `--tags relay_haproxy` first (installs + checks, nginx untouched),
+# inspect `echo "show servers state" | socat - /run/haproxy/admin.sock`, then
+# `--tags relay_stream` to point nginx at it (graceful reload).
+relay_haproxy_enabled: false
+relay_haproxy_port: 14443                  # loopback only; 4443/4444/2053/2054 are taken by xray_bridge on RU
+# SNI for health checks — must be one the EU stream map routes to an Xray
+# Reality inbound (e.g. your XHTTP cover), never a tcp_close default.
+relay_haproxy_check_sni: "www.python.org"
+relay_haproxy_check_interval: "3s"
+relay_haproxy_check_fall: 2
+relay_haproxy_check_rise: 2
+relay_haproxy_connect_timeout: "2s"        # EU is ~45 ms away; bounds the stall on a dead path
+relay_haproxy_idle_timeout: "600s"         # = nginx proxy_timeout on the stream
+relay_haproxy_maxconn: "{{ relay_worker_connections }}"
+# Paths to EU in priority order; non-backup servers share traffic, backups are
+# used only when every primary is down. Add a second tunnel here when you have one.
+relay_haproxy_paths:
+  - { name: "eu_wg", host: "{{ relay_upstream_wg_host }}" }
+  - { name: "eu_pub", host: "{{ relay_upstream_host }}", backup: true }
+# Prometheus metrics (haproxy_server_up etc.) on the WG address, for the EU
+# vmagent to scrape and alert on. Empty bind disables the frontend.
+relay_haproxy_metrics_enabled: true
+relay_haproxy_metrics_bind: "{{ (wg_ip ~ ':8405') if wg_ip is defined else '' }}"
+
 
 # ── SNI stream routing on :443 ───────────────────────────────────────────────
 # nginx stream with ssl_preread reads SNI from TLS ClientHello and routes:

@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+# The metrics frontend binds to the WireGuard address, so start after wg0 and
+# keep retrying: while HAProxy is down nginx falls back to the EU public IP.
+[Unit]
+After=wg-quick@wg0.service
+Wants=wg-quick@wg0.service
+
+[Service]
+Restart=always
+RestartSec=5

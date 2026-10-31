@@ -7,3 +7,16 @@
   ansible.builtin.service:
     name: nginx
     state: restarted
+
+# Seamless reload: the master re-execs workers; existing TCP sessions survive
+# (stats socket has expose-fd listeners, so the listening socket is handed over).
+- name: Reload haproxy
+  ansible.builtin.systemd:
+    name: haproxy
+    state: reloaded
+
+- name: Restart haproxy
+  ansible.builtin.systemd:
+    name: haproxy
+    state: restarted
+    daemon_reload: true
