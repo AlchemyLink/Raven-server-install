@@ -1,0 +1,494 @@
+{
+ "uid": "ru-censorship-map",
+ "title": "Россия — карта белых списков и сбоев (Taucloud + IODA)",
+ "tags": [
+  "censorship",
+  "external"
+ ],
+ "timezone": "browser",
+ "schemaVersion": 39,
+ "version": 2,
+ "refresh": "15m",
+ "time": {
+  "from": "now-7d",
+  "to": "now"
+ },
+ "editable": true,
+ "panels": [
+  {
+   "id": 1,
+   "type": "text",
+   "title": "",
+   "gridPos": {
+    "h": 3,
+    "w": 24,
+    "x": 0,
+    "y": 0
+   },
+   "options": {
+    "mode": "markdown",
+    "content": "**Источники.** Белые списки — [Taucloud](https://taucloud.ru/belye-spiski/karta) (CC BY 4.0): доля минут, когда оператор держал мобильный «белый список», по замерам их модемов за скользящие ~30 дней. Сбои — [IODA](https://ioda.inetintel.cc.gatech.edu) (Georgia Tech): оценка сбоев по регионам за 24 ч (BGP/пинг/даркнет); белые списки IODA **не видит**. Наши собственные пробы — дашборд raven-probe."
+   }
+  },
+  {
+   "id": 2,
+   "type": "geomap",
+   "title": "Белые списки: средняя доля по округу (все операторы)",
+   "gridPos": {
+    "h": 14,
+    "w": 12,
+    "x": 0,
+    "y": 3
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "{{ grafana_prometheus_datasource_uid }}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "avg by (district, district_name, lat, lon) (last_over_time(ext_whitelist_share_pct[3h]))",
+     "instant": true,
+     "format": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "min": 0,
+     "max": 100,
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "yellow",
+        "value": 20
+       },
+       {
+        "color": "orange",
+        "value": 50
+       },
+       {
+        "color": "red",
+        "value": 80
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "view": {
+     "id": "coords",
+     "lat": 60,
+     "lon": 95,
+     "zoom": 2.6,
+     "allLayers": true
+    },
+    "controls": {
+     "showZoom": true,
+     "mouseWheelZoom": true
+    },
+    "basemap": {
+     "type": "osm-standard",
+     "name": "OpenStreetMap",
+     "config": {},
+     "opacity": 0.85
+    },
+    "layers": [
+     {
+      "type": "markers",
+      "name": "whitelist",
+      "location": {
+       "mode": "coords",
+       "latitude": "lat",
+       "longitude": "lon"
+      },
+      "config": {
+       "showLegend": true,
+       "style": {
+        "size": {
+         "field": "Value",
+         "min": 10,
+         "max": 34,
+         "fixed": 14
+        },
+        "color": {
+         "field": "Value"
+        },
+        "opacity": 0.8,
+        "text": {
+         "field": "district_name",
+         "mode": "field"
+        },
+        "textConfig": {
+         "fontSize": 11,
+         "offsetX": 0,
+         "offsetY": -22,
+         "textAlign": "center",
+         "textBaseline": "bottom"
+        },
+        "symbol": {
+         "mode": "fixed",
+         "fixed": "img/icons/marker/circle.svg"
+        },
+        "symbolAlign": {
+         "horizontal": "center",
+         "vertical": "center"
+        }
+       }
+      },
+      "tooltip": true
+     }
+    ],
+    "tooltip": {
+     "mode": "details"
+    }
+   }
+  },
+  {
+   "id": 3,
+   "type": "geomap",
+   "title": "IODA: сбои связи по округу (24 ч)",
+   "gridPos": {
+    "h": 14,
+    "w": 12,
+    "x": 12,
+    "y": 3
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "{{ grafana_prometheus_datasource_uid }}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "last_over_time(ext_ioda_district_outage_score[3h])",
+     "instant": true,
+     "format": "table"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "yellow",
+        "value": 1000
+       },
+       {
+        "color": "orange",
+        "value": 50000
+       },
+       {
+        "color": "red",
+        "value": 250000
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "view": {
+     "id": "coords",
+     "lat": 60,
+     "lon": 95,
+     "zoom": 2.6,
+     "allLayers": true
+    },
+    "controls": {
+     "showZoom": true,
+     "mouseWheelZoom": true
+    },
+    "basemap": {
+     "type": "osm-standard",
+     "name": "OpenStreetMap",
+     "config": {},
+     "opacity": 0.85
+    },
+    "layers": [
+     {
+      "type": "markers",
+      "name": "ioda",
+      "location": {
+       "mode": "coords",
+       "latitude": "lat",
+       "longitude": "lon"
+      },
+      "config": {
+       "showLegend": true,
+       "style": {
+        "size": {
+         "field": "Value",
+         "min": 10,
+         "max": 34,
+         "fixed": 14
+        },
+        "color": {
+         "field": "Value"
+        },
+        "opacity": 0.8,
+        "text": {
+         "field": "district_name",
+         "mode": "field"
+        },
+        "textConfig": {
+         "fontSize": 11,
+         "offsetX": 0,
+         "offsetY": -22,
+         "textAlign": "center",
+         "textBaseline": "bottom"
+        },
+        "symbol": {
+         "mode": "fixed",
+         "fixed": "img/icons/marker/circle.svg"
+        },
+        "symbolAlign": {
+         "horizontal": "center",
+         "vertical": "center"
+        }
+       }
+      },
+      "tooltip": true
+     }
+    ],
+    "tooltip": {
+     "mode": "details"
+    }
+   }
+  },
+  {
+   "id": 4,
+   "type": "table",
+   "title": "Белые списки: оператор × округ (доля минут, %)",
+   "gridPos": {
+    "h": 14,
+    "w": 24,
+    "x": 0,
+    "y": 17
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "{{ grafana_prometheus_datasource_uid }}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "last_over_time(ext_whitelist_share_pct[3h])",
+     "instant": true,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "groupingToMatrix",
+     "options": {
+      "columnField": "district_name",
+      "rowField": "operator_name",
+      "valueField": "Value"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "decimals": 0,
+     "custom": {
+      "cellOptions": {
+       "type": "color-background",
+       "mode": "gradient"
+      },
+      "align": "center"
+     },
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "yellow",
+        "value": 20
+       },
+       {
+        "color": "orange",
+        "value": 50
+       },
+       {
+        "color": "red",
+        "value": 80
+       }
+      ]
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "operator_name\\district_name"
+      },
+      "properties": [
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "auto"
+        }
+       },
+       {
+        "id": "displayName",
+        "value": "Оператор"
+       }
+      ]
+     }
+    ]
+   },
+   "description": "Пустая ячейка = Taucloud наблюдал пару меньше 24 ч (доля не публикуется). Окно ~30 дней, обновление ~раз в сутки."
+  },
+  {
+   "id": 5,
+   "type": "table",
+   "title": "IODA: регионы со сбоями за 24 ч",
+   "gridPos": {
+    "h": 10,
+    "w": 12,
+    "x": 0,
+    "y": 31
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "{{ grafana_prometheus_datasource_uid }}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sort_desc(last_over_time(ext_ioda_region_outage_score[3h]) > 0)",
+     "instant": true,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true,
+       "__name__": true,
+       "job": true,
+       "instance": true,
+       "donor": true
+      },
+      "renameByName": {
+       "region_code": "IODA code",
+       "district": "Округ",
+       "Value": "Score"
+      }
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "align": "left"
+     }
+    },
+    "overrides": []
+   },
+   "description": "Код региона IODA (NetAcuity). Пусто = за сутки сбоев не зафиксировано."
+  },
+  {
+   "id": 6,
+   "type": "stat",
+   "title": "Свежесть источников",
+   "gridPos": {
+    "h": 10,
+    "w": 12,
+    "x": 12,
+    "y": 31
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "{{ grafana_prometheus_datasource_uid }}"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "time() - last_over_time(ext_feed_last_success_timestamp_seconds[1d])",
+     "instant": true,
+     "legendFormat": "{% raw %}{{ feed }} — последний успешный сбор{% endraw %}"
+    },
+    {
+     "refId": "B",
+     "expr": "time() - last_over_time(ext_whitelist_updated_timestamp_seconds[1d])",
+     "instant": true,
+     "legendFormat": "Taucloud — данные обновлены"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "color": {
+      "mode": "thresholds"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 21600
+       },
+       {
+        "color": "red",
+        "value": 172800
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "textMode": "value_and_name",
+    "orientation": "horizontal"
+   }
+  }
+ ],
+ "templating": {
+  "list": []
+ },
+ "annotations": {
+  "list": []
+ }
+}

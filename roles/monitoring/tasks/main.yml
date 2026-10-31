@@ -38,6 +38,11 @@
   when: inventory_hostname == 'vm_my_srv'
   tags: blackbox
 
+- name: Deploy external censorship feeds (Taucloud, IODA) on MON
+  ansible.builtin.import_tasks: ext_feeds.yml
+  when: inventory_hostname in groups['mon'] and ext_feeds_enabled | bool
+  tags: ext_feeds
+
 - name: Deploy EU-side monitoring heartbeat (Grafana/VM health -> Telegram)
   ansible.builtin.import_tasks: heartbeat.yml
   when: inventory_hostname == 'vm_my_srv' and monitoring_heartbeat_enabled | bool

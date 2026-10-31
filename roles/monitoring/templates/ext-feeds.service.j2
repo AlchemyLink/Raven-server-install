@@ -1,0 +1,22 @@
+[Unit]
+Description=External censorship feeds (Taucloud white-lists, IODA outages) -> VictoriaMetrics
+After=network-online.target victoriametrics.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# root-owned 0700 script (it embeds the VM basic-auth password); the process
+# only needs outbound HTTPS and the VPC address, so lock everything else down.
+ExecStart=/usr/bin/python3 -I /usr/local/bin/ext-feeds
+TimeoutStartSec=180
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+CapabilityBoundingSet=
+SystemCallArchitectures=native

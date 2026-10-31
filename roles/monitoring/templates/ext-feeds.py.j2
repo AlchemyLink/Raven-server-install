@@ -1,0 +1,177 @@
+#!/usr/bin/env python3
+# {{ ansible_managed }}
+"""External censorship feeds -> VictoriaMetrics (monitoring v2, §8 regional map).
+
+Pulls two public datasets and imports them as gauges:
+
+* Taucloud "white lists by operator and federal district" (CC BY 4.0,
+  https://taucloud.ru/belye-spiski/karta): per (operator, district) the share
+  of observed minutes the operator ran its mobile white-list, over a rolling
+  ~30-day window measured by Taucloud's own modems. Updated about daily.
+* IODA (Georgia Tech, https://ioda.inetintel.cc.gatech.edu): per Russian
+  region, an outage score over the last 24 h (BGP / active probing / darknet).
+  Blind to white-list mode (BGP and ping stay up) — complements Taucloud.
+
+Nothing here touches our users or servers: two outbound HTTPS GETs per run.
+stdlib only. Runs from a systemd timer on the MON host.
+"""
+import base64
+import csv
+import io
+import json
+import sys
+import time
+import urllib.error
+import urllib.request
+
+VM_IMPORT = "{{ ext_feeds_vm_import_url }}"
+VM_USER = "{{ victoriametrics_auth_username }}"
+VM_PASS = """{{ victoriametrics_auth_password }}"""
+TAUCLOUD_URL = "{{ ext_feeds_taucloud_url }}"
+IODA_URL = "{{ ext_feeds_ioda_url }}"
+UA = "AlchemyLink-monitoring/1.0 (+ext-feeds; one request per {{ ext_feeds_interval }})"
+
+# Federal district -> representative point for the Grafana geomap (the
+# district's administrative centre). Codes follow Taucloud.
+DISTRICTS = {
+    "cfo":  ("Центральный",           55.75, 37.62),
+    "szfo": ("Северо-Западный",       59.94, 30.31),
+    "yufo": ("Южный",                 47.23, 39.72),
+    "skfo": ("Северо-Кавказский",     44.04, 43.06),
+    "pfo":  ("Приволжский",           56.33, 44.00),
+    "urfo": ("Уральский",             56.84, 60.60),
+    "sfo":  ("Сибирский",             55.03, 82.92),
+    "dfo":  ("Дальневосточный",       43.12, 131.89),
+    "kgd":  ("Калининград",           54.71, 20.51),
+    "krym": ("Крым",                  44.95, 34.10),
+}
+
+# IODA (NetAcuity) region code -> Taucloud district code. Kaliningrad is its
+# own "district" in Taucloud's data. IODA has no Crimea entity.
+IODA_REGION_DISTRICT = {
+    **{c: "cfo" for c in (3424, 3425, 3428, 3429, 3431, 3433, 3434, 3435, 3436,
+                          3437, 3438, 3439, 3441, 3443, 3447, 3448, 3449, 3450)},
+    **{c: "szfo" for c in (3419, 3420, 3421, 3422, 3423, 3426, 3427, 3432, 3454, 3456)},
+    3418: "kgd",
+    **{c: "yufo" for c in (3411, 3440, 3442, 3444, 3461, 3463)},
+    **{c: "skfo" for c in (3412, 3413, 3414, 3415, 3416, 3477, 3478)},
+    **{c: "pfo" for c in (3430, 3445, 3446, 3451, 3457, 3458, 3460, 3462, 3464,
+                          3465, 3466, 3467, 3468, 3491)},
+    **{c: "urfo" for c in (3452, 3453, 3455, 3459, 3469, 3471)},
+    **{c: "sfo" for c in (3410, 3470, 3472, 3473, 3474, 3475, 3476, 3479, 3480, 3481)},
+    **{c: "dfo" for c in (3417, 3482, 3483, 3484, 3485, 3486, 3487, 3488, 3489,
+                          3490, 3492)},
+}
+
+
+def get(url, timeout=30):
+    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json, text/csv"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:  # nosec - fixed https URLs
+        return r.read()
+
+
+def esc(v):
+    return str(v).replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ")
+
+
+def line(name, labels, value, ts_ms):
+    lbl = ",".join(f'{k}="{esc(v)}"' for k, v in labels.items())
+    # Plain concatenation on purpose: this file is a Jinja template, so no
+    # double braces and no brace-percent sequences may appear in the code.
+    return name + "{" + lbl + "} " + str(value) + " " + str(ts_ms)
+
+
+def taucloud(now_ms, out):
+    raw = get(TAUCLOUD_URL)
+    d = json.loads(raw)
+    rows = d.get("rows") or []
+    if not rows:
+        raise ValueError("taucloud: no rows")
+    for r in rows:
+        dist = r.get("district")
+        if dist not in DISTRICTS:
+            continue
+        name, lat, lon = DISTRICTS[dist]
+        base = {"operator": r.get("operator", "?"), "operator_name": r.get("operator_name", ""),
+                "district": dist, "district_name": name}
+        out.append(line("ext_whitelist_observed_minutes", base, int(r.get("observed_minutes") or 0), now_ms))
+        out.append(line("ext_whitelist_switches", base, int(r.get("switches") or 0), now_ms))
+        share = r.get("share_on_pct")
+        if share is not None:  # null = <24 h observed; absence, not zero
+            out.append(line("ext_whitelist_share_pct", {**base, "lat": lat, "lon": lon}, float(share), now_ms))
+    for key in ("updated", "window_end"):
+        v = d.get(key)
+        if v:
+            try:
+                fmt = "%Y-%m-%dT%H:%M:%S" if "T" in v else "%Y-%m-%d"
+                t = time.mktime(time.strptime(v[:19], fmt))
+                out.append(line(f"ext_whitelist_{key}_timestamp_seconds", {"feed": "taucloud"}, int(t), now_ms))
+            except ValueError:
+                pass
+    return len(rows)
+
+
+def ioda(now_ms, out):
+    until = int(now_ms / 1000)
+    url = IODA_URL.format(start=until - 86400, end=until)
+    d = json.loads(get(url, timeout=60))
+    if d.get("error"):
+        raise ValueError(f"ioda: {d['error']}")
+    scores = {}
+    events = {}
+    for e in d.get("data") or []:
+        ent = e.get("entity") or {}
+        try:
+            code = int(ent.get("code"))
+        except (TypeError, ValueError):
+            continue
+        scores[code] = float((e.get("scores") or {}).get("overall") or 0)
+        events[code] = int(e.get("event_cnt") or 0)
+    per_district = {k: 0.0 for k in DISTRICTS}
+    # Emit every mapped region (0 when quiet) so "no outage" is distinguishable
+    # from "feed broken" in Grafana.
+    for code, dist in IODA_REGION_DISTRICT.items():
+        lbl = {"region_code": code, "district": dist}
+        out.append(line("ext_ioda_region_outage_score", lbl, scores.get(code, 0.0), now_ms))
+        out.append(line("ext_ioda_region_outage_events", lbl, events.get(code, 0), now_ms))
+        per_district[dist] += scores.get(code, 0.0)
+    for dist, s in per_district.items():
+        if dist == "krym":
+            continue
+        name, lat, lon = DISTRICTS[dist]
+        out.append(line("ext_ioda_district_outage_score",
+                        {"district": dist, "district_name": name, "lat": lat, "lon": lon}, s, now_ms))
+    return len(scores)
+
+
+def push(lines):
+    body = ("\n".join(lines) + "\n").encode()
+    req = urllib.request.Request(VM_IMPORT, data=body, method="POST")
+    auth = base64.b64encode(f"{VM_USER}:{VM_PASS}".encode()).decode()
+    req.add_header("Authorization", "Basic " + auth)
+    req.add_header("Content-Type", "text/plain")
+    with urllib.request.urlopen(req, timeout=30) as r:  # nosec - private VPC address
+        if r.status // 100 != 2:
+            raise RuntimeError(f"vm import HTTP {r.status}")
+
+
+def main():
+    now_ms = int(time.time() * 1000)
+    out, rc = [], 0
+    for feed, fn in (("taucloud", taucloud), ("ioda", ioda)):
+        try:
+            n = fn(now_ms, out)
+            out.append(line("ext_feed_up", {"feed": feed}, 1, now_ms))
+            out.append(line("ext_feed_last_success_timestamp_seconds", {"feed": feed}, now_ms // 1000, now_ms))
+            print(f"{feed}: ok ({n} rows)")
+        except (urllib.error.URLError, ValueError, KeyError, json.JSONDecodeError, OSError) as e:
+            out.append(line("ext_feed_up", {"feed": feed}, 0, now_ms))
+            print(f"{feed}: FAILED {e}", file=sys.stderr)
+            rc = 1
+    push(out)
+    print(f"imported {len(out)} samples")
+    return rc
+
+
+if __name__ == "__main__":
+    sys.exit(main())
