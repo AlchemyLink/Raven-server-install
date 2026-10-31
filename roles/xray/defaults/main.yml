@@ -12,6 +12,20 @@ xray_install_dir: /opt/xray                   # Xray installation directory
 xray_config_dir: /etc/xray/                    # Directory for Xray configuration files
 xray_service_name: xray                       # Xray systemd service name
 xray_github_repo: XTLS/Xray-core              # Xray GitHub repository
+
+# ── Xray version pin ────────────────────────────────────────────────────────
+# Pin an exact tag so a role run never silently moves the server across
+# upstream releases. Upstream marks nearly every release pre-release, so
+# `releases/latest` can sit on one tag for months and then jump hundreds of
+# commits at once. v26.10.21 (latest since 2026-10-21) makes the REALITY server
+# require an X25519MLKEM768 key share, which sing-box clients do not send
+# (SagerNet/sing-box#4520), and makes freedom blackhole private destinations
+# by default. Bump this deliberately, after reading the release notes.
+#
+# Set to "" to resolve the latest stable release from the GitHub API instead
+# (the previous, unpinned behaviour).
+xray_version_pin: "v26.3.27"
+
 xray_download_url: "https://github.com/{{ xray_github_repo }}/releases/download/{{ xray_version }}/Xray-linux-64.zip" # Download URL for Xray
 xray_user: "xrayuser"                         # System user to run Xray
 xray_group: "xrayuser"                        # System group

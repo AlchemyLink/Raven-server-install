@@ -73,6 +73,9 @@
     group: "{{ xray_group }}"
     mode: "0755"
 
+# Only queried when xray_version_pin is empty. A pinned tag keeps the role
+# reproducible: `releases/latest` moves without warning and upstream ships
+# breaking config changes between stable tags.
 - name: Get latest Xray release version
   ansible.builtin.uri:
     url: "https://api.github.com/repos/{{ xray_github_repo }}/releases/latest"
@@ -86,11 +89,22 @@
   retries: 3
   delay: 3
   until: xray_release_info.status == 200
+  when: not (xray_version_pin | default('') | trim)
 
 - name: Set Xray version fact
   ansible.builtin.set_fact:
-    xray_version: "{{ xray_release_info.json.tag_name }}"
+    xray_version: >-
+      {{ (xray_version_pin | trim)
+         if (xray_version_pin | default('') | trim)
+         else xray_release_info.json.tag_name }}
     ansible_version_full: "{{ ansible_version.full }}"
+
+- name: Report resolved Xray version
+  ansible.builtin.debug:
+    msg: >-
+      Xray {{ xray_version }}
+      ({{ 'pinned via xray_version_pin' if (xray_version_pin | default('') | trim)
+          else 'resolved from releases/latest — consider pinning' }})
 
 - name: Detect architecture for Xray
   ansible.builtin.set_fact:
