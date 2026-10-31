@@ -39,7 +39,7 @@ scrape_configs:
           - {{ node_exporter_listen }}
         labels:
           server: eu
-          instance: "{{ hostvars['vm_my_srv']['ansible_host'] }}"
+          instance: "{{ monitoring_eu_instance }}"
 {% for h in groups['ru'] %}
       - targets:
           - {{ hostvars[h].wg_ip | default(wg_ru_ip) }}:9100
@@ -63,7 +63,7 @@ scrape_configs:
           - 127.0.0.1:8429
         labels:
           server: eu
-          instance: "{{ hostvars['vm_my_srv']['ansible_host'] }}"
+          instance: "{{ monitoring_eu_instance }}"
 
   # VictoriaMetrics self-metrics on MON — process health, ingestion rate,
   # query latency, disk usage. Auth required (httpAuth flag in VM service unit).
@@ -89,7 +89,7 @@ scrape_configs:
           - {{ raven_subscribe_metrics_addr }}
         labels:
           server: eu
-          instance: "{{ hostvars['vm_my_srv']['ansible_host'] }}"
+          instance: "{{ monitoring_eu_instance }}"
 {% endif %}
 
   # raven-dashboard app metrics: raven_users_total/active, http_responses,
@@ -101,7 +101,7 @@ scrape_configs:
           - 127.0.0.1:8090
         labels:
           server: eu
-          instance: "{{ hostvars['vm_my_srv']['ansible_host'] }}"
+          instance: "{{ monitoring_eu_instance }}"
 
   # Grafana self-metrics: alert engine state, datasource request counts,
   # http handlers, Go runtime. Scraped via DO VPC private network.
@@ -121,6 +121,19 @@ scrape_configs:
     static_configs:
       - targets:
           - {{ hostvars[h].wg_ip | default(wg_ru_ip) }}:9113
+        labels:
+          server: ru
+          instance: "{{ hostvars[h].ansible_host }}"
+{% endfor %}
+
+  # HAProxy hop on RU (relay role, relay_haproxy_enabled) — per-path health of
+  # relay→EU (wg0 tunnel vs public IP), check failures, sessions per path.
+  # Built-in prometheus-exporter bound to the WG address. Scraped over WireGuard.
+{% for h in groups['ru'] %}
+  - job_name: haproxy-{{ h }}
+    static_configs:
+      - targets:
+          - {{ hostvars[h].wg_ip | default(wg_ru_ip) }}:{{ monitoring_relay_haproxy_metrics_port }}
         labels:
           server: ru
           instance: "{{ hostvars[h].ansible_host }}"
