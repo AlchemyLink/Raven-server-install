@@ -1,0 +1,14 @@
+[Unit]
+Description=Monitoring heartbeat — Grafana/VictoriaMetrics health check from EU
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/monitoring-heartbeat
+# Non-zero exit is the normal "MON is down" signal; don't let systemd mark it failed noisily.
+SuccessExitStatus=1
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths={{ monitoring_heartbeat_state_dir }}
+NoNewPrivileges=true

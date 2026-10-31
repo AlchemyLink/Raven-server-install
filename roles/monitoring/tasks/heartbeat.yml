@@ -1,0 +1,53 @@
+---
+# EU-side heartbeat for the monitoring stack itself. Grafana's Watchdog rule
+# proves "Grafana evaluates and Telegram delivery works" by arriving; this
+# timer is the complementary check that runs *outside* MON, so a dead MON host
+# (or a dead VPC path) is reported instead of silently muting everything.
+# Posts to Telegram only on state transitions, never on every tick.
+
+- name: Heartbeat | Ensure state directory exists
+  ansible.builtin.file:
+    path: "{{ monitoring_heartbeat_state_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Heartbeat | Deploy check script
+  ansible.builtin.template:
+    src: monitoring-heartbeat.sh.j2
+    dest: /usr/local/bin/monitoring-heartbeat
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Heartbeat | Deploy Telegram credentials (root-only)
+  ansible.builtin.template:
+    src: monitoring-heartbeat.env.j2
+    dest: /etc/monitoring-heartbeat.env
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Heartbeat | Deploy systemd service and timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - monitoring-heartbeat.service
+    - monitoring-heartbeat.timer
+  register: heartbeat_units
+
+- name: Heartbeat | Reload systemd when units changed
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: heartbeat_units.changed
+
+- name: Heartbeat | Enable and start timer
+  ansible.builtin.systemd:
+    name: monitoring-heartbeat.timer
+    enabled: true
+    state: started

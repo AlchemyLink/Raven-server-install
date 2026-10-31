@@ -38,6 +38,11 @@
   when: inventory_hostname == 'vm_my_srv'
   tags: blackbox
 
+- name: Deploy EU-side monitoring heartbeat (Grafana/VM health -> Telegram)
+  ansible.builtin.import_tasks: heartbeat.yml
+  when: inventory_hostname == 'vm_my_srv' and monitoring_heartbeat_enabled | bool
+  tags: monitoring_heartbeat
+
 - name: Deploy nginx-prometheus-exporter
   ansible.builtin.import_tasks: nginx_exporter.yml
   when: inventory_hostname in groups['ru']
