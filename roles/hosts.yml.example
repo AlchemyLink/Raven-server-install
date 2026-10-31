@@ -6,6 +6,9 @@ all:
         vm_my_srv:
           ansible_host: "EU_VPS_IP"   # Replace with your EU VPS IP
           ansible_port: 22
+          # edge_firewall: public IPs still bound to this host that must stay silent
+          # (e.g. the original IP after moving to a reserved IP). Never your ansible_host.
+          # edge_firewall_blackhole_ips: ["203.0.113.10"]
       children:
         # RU host group — RU-targeted playbooks (relay, monitoring scrape, WG)
         # iterate `groups['ru']`. Adding a second RU = append a new host slot.

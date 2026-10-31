@@ -1,0 +1,49 @@
+---
+# edge_firewall — public-surface hardening for the EU host.
+#
+# Installs a dedicated nftables table (inet {{ edge_firewall_table }}) loaded by
+# its own systemd unit. It filters ONLY the public interface; wg0, the VPC
+# interface, lo and docker bridges are left alone, and docker's iptables-nft
+# tables (ip nat / ip filter) are never touched.
+#
+# Never enable nftables.service on these hosts: Debian's stock
+# /etc/nftables.conf starts with `flush ruleset`, which wipes docker's rules.
+
+edge_firewall_iface: "eth0"
+edge_firewall_table: "raven_guard"
+edge_firewall_rules_path: "/etc/nftables.d/raven-guard.nft"
+edge_firewall_service_name: "raven-guard"
+
+# Public IPs still bound to the host that must not answer at all — e.g. the
+# droplet's original address after moving clients to a reserved IP because the
+# original got banned. Outbound traffic from that address keeps working
+# (established/related is accepted first). Set per host in roles/hosts.yml;
+# never commit real addresses.
+edge_firewall_blackhole_ips: []
+
+# TCP ports that are internal-only backends (reached through the :443 SNI map
+# on 127.0.0.1) and must not be exposed publicly.
+edge_firewall_drop_tcp: [8444, 8445]
+
+# UDP ports that must not be reachable publicly: Hysteria2 instances are fed by
+# the RU relay over wg0 only; 8444 was the retired sing-box Hysteria2 inbound.
+edge_firewall_drop_udp: [47012, 47014, 8444]
+
+# TCP ports reachable only from RU relays (nginx HTTPS proxy for the
+# Cloudflare-fronted panel/subscription host).
+edge_firewall_relay_only_tcp: [8443]
+
+# UDP ports reachable only from WireGuard peers (RU relays + multi-node nodes).
+edge_firewall_wg_only_udp: [51820]
+
+# Source allowlists, derived from inventory.
+edge_firewall_relay_ips: >-
+  {{ (groups['ru'] | default([])) | map('extract', hostvars, 'ansible_host') | list }}
+edge_firewall_wg_peer_ips: >-
+  {{ ((groups['ru'] | default([])) + (groups['nodes'] | default([])))
+     | map('extract', hostvars, 'ansible_host') | list }}
+
+# Safety net: before (re)loading the rules, arm a transient systemd timer that
+# deletes the table after this many seconds; it is cancelled only once Ansible
+# has reconnected over SSH. 0 disables the net.
+edge_firewall_rollback_seconds: 180

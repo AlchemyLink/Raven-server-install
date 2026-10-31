@@ -108,6 +108,7 @@ EU VPS :443 (nginx SNI) → Xray XHTTP :2054 → Интернет
 | `raven_dashboard` | EU | `role_raven_dashboard.yml` | [Raven Dashboard](https://github.com/AlchemyLink/raven-dashboard) — админ-панель (TOTP-gated CRUD пользователей, broadcast, sync-health card). Vue SPA + Go backend на SNI `dash.<domain>` |
 | `nginx_frontend` | EU | `role_nginx_frontend.yml` | nginx SNI routing на :443, HTTPS прокси на :8443, отдельный vhost для дашборда со static path `/screenshots/*` |
 | `monitoring` | EU+RU | `role_monitoring.yml` | xray-stats-exporter + VictoriaMetrics + Grafana; скрейпит per-user трафик Xray и Hysteria2 + `/metrics` Raven (алерты состояния fallback) |
+| `edge_firewall` | EU | `role_edge_firewall.yml` | Отдельная nftables-таблица на публичном интерфейсе (не трогает docker): глушит выведенные/забаненные IP, оставляет внутренние бэкенды и порты Hysteria2/WireGuard доступными только с relay/пиров, автооткат при применении (опционально) |
 | `wireguard` | EU+RU | `role_wireguard.yml` | WireGuard mesh — туннель EU↔RU для мониторинга, UDP-форвардинга hysteria и синхронизации моста |
 | `hysteria` | EU | `role_hysteria.yml` | Нативный резервный Hysteria2-сервер; per-user авторизация/отзыв через `/hysteria/auth` Raven (опционально) |
 | `relay` | RU | `role_relay.yml` | nginx SNI stream relay на :443 (passthrough на EU) + UDP-форварды Hysteria2 поверх WG; CGNAT-харднутый фронт |
@@ -379,6 +380,23 @@ ansible-playbook roles/role_raven_dashboard.yml -i roles/hosts.yml \
 Создаёт WireGuard mesh между EU и RU VPS. Требуется для:
 - Синхронизации gRPC Raven-subscribe → мост (EU пушит пользователей на RU мост через WireGuard)
 - Мониторинга (vmagent на EU пушит метрики на VictoriaMetrics на RU)
+
+---
+
+### Роль `edge_firewall`
+
+Опциональное закрытие публичной поверхности EU-хоста. Ставит собственную nftables-таблицу (`inet raven_guard`), которую загружает systemd-юнит `raven-guard`; фильтруется только публичный интерфейс (`edge_firewall_iface`, по умолчанию `eth0`), так что `wg0`, VPC-интерфейс и docker не затрагиваются.
+
+- `edge_firewall_blackhole_ips` — публичные IP, всё ещё привязанные к хосту, которые должны молчать (например, исходный IP дроплета после переезда на reserved IP из-за бана). Задаётся на хост в `roles/hosts.yml`.
+- Внутренние бэкенды (`8444`, `8445`) закрыты; `8443` — только с RU-relay; порты Hysteria2 — только через `wg0`; WireGuard `51820` — только с хостов `ru` + `nodes`.
+- При применении ставится временный таймер отката (`edge_firewall_rollback_seconds`, по умолчанию 180), который удалит таблицу, если Ansible не переподключится по SSH.
+
+**Не** включайте `nftables.service`: штатный `/etc/nftables.conf` в Debian делает `flush ruleset` и снесёт правила docker.
+
+```bash
+ansible-playbook roles/role_edge_firewall.yml -i roles/hosts.yml --check --diff
+ansible-playbook roles/role_edge_firewall.yml -i roles/hosts.yml
+```
 
 ---
 
