@@ -3,6 +3,12 @@
 {% if raven_subscribe_metrics_listen | default('') != '' %}
   "metrics_listen": "{{ raven_subscribe_metrics_listen }}",
 {% endif %}
+{% if raven_subscribe_metrics_anonymize_secret | default('') != '' %}
+  "metrics_anonymize_secret": "{{ raven_subscribe_metrics_anonymize_secret }}",
+{% endif %}
+{% if raven_subscribe_profile_update_interval_hours | default(0) | int > 0 %}
+  "profile_update_interval_hours": {{ raven_subscribe_profile_update_interval_hours | int }},
+{% endif %}
   "server_host": "{{ raven_subscribe_server_host }}",
   "config_dir": "{{ raven_subscribe_xray_config_dir }}",
   "db_path": "{{ raven_subscribe_db_dir }}/db.sqlite",

@@ -13,6 +13,15 @@ raven_subscribe_listen_addr: "127.0.0.1:8080"
 # it as job "raven-subscribe" (monitoring role). Empty string = metrics disabled.
 # Requires raven-subscribe >= v0.3.10; older binaries ignore the unknown field.
 raven_subscribe_metrics_listen: "127.0.0.1:9091"
+# Subscription-fetch liveness (monitoring v2 phase 3, raven-subscribe >= the
+# release carrying PR #175). raven_sub_last_fetch_timestamp_seconds{email,…}
+# joins with xray-stats-exporter per-user traffic only if the email label is
+# pseudonymised with the SAME secret, so it defaults to xray_stats_anonymize_secret
+# from the monitoring vault (role_raven_subscribe.yml loads it) — one source of truth.
+# Profile-Update-Interval (hours) makes clients refresh on a predictable cadence,
+# which is what turns "last fetch" into a liveness signal. 0 = header not sent.
+raven_subscribe_metrics_anonymize_secret: "{{ xray_stats_anonymize_secret | default('') }}"
+raven_subscribe_profile_update_interval_hours: 2
 raven_subscribe_sync_interval_seconds: 60
 # 0 = disabled (2026-06-09). Per-IP limiting at the origin is wrong for our audience:
 # RU mobile users sit behind carrier-grade NAT (hundreds/thousands share one public IP),

@@ -1031,6 +1031,55 @@ groups:
         labels:
           severity: warning
 
+  # User-side liveness (monitoring v2 phase 3): clients that refreshed their
+  # subscription in the last 3 h yet moved <100 KB over Xray AND Hysteria2.
+  # Some of that is normal (background refresh with the VPN off), so this is a
+  # ratio with a high bar and a long window — it catches "everyone's tunnel
+  # died", not individual idle users.
+  - orgId: 1
+    name: raven-users
+    folder: Raven
+    interval: 5m
+    rules:
+
+      - uid: users-fetch-but-no-traffic
+        title: "Пользователи обновляют подписку, но трафика нет"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 10800
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "(count((max by (email) (raven_sub_last_fetch_timestamp_seconds) > time() - 10800) unless on(email) (sum by (email) (increase(xray_user_downlink_bytes_total[3h])) > 100000) unless on(email) (sum by (email) (increase(hysteria_user_downlink_bytes_total[3h])) > 100000)) / count((max by (email) (raven_sub_last_fetch_timestamp_seconds) > time() - 10800))) and on() (count((max by (email) (raven_sub_last_fetch_timestamp_seconds) > time() - 10800)) >= 4)"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0.5]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Error
+        for: 1h
+        annotations:
+          summary: "{% raw %}Доля «подписка обновлена, трафика нет»: {{ $value | humanizePercentage }}{% endraw %}"
+          description: "Больше половины пользователей (минимум 4), чьи клиенты обновили подписку за последние 3 часа, не передали и 100 KB ни через Xray, ни через Hysteria2 — уже час подряд. Подписка доходит, туннель — нет: бан relay у оператора, несовместимость клиента после обновления, устаревший конфиг после ротации. Смотреть raven-probe state timeline и разбивку по client в raven_sub_last_fetch_timestamp_seconds."
+        labels:
+          severity: warning
+
 {% if grafana_alert_telegram_enabled %}
 contactPoints:
   - orgId: 1

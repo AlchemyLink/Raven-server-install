@@ -7,6 +7,7 @@
   vars_files:
     - "xray/defaults/secrets.yml"           # xray_vless_client_encryption, xray_inbound_tags
     - "raven_subscribe/defaults/secrets.yml"
+    - "monitoring/defaults/secrets.yml"      # xray_stats_anonymize_secret (liveness metric email pseudonym)
 
   roles:
     - role: raven_subscribe
