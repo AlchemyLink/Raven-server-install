@@ -108,10 +108,12 @@ In bridge mode, Raven-subscribe on EU automatically syncs users to bridge inboun
 | `raven_dashboard` | EU | `role_raven_dashboard.yml` | [Raven Dashboard](https://github.com/AlchemyLink/raven-dashboard) — admin panel (TOTP-gated user CRUD, broadcast, sync-health card). Vue SPA + Go backend, served on `dash.<domain>` SNI |
 | `nginx_frontend` | EU | `role_nginx_frontend.yml` | nginx SNI routing on :443, HTTPS proxy on :8443, dashboard vhost with `/screenshots/*` static path |
 | `monitoring` | EU+RU | `role_monitoring.yml` | xray-stats-exporter + VictoriaMetrics + Grafana; scrapes Xray and Hysteria2 per-user traffic + Raven `/metrics` (fallback-state alerts) |
+| `edge_firewall` | EU | `role_edge_firewall.yml` | Docker-safe nftables table on the public interface: blackholes retired/banned IPs, keeps internal backends and Hysteria2/WireGuard ports reachable only from the relay/peers, auto-rollback on apply (optional) |
 | `wireguard` | EU+RU | `role_wireguard.yml` | WireGuard mesh — EU↔RU tunnel for monitoring, hysteria UDP forwarding, and bridge sync |
 | `hysteria` | EU | `role_hysteria.yml` | Native Hysteria2 reserve server; per-user auth/revocation via Raven `/hysteria/auth` (optional) |
 | `relay` | RU | `role_relay.yml` | nginx SNI stream relay on :443 (passthrough to EU) + Hysteria2 UDP forwards over WG; CGNAT-hardened front |
 | `xray_bridge` | RU | `role_xray_bridge.yml` | Optional Xray chain proxy (default off) — terminates client connections with EU keys, chains to EU via XHTTP |
+| `xray` (nodes) | node | `role_xray_node.yml` | Optional homogeneous multi-node entry node — the same `xray` role on extra hosts, gRPC API bound to WireGuard so the Raven control plane provisions users over the tunnel |
 
 ---
 
@@ -381,6 +383,23 @@ Creates a WireGuard mesh between EU and RU VPS. Required for:
 
 ---
 
+### `edge_firewall` role
+
+Optional public-surface hardening for the EU host. Installs its own nftables table (`inet raven_guard`) loaded by a `raven-guard` systemd unit; only the public interface (`edge_firewall_iface`, default `eth0`) is filtered, so `wg0`, the VPC interface and docker are untouched.
+
+- `edge_firewall_blackhole_ips` — public IPs still bound to the host that must stay silent (e.g. the original droplet IP after moving to a reserved IP because it got banned). Set per host in `roles/hosts.yml`.
+- Internal backends (`8444`, `8445`) dropped; `8443` only from RU relays; Hysteria2 ports only via `wg0`; WireGuard `51820` only from `ru` + `nodes` hosts.
+- Applying arms a transient rollback timer (`edge_firewall_rollback_seconds`, default 180) that deletes the table unless Ansible reconnects over SSH afterwards.
+
+Do **not** enable `nftables.service`: Debian's stock `/etc/nftables.conf` runs `flush ruleset` and would wipe docker's rules.
+
+```bash
+ansible-playbook roles/role_edge_firewall.yml -i roles/hosts.yml --check --diff
+ansible-playbook roles/role_edge_firewall.yml -i roles/hosts.yml
+```
+
+---
+
 ### `monitoring` role
 
 Deploys the full monitoring stack:
@@ -392,6 +411,53 @@ Deploys the full monitoring stack:
 ```bash
 ansible-playbook roles/role_monitoring.yml -i roles/hosts.yml --vault-password-file vault_password.txt
 ```
+
+---
+
+### `role_xray_node` — multi-node nodes (optional)
+
+Runs one Raven-subscribe control plane against **several homogeneous Xray
+nodes**. A node is not a fork of the `xray` role — it *is* the `xray` role on an
+extra host, so it can never drift from the EU primary (they share the REALITY
+private key = one trust domain). The only per-node difference is that Xray's gRPC
+API binds the node's **WireGuard** address instead of loopback, so the control
+plane provisions users over the tunnel. See the Raven-subscribe
+[Multi-node docs](https://github.com/AlchemyLink/Raven-subscribe#multi-node) for
+the control-plane side.
+
+**Transport security:** the API is plaintext gRPC on the WireGuard address —
+encryption and mutual auth live at the WG layer (the recommended default). A
+public API address instead requires terminating mTLS in front of Xray; that is
+**not** automated by this role (Raven-subscribe supports the client side today).
+
+1. **Inventory** — add the node to the `nodes` group with its own `wg_ip` and
+   per-host WireGuard keys (see `roles/hosts.yml.example`). A node reuses the EU
+   `xray/defaults/secrets.yml` (homogeneous REALITY keys + users), so no new
+   Xray secrets are needed.
+
+2. **Join the WireGuard mesh** — the node's `wg_ip` becomes an EU peer
+   automatically; deploy WG on EU and the node:
+   ```bash
+   ansible-playbook roles/role_wireguard.yml -i roles/hosts.yml \
+     --vault-password-file vault_password.txt --limit vm_my_srv,vm_my_node_a
+   ```
+
+3. **Provision the node** — same Xray config as EU, API on the WG address:
+   ```bash
+   ansible-playbook roles/role_xray_node.yml -i roles/hosts.yml \
+     --vault-password-file vault_password.txt --limit vm_my_node_a
+   ```
+
+4. **Front the data path** — a node's inbounds listen on loopback like EU, so
+   deploy the existing `nginx_frontend` role to the node for :443 SNI routing
+   (same as the primary). Then register the node in Raven-subscribe
+   `config.json` under `nodes` with `api_addr: "<wg_ip>:10085"`.
+
+The `xray_api_listen_address` indirection (defaults to loopback) and the
+loopback-**or-private** API validation gate live in the shared `xray` role, so
+single-server installs are unchanged. `role_xray_node.yml` adds only a systemd
+drop-in ordering Xray after `wg-quick@wg0` and a ufw rule limiting the API port
+to the WireGuard subnet.
 
 ---
 

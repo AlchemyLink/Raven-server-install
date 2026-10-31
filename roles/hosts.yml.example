@@ -6,6 +6,9 @@ all:
         vm_my_srv:
           ansible_host: "EU_VPS_IP"   # Replace with your EU VPS IP
           ansible_port: 22
+          # edge_firewall: public IPs still bound to this host that must stay silent
+          # (e.g. the original IP after moving to a reserved IP). Never your ansible_host.
+          # edge_firewall_blackhole_ips: ["203.0.113.10"]
       children:
         # RU host group — RU-targeted playbooks (relay, monitoring scrape, WG)
         # iterate `groups['ru']`. Adding a second RU = append a new host slot.
@@ -38,9 +41,23 @@ all:
             # vm_my_ru_b:
             #   ansible_host: "SECOND_RU_VPS_IP"
             #   ansible_port: 22
-            #   wg_ip: 10.10.0.3
+            #   wg_ip: 10.10.0.4
             #   relay_cloudflare_proxy: true
             #   relay_cloudflare_enforce: true
+
+        # Multi-node group — homogeneous Xray entry nodes provisioned by
+        # role_xray_node.yml. Each node joins the WireGuard mesh (its wg_ip
+        # becomes an EU peer automatically) and exposes its Xray gRPC API on that
+        # wg_ip; register it in Raven-subscribe config.json as
+        # nodes:[{ api_addr: "<wg_ip>:10085", ... }]. Uncomment to add a node:
+        nodes:
+          hosts: {}
+          # vm_my_node_a:
+          #   ansible_host: "NODE_VPS_IP"     # public IP of the node host
+          #   ansible_port: 22
+          #   wg_ip: 10.10.0.10               # this node's WireGuard address (unique in 10.10.0.0/24)
+          #   wg_private_key: "NODE_WG_PRIVKEY"   # per-host; generate: wg genkey
+          #   wg_public_key:  "NODE_WG_PUBKEY"    # per-host; wg pubkey < privkey (EU peers this)
       vars:
         ansible_user: deploy
         ansible_python_interpreter: /usr/bin/python3

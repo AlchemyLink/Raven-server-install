@@ -19,7 +19,10 @@ xray_github_repo: XTLS/Xray-core              # Xray GitHub repository
 # `releases/latest` can sit on one tag for months and then jump hundreds of
 # commits at once — v26.3.27 → v26.7.28 is 193 commits and includes breaking
 # changes (REALITY `minClientVer` default, freedom `finalRules`, config key
-# renames). Bump this deliberately, after reading the release notes.
+# renames). v26.10.21+ also makes the REALITY server require an X25519MLKEM768
+# key share, which sing-box clients do not send (SagerNet/sing-box#4520), and
+# makes freedom blackhole private destinations by default (v26.10.29 changes
+# none of that). Bump this deliberately, after reading the release notes.
 #
 # Set to "" to resolve the latest stable release from the GitHub API instead
 # (the previous, unpinned behaviour).
@@ -117,6 +120,14 @@ xray_api:
     protocol: "dokodemo-door"                 # Protocol for API (dokodemo-door)"
     tag: "api-inbound"
 
+# Effective address the API listener binds to. Defaults to the loopback address
+# above (single-node). A multi-node node overrides this with its WireGuard
+# address (e.g. 10.10.0.3) so the Raven control plane can reach HandlerService
+# over the tunnel — see role_xray_node.yml. validate.yml still refuses any
+# public IP (plaintext gRPC = full admin control); a public API requires mTLS
+# termination in front, which this role does not automate.
+xray_api_listen_address: "{{ xray_api.inbound.address }}"
+
 # ── Freedom outbound: Finalmask (anti-DPI, v26.3.27+) ───────────────────────
 # Rendered as the freedom outbound's streamSettings.finalmask.tcp[] — Finalmask
 # is a stream setting, not a freedom `settings` key, and each entry is a
@@ -182,7 +193,7 @@ xray_v2_xhttp:
   listen: "127.0.0.1"                        # Behind nginx stream SNI routing
   network: "xhttp"
   xhttpSettings:
-    mode: "packet-up"                         # prod state (commit 9c2a4e6, tag working-05.06); branch was stale → restore
+    mode: "packet-up"
     path: "/api/v4/sync"
     scMaxPacketSize: 1048576
   reality:

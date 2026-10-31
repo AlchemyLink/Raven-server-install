@@ -21,17 +21,22 @@
       Generate both with: xray vlessenc
     success_msg: "xray_vless_client_encryption is consistent with decryption"
 
-- name: Xray | Validate xray_api.inbound.address is loopback (M7 — never expose API publicly)
+- name: Xray | Validate the API bind address is loopback or private/WireGuard (M7 — never expose API on a public IP)
   ansible.builtin.assert:
     that:
-      - xray_api.inbound.address | default('') in ['127.0.0.1', '::1', 'localhost']
+      - >-
+        (xray_api_listen_address | default(xray_api.inbound.address))
+        is match('^(127\.|::1|localhost|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|169\.254\.|fe80:|f[cd])')
     fail_msg: >-
-      xray_api.inbound.address is "{{ xray_api.inbound.address | default('<unset>') }}".
-      Xray API exposes HandlerService (add/remove inbounds, users) and StatsService
-      over plaintext gRPC. It MUST listen on loopback only — binding to a public
-      interface gives anyone on the internet full admin control of Xray.
-      Set `xray_api.inbound.address: 127.0.0.1` (or ::1 / localhost).
-    success_msg: "xray_api.inbound.address is loopback ({{ xray_api.inbound.address }})"
+      The Xray API bind address is
+      "{{ xray_api_listen_address | default(xray_api.inbound.address) }}".
+      HandlerService (add/remove inbounds, users) and StatsService are plaintext
+      gRPC with full admin control, so the API must never bind a public IP.
+      Use loopback (127.0.0.1) on a single node, or a WireGuard/private address
+      on a multi-node node so the Raven control plane reaches it over the tunnel
+      (set xray_api_listen_address, see role_xray_node.yml). Exposing a public
+      address requires terminating mTLS in front of it — not automated here.
+    success_msg: "Xray API bind address is loopback/private ({{ xray_api_listen_address | default(xray_api.inbound.address) }})"
   when: xray_api.enable | default(false)
 
 - name: Xray | Validate xray_users is defined and non-empty

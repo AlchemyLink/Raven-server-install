@@ -1,0 +1,18 @@
+---
+# Public-surface firewall for the EU host (dedicated nftables table, docker-safe)
+# Usage:
+#   ansible-playbook roles/role_edge_firewall.yml -i roles/hosts.yml
+#
+# Preview first:
+#   ansible-playbook roles/role_edge_firewall.yml -i roles/hosts.yml --check --diff
+#
+# Tags:
+#   edge_firewall — validate, render rules + unit, load with auto-rollback
+
+- name: Deploy edge firewall
+  hosts: vm_my_srv
+  become: true
+
+  roles:
+    - role: edge_firewall
+      tags: edge_firewall

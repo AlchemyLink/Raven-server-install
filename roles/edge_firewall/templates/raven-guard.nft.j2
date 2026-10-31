@@ -1,0 +1,28 @@
+#!/usr/sbin/nft -f
+# {{ ansible_managed }}
+# Own table only: never touches docker (ip nat / ip filter via iptables-nft).
+# Only {{ edge_firewall_iface }} is filtered. Do NOT enable nftables.service.
+table inet {{ edge_firewall_table }}
+delete table inet {{ edge_firewall_table }}
+table inet {{ edge_firewall_table }} {
+    chain input {
+        type filter hook input priority -10; policy accept;
+        ct state established,related accept
+        iifname != "{{ edge_firewall_iface }}" accept
+{% for ip in edge_firewall_blackhole_ips %}
+        ip daddr {{ ip }} counter drop
+{% endfor %}
+{% if edge_firewall_drop_tcp %}
+        tcp dport { {{ edge_firewall_drop_tcp | join(', ') }} } counter drop
+{% endif %}
+{% if edge_firewall_relay_only_tcp %}
+        tcp dport { {{ edge_firewall_relay_only_tcp | join(', ') }} } ip saddr != { {{ edge_firewall_relay_ips | join(', ') }} } counter drop
+{% endif %}
+{% if edge_firewall_drop_udp %}
+        udp dport { {{ edge_firewall_drop_udp | join(', ') }} } counter drop
+{% endif %}
+{% if edge_firewall_wg_only_udp %}
+        udp dport { {{ edge_firewall_wg_only_udp | join(', ') }} } ip saddr != { {{ edge_firewall_wg_peer_ips | join(', ') }} } counter drop
+{% endif %}
+    }
+}

@@ -108,10 +108,12 @@ EU VPS :443 (nginx SNI) → Xray XHTTP :2054 → Интернет
 | `raven_dashboard` | EU | `role_raven_dashboard.yml` | [Raven Dashboard](https://github.com/AlchemyLink/raven-dashboard) — админ-панель (TOTP-gated CRUD пользователей, broadcast, sync-health card). Vue SPA + Go backend на SNI `dash.<domain>` |
 | `nginx_frontend` | EU | `role_nginx_frontend.yml` | nginx SNI routing на :443, HTTPS прокси на :8443, отдельный vhost для дашборда со static path `/screenshots/*` |
 | `monitoring` | EU+RU | `role_monitoring.yml` | xray-stats-exporter + VictoriaMetrics + Grafana; скрейпит per-user трафик Xray и Hysteria2 + `/metrics` Raven (алерты состояния fallback) |
+| `edge_firewall` | EU | `role_edge_firewall.yml` | Отдельная nftables-таблица на публичном интерфейсе (не трогает docker): глушит выведенные/забаненные IP, оставляет внутренние бэкенды и порты Hysteria2/WireGuard доступными только с relay/пиров, автооткат при применении (опционально) |
 | `wireguard` | EU+RU | `role_wireguard.yml` | WireGuard mesh — туннель EU↔RU для мониторинга, UDP-форвардинга hysteria и синхронизации моста |
 | `hysteria` | EU | `role_hysteria.yml` | Нативный резервный Hysteria2-сервер; per-user авторизация/отзыв через `/hysteria/auth` Raven (опционально) |
 | `relay` | RU | `role_relay.yml` | nginx SNI stream relay на :443 (passthrough на EU) + UDP-форварды Hysteria2 поверх WG; CGNAT-харднутый фронт |
 | `xray_bridge` | RU | `role_xray_bridge.yml` | Опциональный Xray цепочечный прокси (по умолчанию выключен) — терминирует подключения с EU-ключами, цепочкой на EU через XHTTP |
+| `xray` (nodes) | node | `role_xray_node.yml` | Опциональная гомогенная нода — та же роль `xray` на доп. хостах, gRPC API на WireGuard-адресе, чтобы control plane Raven провижинил юзеров через туннель |
 
 ---
 
@@ -387,6 +389,23 @@ ansible-playbook roles/role_raven_dashboard.yml -i roles/hosts.yml \
 
 ---
 
+### Роль `edge_firewall`
+
+Опциональное закрытие публичной поверхности EU-хоста. Ставит собственную nftables-таблицу (`inet raven_guard`), которую загружает systemd-юнит `raven-guard`; фильтруется только публичный интерфейс (`edge_firewall_iface`, по умолчанию `eth0`), так что `wg0`, VPC-интерфейс и docker не затрагиваются.
+
+- `edge_firewall_blackhole_ips` — публичные IP, всё ещё привязанные к хосту, которые должны молчать (например, исходный IP дроплета после переезда на reserved IP из-за бана). Задаётся на хост в `roles/hosts.yml`.
+- Внутренние бэкенды (`8444`, `8445`) закрыты; `8443` — только с RU-relay; порты Hysteria2 — только через `wg0`; WireGuard `51820` — только с хостов `ru` + `nodes`.
+- При применении ставится временный таймер отката (`edge_firewall_rollback_seconds`, по умолчанию 180), который удалит таблицу, если Ansible не переподключится по SSH.
+
+**Не** включайте `nftables.service`: штатный `/etc/nftables.conf` в Debian делает `flush ruleset` и снесёт правила docker.
+
+```bash
+ansible-playbook roles/role_edge_firewall.yml -i roles/hosts.yml --check --diff
+ansible-playbook roles/role_edge_firewall.yml -i roles/hosts.yml
+```
+
+---
+
 ### Роль `monitoring`
 
 Деплоит полный стек мониторинга:
@@ -398,6 +417,51 @@ ansible-playbook roles/role_raven_dashboard.yml -i roles/hosts.yml \
 ```bash
 ansible-playbook roles/role_monitoring.yml -i roles/hosts.yml --vault-password-file vault_password.txt
 ```
+
+---
+
+### `role_xray_node` — гомогенные ноды (опционально)
+
+Один control plane Raven-subscribe управляет **несколькими гомогенными Xray-нодами**.
+Нода — не форк роли `xray`, а **та же** роль `xray` на доп. хосте, поэтому она не
+может рассинхронизироваться с EU-примари (общий REALITY private key = единый
+trust-домен). Единственное отличие ноды: gRPC API Xray биндится на её
+**WireGuard**-адрес вместо loopback, чтобы control plane провижинил юзеров через
+туннель. Сторона control plane — в
+[Multi-node доке Raven-subscribe](https://github.com/AlchemyLink/Raven-subscribe#multi-node).
+
+**Транспортная безопасность:** API — plaintext gRPC на WireGuard-адресе,
+шифрование и взаимная аутентификация на уровне WG (рекомендуемый дефолт).
+Публичный API-адрес вместо WG требует терминации mTLS перед Xray — это роль **не**
+автоматизирует (клиентскую сторону Raven-subscribe уже поддерживает).
+
+1. **Inventory** — добавьте ноду в группу `nodes` с её `wg_ip` и per-host
+   WireGuard-ключами (см. `roles/hosts.yml.example`). Нода переиспользует EU
+   `xray/defaults/secrets.yml` (гомогенные REALITY-ключи + юзеры) — новых
+   Xray-секретов не нужно.
+
+2. **Присоединить к WireGuard-mesh** — `wg_ip` ноды автоматически становится
+   EU-пиром; накатите WG на EU и ноду:
+   ```bash
+   ansible-playbook roles/role_wireguard.yml -i roles/hosts.yml \
+     --vault-password-file vault_password.txt --limit vm_my_srv,vm_my_node_a
+   ```
+
+3. **Провижининг ноды** — тот же Xray-конфиг, что EU, API на WG-адресе:
+   ```bash
+   ansible-playbook roles/role_xray_node.yml -i roles/hosts.yml \
+     --vault-password-file vault_password.txt --limit vm_my_node_a
+   ```
+
+4. **Data-path фронт** — inbounds ноды слушают loopback, как на EU, поэтому
+   накатите существующую роль `nginx_frontend` на ноду для SNI-роутинга на :443.
+   Затем зарегистрируйте ноду в `config.json` Raven-subscribe под `nodes` с
+   `api_addr: "<wg_ip>:10085"`.
+
+Индирекция `xray_api_listen_address` (дефолт — loopback) и валидация API-адреса
+(loopback **или** private) живут в общей роли `xray`, так что одиночные инсталляции
+не меняются. `role_xray_node.yml` добавляет только systemd drop-in (порядок после
+`wg-quick@wg0`) и ufw-правило, ограничивающее API-порт WireGuard-подсетью.
 
 ---
 

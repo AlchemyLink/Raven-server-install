@@ -5,12 +5,13 @@
 #
 # Tags:
 #   wireguard_eu  — configure wg0 on EU (install, config)
-#   wireguard_ru  — configure wg0 on RU (install, config)
+#   wireguard_ru  — configure wg0 on RU (install, config; also covers multi-node nodes)
 
 - name: Deploy WireGuard
   hosts:
     - vm_my_srv
     - ru
+    - nodes
   become: true
 
   # Role defaults load on their own; listing them under vars_files would outrank
