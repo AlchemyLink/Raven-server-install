@@ -7,7 +7,7 @@
  ],
  "timezone": "browser",
  "schemaVersion": 39,
- "version": 3,
+ "version": 4,
  "refresh": "15m",
  "time": {
   "from": "now-7d",
@@ -156,7 +156,7 @@
   {
    "id": 3,
    "type": "geomap",
-   "title": "IODA: сбои связи по округу (24 ч)",
+   "title": "IODA: сбои связи по регионам (24 ч)",
    "gridPos": {
     "h": 16,
     "w": 12,
@@ -170,7 +170,7 @@
    "targets": [
     {
      "refId": "A",
-     "expr": "last_over_time(ext_ioda_district_outage_score[3h])",
+     "expr": "last_over_time(ext_ioda_region_outage_score{lat!=\"\"}[3h])",
      "instant": true,
      "format": "table"
     }
@@ -226,7 +226,7 @@
     "layers": [
      {
       "type": "markers",
-      "name": "ioda",
+      "name": "ioda-regions",
       "location": {
        "mode": "coords",
        "latitude": "lat",
@@ -237,25 +237,14 @@
        "style": {
         "size": {
          "field": "Value",
-         "min": 8,
-         "max": 22,
-         "fixed": 12
+         "min": 5,
+         "max": 24,
+         "fixed": 6
         },
         "color": {
          "field": "Value"
         },
         "opacity": 0.8,
-        "text": {
-         "field": "district_name",
-         "mode": "field"
-        },
-        "textConfig": {
-         "fontSize": 10,
-         "offsetX": 0,
-         "offsetY": -16,
-         "textAlign": "center",
-         "textBaseline": "bottom"
-        },
         "symbol": {
          "mode": "fixed",
          "fixed": "img/icons/marker/circle.svg"
@@ -272,7 +261,8 @@
     "tooltip": {
      "mode": "details"
     }
-   }
+   },
+   "description": "83 региона, точка на столице региона. Зелёная мелкая = тихо; крупная красная = сбой (BGP/пинг/даркнет). Белые списки IODA не видит."
   },
   {
    "id": 4,
@@ -382,7 +372,7 @@
    "targets": [
     {
      "refId": "A",
-     "expr": "sort_desc(last_over_time(ext_ioda_region_outage_score[3h]) > 0)",
+     "expr": "sort_desc(last_over_time(ext_ioda_region_outage_score{lat!=\"\"}[3h]) > 0)",
      "instant": true,
      "format": "table"
     }
@@ -396,10 +386,18 @@
        "__name__": true,
        "job": true,
        "instance": true,
-       "donor": true
+       "donor": true,
+       "lat": true,
+       "lon": true,
+       "region_code": true
+      },
+      "indexByName": {
+       "region_name": 0,
+       "district": 1,
+       "Value": 2
       },
       "renameByName": {
-       "region_code": "IODA code",
+       "region_name": "Регион",
        "district": "Округ",
        "Value": "Score"
       }
