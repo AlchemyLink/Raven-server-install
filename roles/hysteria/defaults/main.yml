@@ -5,7 +5,11 @@
 # Reached via the RU relay's nginx UDP forward over the WG mesh (see relay role
 # relay_hysteria_udp_forwards). Passwords live in vault (defaults/secrets.yml).
 
-hysteria_version: "app/v2.9.2"        # pinned apernet/hysteria release tag
+hysteria_version: "app/v2.13.0"       # pinned apernet/hysteria release tag
+# SHA-256 of hysteria-{{ hysteria_arch }} for hysteria_version, from the release's
+# hashes.txt. Bump together with hysteria_version: a mismatch with the installed
+# binary is what makes get_url replace it (force: false keeps it otherwise).
+hysteria_sha256: "907ba8c9693edb104b20582681fb7dc15639d5b64a9cbb616a7b539190a86691"
 hysteria_arch: "linux-amd64"
 hysteria_github_repo: "apernet/hysteria"
 hysteria_bin_dir: "/opt/hysteria"
