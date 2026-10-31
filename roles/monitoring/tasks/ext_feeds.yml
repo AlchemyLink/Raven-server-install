@@ -1,0 +1,35 @@
+---
+# External censorship feeds (Taucloud white-list map, IODA regional outages)
+# -> VictoriaMetrics import API. Runs on the MON host from a systemd timer.
+# See templates/ext-feeds.py.j2 for what is fetched and why.
+
+- name: ext-feeds | Deploy collector script (holds the VM password — root only)
+  ansible.builtin.template:
+    src: ext-feeds.py.j2
+    dest: /usr/local/bin/ext-feeds
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: ext-feeds | Deploy systemd service and timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - ext-feeds.service
+    - ext-feeds.timer
+  register: ext_feeds_units
+
+- name: ext-feeds | Reload systemd when units changed
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: ext_feeds_units.changed
+
+- name: ext-feeds | Enable and start timer
+  ansible.builtin.systemd:
+    name: ext-feeds.timer
+    enabled: true
+    state: started

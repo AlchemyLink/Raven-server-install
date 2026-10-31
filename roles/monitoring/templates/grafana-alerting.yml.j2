@@ -794,6 +794,44 @@ groups:
         labels:
           severity: warning
 
+      - uid: ext-feed-stale
+        title: "Внешний источник (Taucloud/IODA) не собирается"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 86400
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "time() - max by (feed) (last_over_time(ext_feed_last_success_timestamp_seconds[2d]))"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [21600]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Error
+        for: 30m
+        annotations:
+          summary: "{% raw %}ext-feeds: {{ $labels.feed }} не обновлялся 6+ часов{% endraw %}"
+          description: "{% raw %}Сборщик ext-feeds на MON не получает {{ $labels.feed }} 6+ часов: источник недоступен, сменил формат или таймер встал. `journalctl -u ext-feeds` на MON. Карта на дашборде «Россия — карта белых списков и сбоев» показывает устаревшие данные.{% endraw %}"
+        labels:
+          severity: warning
+
   # raven-probe v0.2 mechanism alerts. Each one requires: >=2 eu_* targets on the
   # same vantage in that state, the vantage NOT in whitelist/offline mode (controls),
   # and the EU host answering its own local blackbox probe (so EU is not just down).

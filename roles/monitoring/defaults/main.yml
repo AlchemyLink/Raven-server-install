@@ -181,6 +181,15 @@ monitoring_heartbeat_interval: "5min"
 monitoring_heartbeat_grafana_url: "http://{{ hostvars[groups['mon'][0]].private_ip }}:13000/api/health"
 monitoring_heartbeat_vm_url: "http://{{ hostvars[groups['mon'][0]].private_ip }}:8428/health"
 monitoring_heartbeat_state_dir: "/var/lib/monitoring-heartbeat"
+
+# External censorship feeds on MON (monitoring v2 §8 — regional map):
+# Taucloud white-list share per operator x federal district (CC BY 4.0) and
+# IODA 24 h outage score per Russian region -> VictoriaMetrics import API.
+ext_feeds_enabled: true
+ext_feeds_interval: "15min"
+ext_feeds_vm_import_url: "http://{{ victoriametrics_listen }}/api/v1/import/prometheus"
+ext_feeds_taucloud_url: "https://taucloud.ru/belye-spiski/karta/data.json"
+ext_feeds_ioda_url: "https://api.ioda.inetintel.cc.gatech.edu/v2/outages/summary?from={start}&until={end}&entityType=region&relatedTo=country/RU"
 # victoriametrics_auth_username: set in secrets.yml (ansible-vault)
 # victoriametrics_auth_password: set in secrets.yml (ansible-vault)
 

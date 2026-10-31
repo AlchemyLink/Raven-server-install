@@ -252,6 +252,16 @@
   notify: Restart grafana
   tags: grafana_dashboards
 
+- name: Deploy Grafana RU censorship map dashboard (Taucloud + IODA)
+  ansible.builtin.template:
+    src: dashboards/ru-censorship-map.json.j2
+    dest: "{{ grafana_data_dir }}/dashboards/ru-censorship-map.json"
+    owner: grafana
+    group: grafana
+    mode: "0640"
+  notify: Restart grafana
+  tags: grafana_dashboards
+
 - name: Deploy Grafana alerting rules
   ansible.builtin.template:
     src: grafana-alerting.yml.j2
