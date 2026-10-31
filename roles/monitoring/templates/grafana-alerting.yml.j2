@@ -794,6 +794,243 @@ groups:
         labels:
           severity: warning
 
+  # raven-probe v0.2 mechanism alerts. Each one requires: >=2 eu_* targets on the
+  # same vantage in that state, the vantage NOT in whitelist/offline mode (controls),
+  # and the EU host answering its own local blackbox probe (so EU is not just down).
+  - orgId: 1
+    name: raven-tspu
+    folder: Raven
+    interval: 1m
+    rules:
+
+      - uid: tspu-ipblock
+        title: "TSPU: IP EU не отвечает с vantage (ipblock)"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "(count by (vantage) (raven_probe_state_code{kind=\"eu\"} == 2) >= 2) unless on(vantage) (raven_probe_vantage_mode >= 2) and on() (min(probe_success{job=~\"blackbox_vless.*\"}) == 1)"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0.5]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Error
+        for: 10m
+        annotations:
+          summary: "{% raw %}{{ $labels.vantage }}: SYN к EU не отвечают по {{ $value }} cover-SNI{% endraw %}"
+          description: "{% raw %}С vantage {{ $labels.vantage }} TCP-коннект к EU не устанавливается (state=ipblock) на 2+ целях 10+ минут, при этом EU жив (локальный blackbox OK) и сеть vantage не в whitelist-режиме. Паттерн: бан IP/подсети (TCP-only). Проверить relay-путь (HAProxy eu_pub vs eu_awg), затем Reserved-IP ротацию.{% endraw %}"
+        labels:
+          severity: critical
+
+      - uid: tspu-freeze
+        title: "TSPU: TLS freeze к EU с vantage"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "(count by (vantage) (raven_probe_state_code{kind=\"eu\"} == 3) >= 2) unless on(vantage) (raven_probe_vantage_mode >= 2) and on() (min(probe_success{job=~\"blackbox_vless.*\"}) == 1)"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0.5]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Error
+        for: 10m
+        annotations:
+          summary: "{% raw %}{{ $labels.vantage }}: ClientHello к EU без ServerHello на {{ $value }} cover-SNI{% endraw %}"
+          description: "{% raw %}TCP до EU есть, TLS не завершается (freeze/RST) на 2+ cover-SNI с {{ $labels.vantage }} 10+ минут. IP не забанен (SYN проходит), EU жив. Паттерн: SNI/отпечаток-keyed фриз или RST-инъекция. Сравнить с eu_python_ff (Firefox-отпечаток) и isp_* для тех же SNI.{% endraw %}"
+        labels:
+          severity: critical
+
+      - uid: tspu-volume-freeze
+        title: "TSPU: передача через туннель умирает на ~16 KB"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "(count by (vantage) (raven_probe_state_code == 4) >= 1) unless on(vantage) (raven_probe_vantage_mode >= 2)"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0.5]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Error
+        for: 15m
+        annotations:
+          summary: "{% raw %}{{ $labels.vantage }}: volume freeze (стоп на 14–34 KB){% endraw %}"
+          description: "{% raw %}proto-rung с {{ $labels.vantage }}: соединение устанавливается, но загрузка останавливается после ~16 KB 15+ минут. Сигнатура 16 KB-счётчика ТСПУ на foreign-IP. Лекарство — ротация соединений (xmux) / XHTTP packet-up; проверить, что клиенты получают extra(xmux) в подписке.{% endraw %}"
+        labels:
+          severity: critical
+
+      - uid: tspu-slow
+        title: "TSPU: throughput через туннель ниже пола"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "(count by (vantage) (raven_probe_state_code == 5) >= 1) unless on(vantage) (raven_probe_vantage_mode >= 2)"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0.5]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Error
+        for: 30m
+        annotations:
+          summary: "{% raw %}{{ $labels.vantage }}: скорость через туннель < 1 Mbit/s без стопов{% endraw %}"
+          description: "{% raw %}proto-rung завершает загрузку, но медленнее 1 Mbit/s 30+ минут. Паттерн: шейпинг non-RU направлений оператором. Сравнить с тем же часом неделю назад на дашборде raven-probe.{% endraw %}"
+        labels:
+          severity: warning
+
+      - uid: vantage-whitelist-mode
+        title: "Vantage в режиме «белого списка»"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "raven_probe_vantage_mode == 2"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0.5]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: OK
+        for: 10m
+        annotations:
+          summary: "{% raw %}{{ $labels.vantage }}: сеть переключилась в whitelist-режим{% endraw %}"
+          description: "{% raw %}Канарейки с {{ $labels.vantage }}: ya.ru доступен, twitter.com и UDP/53 к 8.8.8.8 мертвы 10+ минут. Это режим «белых списков» оператора, а не поломка наших серверов; алерты tspu-* подавлены для этой vantage. Информационно.{% endraw %}"
+        labels:
+          severity: info
+
+      - uid: vantage-offline
+        title: "Vantage offline (канарейки мертвы)"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "raven_probe_vantage_mode == 3"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0.5]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: OK
+        for: 15m
+        annotations:
+          summary: "{% raw %}{{ $labels.vantage }}: даже ya.ru недоступен{% endraw %}"
+          description: "{% raw %}Vantage {{ $labels.vantage }} не достаёт даже до whitelisted-хоста 15+ минут: сеть пробы лежит целиком. Результаты по EU с этой vantage не показательны.{% endraw %}"
+        labels:
+          severity: warning
+
 {% if grafana_alert_telegram_enabled %}
 contactPoints:
   - orgId: 1
