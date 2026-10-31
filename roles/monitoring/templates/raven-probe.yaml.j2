@@ -1,8 +1,24 @@
-# raven-probe configuration
+# raven-probe configuration (v0.2)
 # Managed by Ansible monitoring role — DO NOT edit by hand.
-# To change targets: edit raven_probe_targets in monitoring/defaults/main.yml or override per-host.
+# To change targets: edit raven_probe_targets / raven_probe_controls in
+# monitoring/defaults/main.yml or override per-host.
 
 vantage: "{{ raven_probe_vantage }}"
+fingerprint: {{ raven_probe_fingerprint }}
+{% if raven_probe_controls is defined and raven_probe_controls %}
+
+controls:
+  whitelisted: {{ raven_probe_controls.whitelisted }}
+{%   if raven_probe_controls.blocked is defined %}
+  blocked: {{ raven_probe_controls.blocked }}
+{%   endif %}
+{%   if raven_probe_controls.dns_udp_server is defined %}
+  dns_udp_server: {{ raven_probe_controls.dns_udp_server }}
+{%   endif %}
+{%   if raven_probe_controls.fingerprint is defined %}
+  fingerprint: {{ raven_probe_controls.fingerprint }}
+{%   endif %}
+{% endif %}
 
 targets:
 {% for t in raven_probe_targets %}
@@ -16,5 +32,31 @@ targets:
 {%   endif %}
 {%   if t.url is defined and t.url %}
     url: "{{ t.url }}"
+{%   endif %}
+{%   if t.fingerprint is defined %}
+    fingerprint: {{ t.fingerprint }}
+{%   endif %}
+{%   if t.http_port is defined %}
+    http_port: {{ t.http_port }}
+{%   endif %}
+{%   if t.quic is defined and t.quic %}
+    quic: true
+{%   endif %}
+{%   if t.proto is defined %}
+    proto:
+      cmd: {{ t.proto.cmd | to_json }}
+      socks: "{{ t.proto.socks }}"
+{%     if t.proto.url is defined %}
+      url: "{{ t.proto.url }}"
+{%     endif %}
+{%     if t.proto.fetch_timeout is defined %}
+      fetch_timeout: {{ t.proto.fetch_timeout }}
+{%     endif %}
+{%     if t.proto.stall_timeout is defined %}
+      stall_timeout: {{ t.proto.stall_timeout }}
+{%     endif %}
+{%   endif %}
+{%   if t.parallel is defined %}
+    parallel: {n: {{ t.parallel.n | default(4) }}, every: {{ t.parallel.every | default('60m') }}}
 {%   endif %}
 {% endfor %}

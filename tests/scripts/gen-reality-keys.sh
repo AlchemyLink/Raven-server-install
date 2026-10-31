@@ -3,7 +3,7 @@
 set -eu
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 CACHE="${ROOT}/tests/.cache"
-VER="${XRAY_VERSION:-26.2.6}"
+VER="${XRAY_VERSION:-$(sed -nE 's/^xray_version_pin:[[:space:]]*"?v?([0-9.]+)"?.*/\1/p' "${ROOT}/roles/xray/defaults/main.yml")}"
 ZIP_URL="https://github.com/XTLS/Xray-core/releases/download/v${VER}/Xray-linux-64.zip"
 mkdir -p "$CACHE"
 XRAY_BIN="${CACHE}/xray-${VER}"
@@ -16,8 +16,8 @@ fi
 OUT="${CACHE}/x25519.txt"
 "$XRAY_BIN" x25519 > "$OUT"
 PRIV=$(grep '^PrivateKey:' "$OUT" | sed 's/^PrivateKey:[[:space:]]*//' | tr -d '\r')
-# Xray 26+: "Password:" is the public key material (see main/commands/all/curve25519.go)
-PUB=$(grep '^Password:' "$OUT" | sed 's/^Password:[[:space:]]*//' | tr -d '\r')
+# Xray 26.x prints the public key as "Password:" (≤26.2) or "Password (PublicKey):" (26.3+)
+PUB=$(grep -E '^(Password|Password \(PublicKey\)|PublicKey):' "$OUT" | sed -E 's/^[^:]+:[[:space:]]*//' | tr -d '\r')
 if [ -z "$PRIV" ] || [ -z "$PUB" ]; then
   echo "Failed to parse x25519 output:" >&2
   cat "$OUT" >&2
@@ -28,13 +28,13 @@ SID=$(openssl rand -hex 8 2>/dev/null || echo "a1b2c3d4e5f67890")
 # v2 Reality keypair for primary inbounds (must be isolated from xray_reality).
 "$XRAY_BIN" x25519 > "${OUT}.v2"
 V2_PRIV=$(grep '^PrivateKey:' "${OUT}.v2" | sed 's/^PrivateKey:[[:space:]]*//' | tr -d '\r')
-V2_PUB=$(grep '^Password:' "${OUT}.v2" | sed 's/^Password:[[:space:]]*//' | tr -d '\r')
+V2_PUB=$(grep -E '^(Password|Password \(PublicKey\)|PublicKey):' "${OUT}.v2" | sed -E 's/^[^:]+:[[:space:]]*//' | tr -d '\r')
 V2_SID=$(openssl rand -hex 8 2>/dev/null || echo "abcd1234ef567890")
 
 # Fallback Reality keypair (must be isolated from primary).
 "$XRAY_BIN" x25519 > "${OUT}.fallback"
 FB_PRIV=$(grep '^PrivateKey:' "${OUT}.fallback" | sed 's/^PrivateKey:[[:space:]]*//' | tr -d '\r')
-FB_PUB=$(grep '^Password:' "${OUT}.fallback" | sed 's/^Password:[[:space:]]*//' | tr -d '\r')
+FB_PUB=$(grep -E '^(Password|Password \(PublicKey\)|PublicKey):' "${OUT}.fallback" | sed -E 's/^[^:]+:[[:space:]]*//' | tr -d '\r')
 FB_SID=$(openssl rand -hex 8 2>/dev/null || echo "f1e2d3c4b5a69708")
 
 cat <<EOF

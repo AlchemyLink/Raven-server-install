@@ -17,10 +17,12 @@ xray_github_repo: XTLS/Xray-core              # Xray GitHub repository
 # Pin an exact tag so a role run never silently moves the server across
 # upstream releases. Upstream marks nearly every release pre-release, so
 # `releases/latest` can sit on one tag for months and then jump hundreds of
-# commits at once. v26.10.21 (latest since 2026-10-21) makes the REALITY server
-# require an X25519MLKEM768 key share, which sing-box clients do not send
-# (SagerNet/sing-box#4520), and makes freedom blackhole private destinations
-# by default. Bump this deliberately, after reading the release notes.
+# commits at once — v26.3.27 → v26.7.28 is 193 commits and includes breaking
+# changes (REALITY `minClientVer` default, freedom `finalRules`, config key
+# renames). v26.10.21+ also makes the REALITY server require an X25519MLKEM768
+# key share, which sing-box clients do not send (SagerNet/sing-box#4520), and
+# makes freedom blackhole private destinations by default (v26.10.29 changes
+# none of that). Bump this deliberately, after reading the release notes.
 #
 # Set to "" to resolve the latest stable release from the GitHub API instead
 # (the previous, unpinned behaviour).
@@ -36,6 +38,20 @@ xray_nologin_shell: "/usr/sbin/nologin"       # Shell for the Xray user (to prev
 # Если в xray_users у пользователя не задан flow — используется это значение (Vision для TCP/XHTTP+REALITY).
 # См. https://xtls.github.io/en/config/inbounds/vless.html — flow
 xray_vless_default_flow: "xtls-rprx-vision"
+
+# ── REALITY: minimum client Xray-core version ───────────────────────────────
+# Since upstream commit af7eb68 (shipped in v26.7.11) a REALITY server whose
+# `minClientVer` is unset silently defaults to "26.3.27" and refuses every
+# client running an older core — i.e. an Xray upgrade cuts off every user who
+# has not updated their app. Set it explicitly so that decision is ours.
+#
+# Trade-off: older clients have a REALITY handshake pattern that censors can
+# fingerprint, which is why upstream raised the floor. Once the user base has
+# updated, raise this to "26.3.27" (or higher) deliberately.
+#
+# Empty string omits the field entirely and lets the server default apply.
+xray_reality_min_client_ver: "24.9.30"
+
 
 # DNS for config
 xray_dns_servers:                             # List of DNS servers for Xray
@@ -113,18 +129,23 @@ xray_api:
 xray_api_listen_address: "{{ xray_api.inbound.address }}"
 
 # ── Freedom outbound: Finalmask (anti-DPI, v26.3.27+) ───────────────────────
-# Rendered as freedom.settings.finalmask.tcpmasks (Xray v26.3.27 API).
-# Supports stacking: add more tcpmasks entries (e.g. sudoku) when needed.
+# Rendered as the freedom outbound's streamSettings.finalmask.tcp[] — Finalmask
+# is a stream setting, not a freedom `settings` key, and each entry is a
+# {type, settings} pair. Stack more masks (e.g. "sudoku") by adding entries.
 # See: https://xtls.github.io/en/config/outbounds/freedom.html
 #
 # When empty {} — finalmask block is omitted, freedom outbound is plain.
 
-# Fragment (tcpmask) — TLS ClientHello fragmentation via Finalmask
+# Fragment (TCP mask) — TLS ClientHello fragmentation via Finalmask
 # Splits ClientHello into small packets so DPI cannot reassemble SNI.
+# NOTE: the field is `delay`, not `interval`. Finalmask's FragmentMask accepts
+# packets/length/delay/maxSplit (infra/conf/transport_internet.go); `interval`
+# belongs to the legacy freedom.settings.fragment and is silently ignored here,
+# which leaves the fragments back-to-back with no inter-packet delay.
 xray_freedom_fragment:
   packets: "tlshello"          # "tlshello" or "1-3" (TCP stream slice range)
   length: "100-200"            # fragment size in bytes (string, supports range)
-  interval: "10-20"            # delay between fragments in ms (string, supports range)
+  delay: "10-20"               # delay between fragments in ms (string, supports range)
 # xray_freedom_fragment: {}
 
 # Noises — send decoy packets before real UDP data
@@ -176,27 +197,106 @@ xray_v2_xhttp:
     path: "/api/v4/sync"
     scMaxPacketSize: 1048576
   reality:
-    dest: "addons.mozilla.org:443"            # TLS 1.3, H2, Fastly CDN — good target
+    # Cover migrated addons.mozilla.org → www.python.org (2026-06-07). Both Fastly/TLS1.3/H2;
+    # python.org lab-validated on 221. Clean swap: Reality forwards the client SNI to dest, so
+    # one inbound can't serve two covers → existing XHTTP clients must re-fetch the subscription.
+    dest: "www.python.org:443"                # TLS 1.3, H2, Fastly CDN
     server_names:
-      - "addons.mozilla.org"
+      - "www.python.org"
 
 # ── Fallback inbound (для прямого EU-direct подключения, минуя RU relay) ─────
-# Изолированный keypair (xray_fallback_reality), изолированный VLESS Encryption.
-# Multi-SNI на StackExchange-инфраструктуре (один IP, SNI-virtual-hosting).
-# НЕ включается в primary subscription — только в /sub/fallback/* (FallbackInboundTags).
+# Изолированный keypair (xray_fallback_reality). НЕ включается в primary
+# subscription — только в /sub/fallback/* (raven_subscribe_fallback_inbound_tags).
+#
+# 2026-06-06: транспорт Reality+Vision+TCP → VLESS+XHTTP+Reality (волна ТСПУ
+# убивает Reality+Vision: M2 параллельные TLS + M3 TLS1.3-hammer :443; net4people
+# #546). Путь остаётся EU-direct (fallback_server_host=EU) — escape-hatch на случай
+# смерти relay (решение пользователя 2026-06-06; учесть: из РФ под волной прямой
+# EU может не доходить — это backup-канал, не основной).
+#
+# Cover-домен (CNI): www.adobe.com (2026-06-06, заменил www.gstatic.com).
+#   Проверен с EU-вантажа: H2, HTTP 200, без редиректа, datacenter-friendly
+#   (gstatic давал проблемы; reddit/wiki — 403/redirect). Отличается от primary
+#   (addons.mozilla.org). apple/microsoft отвергнуты ранее (Akamai PQC-default
+#   31.01.2026 + bot-detection, MS-редиректы, бренд-SNI палится в IP+SNI-модели).
+#   no-pqc у adobe не проблема: Chrome-uTLS шлёт оба keyshare, сервер берёт X25519
+#   без HRR.
+#
+# 2026-06-06 (итерация 3): fallback приведён к АНАЛОГИЧНЫМ настройкам рабочего
+# primary XHTTP (211) — sni/топология отличаются, остальное зеркалит:
+#   • mode=packet-up (как primary; ранее stream-up откатан для паритета)
+#   • VLESS Encryption ВКЛ (xray_vless_fallback_decryption=mlkem, ИЗОЛИРОВАННЫЙ
+#     keypair) + flow xtls-rprx-vision + testseed/testpre — РОВНО как 211.
+#   • КОРРЕКЦИЯ раннего тезиса: XHTTP+Vision+VLESS-Encryption РАБОТАЕТ (live 211
+#     это доказывает) — поэтому PQ-слой возвращён на fallback.
+# Топология СОХРАНЕНА: EU-direct (fallback_server_host=EU) — escape-hatch.
+# Ключи xray_fallback_reality ротированы 2026-06-06 (изолированы от 201/211).
+# SNI www.adobe.com — отличается от primary addons.mozilla.org (диверсификация).
 xray_fallback_enabled: true
 
 xray_fallback:
   tag: "vless-fallback-in"
   port: 5443                                   # Behind nginx stream SNI routing
   listen: "127.0.0.1"
+  network: "xhttp"
+  xhttpSettings:
+    mode: "packet-up"                          # == primary 211 (аналогичные настройки)
+    path: "/v2/assets/sync"                    # distinct от primary /api/v4/sync
+    scMaxPacketSize: 1048576
   reality:
-    dest: "stackoverflow.com:443"              # StackExchange shared infra (198.252.206.1)
-    server_names:                              # SNI-virtual-hosting → cert всегда совпадает с SNI
-      - "stackoverflow.com"
-      - "superuser.com"
-      - "serverfault.com"
-      - "unix.stackexchange.com"
+    dest: "www.adobe.com:443"                  # отличается от primary mozilla; H2/200/no-redirect (EU-проверен)
+    server_names:
+      - "www.adobe.com"
+
+# testseed/testpre для fallback — по умолчанию = primary v2 (паритет Vision-паддинга).
+# xray_fallback_testseed: [1000, 600, 1000, 300]
+# xray_fallback_testpre: 3
+
+# ── Experimental inbound 221 — STAGING CLONE of primary XHTTP (211) ────────────
+# DISABLED by default (vault flag). Purpose: a faithful mirror of 211
+# (vless-xhttp-v2-in) for trialing XHTTP improvements apples-to-apples WITHOUT
+# touching the live primary. A working delta gets ported to 211 (xray_v2_xhttp).
+#
+# MIRRORS 211: XHTTP + packet-up + Vision + VLESS Encryption (reuses 211's keypair
+# via xray_vless_decryption) + testseed/testpre (default = v2) + extra{xPaddingBytes}.
+# Raven adds the default client xmux inside extra (same as 211, post-v0.3.1).
+# ISOLATION: own port/tag/Reality-keypair (xray_experimental_reality) + own cover
+# SNI (routing needs an SNI distinct from 211's addons.mozilla.org). TOPOLOGY = via
+# relay (raven fallback_inbound_hosts[vless-experimental-in] = server_host). Served
+# on /sub/fallback/* to a dedicated test token.
+#
+# Experiment by overriding xray_experimental.* (mode / path / scMaxPacketSize /
+# xPaddingBytes), or add xray_experimental_testseed/_testpre to diverge from 211.
+xray_experimental_enabled: false
+
+xray_experimental:
+  tag: "vless-experimental-in"
+  port: 5444                                   # уникален: 4444/2054 primary, 5443 fallback
+  listen: "127.0.0.1"                          # за nginx stream SNI-роутингом
+  network: "xhttp"
+  xhttpSettings:
+    mode: "packet-up"                          # = 211 baseline
+    path: "/api/v4/sync"                        # = 211 (отдельный порт/SNI → коллизии нет)
+    scMaxPacketSize: 1048576
+    xPaddingBytes: "100-1000"
+  reality:
+    # Cover-SNI ОБЯЗАН отличаться от 211 (addons.mozilla.org) — nginx роутит по SNI
+    # 1:1, разный порт нужен разный SNI. www.python.org EU-проверен 2026-06-07
+    # (H2/200/no-redirect/TLS1.3, Fastly). Это единственное намеренное отличие от 211.
+    dest: "www.python.org:443"
+    server_names:
+      - "www.python.org"
+# Optional: diverge testseed/testpre from 211 for an experiment (default = v2/211):
+# xray_experimental_testseed: [1000, 600, 1000, 300]
+# xray_experimental_testpre: 3
+
+# Изолированный Reality keypair для эксперимента — ТОЛЬКО в secrets.yml:
+#   xray_experimental_reality:
+#     private_key: "..."          # xray x25519
+#     spiderX: "/"
+#     short_id:
+#       - "..."                   # openssl rand -hex 8
+# Public key НЕ нужен — raven-subscribe выводит его из private (generator.go:438).
 
 # ── Vision testseed — custom TLS padding (Xray-core >= v25.12.8) ─────────────
 # Array of 4 uint32 values controlling Vision padding behavior.

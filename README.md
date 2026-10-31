@@ -167,10 +167,14 @@ all:
         vm_my_srv:
           ansible_host: "EU_VPS_IP"
           ansible_port: 22
-        vm_my_ru2:                        # optional: RU VPS for relay + bridge
-          ansible_host: "RU_VPS_IP"
-          ansible_port: 22
-          ansible_user: deploy
+      children:
+        ru:                               # RU roles target this GROUP, not a host name —
+          hosts:                          # templates iterate groups['ru'], so extra RU
+            vm_my_ru:                     # nodes are added by appending host slots here
+              ansible_host: "RU_VPS_IP"
+              ansible_port: 22
+              ansible_user: deploy
+              wg_ip: 10.10.0.2
       vars:
         ansible_user: deploy
         ansible_python_interpreter: /usr/bin/python3
@@ -374,6 +378,8 @@ Deploys Xray chain proxy on the RU VPS. Accepts client connections using EU Real
 Creates a WireGuard mesh between EU and RU VPS. Required for:
 - Raven-subscribe → bridge gRPC sync (EU pushes users to RU bridge via WireGuard)
 - Monitoring (vmagent on EU pushes metrics to VictoriaMetrics on RU)
+
+**AmneziaWG second tunnel (`wg_awg_enabled: true`, tag `wireguard_awg`).** Plain WireGuard has a fixed on-the-wire signature; AmneziaWG 3.x adds header encryption, padding, junk packets and random trailers while keeping the WireGuard crypto. The role brings up `awg0` (subnet `10.11.0.0/24`, UDP `wg_awg_port`) next to `wg0` using userspace `amneziawg-go` built on the controller from the pinned tag plus the pinned `amneziawg-tools` release, so nothing depends on the host kernel. Keys, PSK, `HeaderProtectionKey` and the `S1`–`S4` padding sizes live in the vault (see `secrets.yml.example`). Config changes are applied in place with `awg syncconf` (sessions survive); allow the port from RU peers only in `edge_firewall_wg_only_udp`, then add `10.11.0.1` as a path in the relay's `relay_haproxy_paths`.
 
 ---
 
@@ -592,6 +598,13 @@ hysteria_salamander_obfs_password: "RANDOM_PASSWORD"    # salamander obfuscation
 | `relay_transparent_enabled` | `false` | Route EU SNIs to xray_bridge transparent inbounds |
 | `relay_bridge_enabled` | `false` | Enable bridge-specific SNI routing (www.wikipedia.org → :5443) |
 | `relay_bridge_sni` | `""` | SNI that routes to xray_bridge main inbound |
+| `relay_upstream_via_wg` | `false` | Forward VPN sessions to EU over the WireGuard tunnel (UDP on the wire, survives TCP-only IP bans); public IP stays as nginx `backup` |
+| `relay_upstream_wg_host` | `10.10.0.1` | EU wg0 address used when `relay_upstream_via_wg` is on (= `wg_eu_ip`) |
+| `relay_upstream_wg_fail_timeout` | `30s` | After a failed tunnel connect, how long nginx sticks to the backup |
+| `relay_upstream_connect_timeout` | `5s` | `proxy_connect_timeout` of the :443 stream (bounds the stall while a dead upstream is skipped) |
+| `relay_haproxy_enabled` | `false` | Send VPN sessions through a local HAProxy hop that checks every path to EU with a real TLS handshake (`relay_haproxy_check_sni`) and fails over in seconds; nginx keeps the public IP as its own backup |
+| `relay_haproxy_paths` | wg0 primary, public IP backup | Paths to EU for the HAProxy backend (`name`, `host`, `port`, `backup`) |
+| `relay_haproxy_metrics_bind` | `<wg_ip>:8405` | Prometheus endpoint with per-path up/down for the EU vmagent; empty disables |
 
 ---
 
@@ -869,7 +882,7 @@ ansible-vault encrypt roles/raven_subscribe/defaults/secrets.yml --vault-passwor
 
 ### `no hosts matched` — playbook skips all hosts
 
-Check that your `roles/hosts.yml` defines `vm_my_srv` (for EU roles) and `vm_my_ru2` (for RU roles). The playbooks target these specific host names.
+Check that your `roles/hosts.yml` defines the host `vm_my_srv` (EU roles target it by name) and a non-empty group `ru` (RU roles target the *group*, so an RU host outside it matches nothing). Note that `roles/relay/inventory.ini` is empty and unused — pass `-i roles/hosts.yml` for the relay playbook.
 
 ### nginx reload fails after config deploy
 

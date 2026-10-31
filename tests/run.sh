@@ -7,11 +7,11 @@ export ANSIBLE_CONFIG="${ROOT}/ansible.cfg"
 cd "$ROOT"
 # ansible-playbook ищет роли относительно tests/ansible.cfg (roles_path = ../roles)
 
-echo "==> [1/4] Generate test_secrets.yml and bridge_test_secrets.yml (x25519)"
+echo "==> [1/6] Generate test_secrets.yml and bridge_test_secrets.yml (x25519)"
 "$ROOT/scripts/gen-reality-keys.sh" > "$ROOT/fixtures/test_secrets.yml"
 "$ROOT/scripts/gen-bridge-test-secrets.sh" > "$ROOT/fixtures/bridge_test_secrets.yml"
 
-echo "==> [2/4] ansible-playbook validate_vars.yml"
+echo "==> [2/6] ansible-playbook validate_vars.yml"
 ansible-playbook "$ROOT/playbooks/validate_vars.yml"
 
 OUT="$ROOT/.output/conf.d"
@@ -19,17 +19,21 @@ rm -rf "$ROOT/.output"
 mkdir -p "$OUT"
 export RAVEN_TEST_CONF_DIR="$OUT"
 
-echo "==> [3/4] ansible-playbook render_conf.yml"
+echo "==> [3/6] ansible-playbook render_conf.yml"
 ansible-playbook "$ROOT/playbooks/render_conf.yml"
 
 BRIDGE_OUT="$ROOT/.output/bridge.conf.d"
 mkdir -p "$BRIDGE_OUT"
 export RAVEN_TEST_BRIDGE_CONF_DIR="$BRIDGE_OUT"
 
-echo "==> [4/5] ansible-playbook render_bridge_conf.yml"
+echo "==> [4/6] ansible-playbook render_bridge_conf.yml"
 ansible-playbook "$ROOT/playbooks/render_bridge_conf.yml"
 
-echo "==> [5/5] xray -test"
+# xray -test cannot see silently-ignored keys, so assert the rendered shape too.
+echo "==> [5/6] assert rendered config keys"
+python3 "$ROOT/scripts/assert_rendered.py" "$OUT" "$BRIDGE_OUT"
+
+echo "==> [6/6] xray -test"
 if [ "${SKIP_XRAY_TEST:-}" = "1" ]; then
   echo "SKIP_XRAY_TEST=1 — пропуск xray -test."
   exit 0

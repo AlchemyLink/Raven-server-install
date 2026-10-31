@@ -1,5 +1,14 @@
 {
   "listen_addr": "{{ raven_subscribe_listen_addr }}",
+{% if raven_subscribe_metrics_listen | default('') != '' %}
+  "metrics_listen": "{{ raven_subscribe_metrics_listen }}",
+{% endif %}
+{% if raven_subscribe_metrics_anonymize_secret | default('') != '' %}
+  "metrics_anonymize_secret": "{{ raven_subscribe_metrics_anonymize_secret }}",
+{% endif %}
+{% if raven_subscribe_profile_update_interval_hours | default(0) | int > 0 %}
+  "profile_update_interval_hours": {{ raven_subscribe_profile_update_interval_hours | int }},
+{% endif %}
   "server_host": "{{ raven_subscribe_server_host }}",
   "config_dir": "{{ raven_subscribe_xray_config_dir }}",
   "db_path": "{{ raven_subscribe_db_dir }}/db.sqlite",
@@ -16,6 +25,21 @@
 {% endif %}
 {% if raven_subscribe_fallback_inbound_tags | default([]) | length > 0 %}
   "fallback_inbound_tags": {{ raven_subscribe_fallback_inbound_tags | to_json }},
+{% endif %}
+{% if raven_subscribe_killswitch_inbound_tags | default([]) | length > 0 %}
+  "killswitch_inbound_tags": {{ raven_subscribe_killswitch_inbound_tags | to_json }},
+{% endif %}
+{% if raven_subscribe_hysteria_enabled | default(false) %}
+  "hysteria": {
+    "enabled": true,
+    "host": "{{ raven_subscribe_hysteria_host }}",
+    "port": {{ raven_subscribe_hysteria_port }},
+    "obfs_type": "{{ raven_subscribe_hysteria_obfs_type }}",
+    "obfs_password": "{{ raven_subscribe_hysteria_obfs_password }}",
+    "sni": "{{ raven_subscribe_hysteria_sni }}",
+    "cert_pin": "{{ raven_subscribe_hysteria_cert_pin }}",
+    "in_main_sub": {{ raven_subscribe_hysteria_in_main_sub | default(false) | to_json }}
+  },
 {% endif %}
   "admin_token": "{{ raven_subscribe_admin_token }}",
   "rate_limit_sub_per_min": {{ raven_subscribe_rate_limit_sub_per_min }},
@@ -54,6 +78,12 @@
 {%- if xray_vless_fallback_client_encryption is defined and xray_vless_fallback_client_encryption != '' -%}
   {%- set _fb_tag = (xray_fallback.tag | default('vless-fallback-in')) if xray_fallback is defined else 'vless-fallback-in' -%}
   {%- set _ = ns.enc_map.update({_fb_tag: xray_vless_fallback_client_encryption}) -%}
+{%- endif -%}
+{#- Experimental 221 is a clone of 211 → reuse the v2 (xhttp) client encryption so the
+    generator emits Vision + PQ for vless-experimental-in, identical to vless-xhttp-v2-in. -#}
+{%- if xray_experimental_enabled | default(false) and xray_vless_client_encryption is defined and xray_vless_client_encryption != '' -%}
+  {%- set _exp_tag = (xray_experimental.tag | default('vless-experimental-in')) if xray_experimental is defined else 'vless-experimental-in' -%}
+  {%- set _ = ns.enc_map.update({_exp_tag: xray_vless_client_encryption}) -%}
 {%- endif -%}
 {% if ns.enc_map | length > 0 %},
   "vless_client_encryption": {{ ns.enc_map | to_json }}{% endif %}

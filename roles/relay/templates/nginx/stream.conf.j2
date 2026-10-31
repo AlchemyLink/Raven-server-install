@@ -13,7 +13,13 @@
 #   {{ relay_transparent_reality_v2_sni }} → xray-bridge transparent :{{ relay_transparent_reality_v2_port }} (EU Reality v2)
 #   {{ relay_transparent_xhttp_v2_sni }}   → xray-bridge transparent :{{ relay_transparent_xhttp_v2_port }} (EU XHTTP v2)
 {% endif %}
+{% if relay_haproxy_enabled | default(false) %}
+#   everything else (VPN)  → local HAProxy 127.0.0.1:{{ relay_haproxy_port }} (active checks over every path to EU), backup {{ relay_upstream_host }}:{{ relay_upstream_port }}
+{% elif relay_upstream_via_wg | default(false) %}
+#   everything else (VPN)  → EU over wg0 ({{ relay_upstream_wg_host }}:{{ relay_upstream_port }}), backup {{ relay_upstream_host }}:{{ relay_upstream_port }}
+{% else %}
 #   everything else (VPN)  → EU server ({{ relay_upstream_host }}:{{ relay_upstream_port }})
+{% endif %}
 #
 # PROXY protocol: only on upstreams to local Xray (127.0.0.1).
 # Do NOT add proxy_protocol to eu_vpn — EU expects raw TCP without PROXY.
@@ -21,6 +27,18 @@
 # This file is included inside stream {} block in nginx.conf
 
 {% if relay_stream_enabled %}
+# Per-source-IP concurrent-connection cap. Stops a single IP from exhausting nginx's
+# accept queue (incident 2026-06-08: one IP held 400+ empty SNI-less connections for 30s
+# each → listen backlog overflowed → real clients' SYNs dropped → content failed to load).
+# Lives in stream{} context (this file is included there).
+limit_conn_zone $binary_remote_addr zone=relay_perip:10m;
+{% if relay_access_log | default(false) %}
+# First-hop observability (client → RU). Privacy-preserving: NO client IP logged.
+# Only SNI + session_time (short sessions = TSPU killing the stream mid-flight)
+# + status + upstream + byte counts. Lets us see Reality-vs-XHTTP first-hop drops.
+log_format relay_sni '$ssl_preread_server_name sess=$session_time status=$status '
+                     'up=$upstream_addr in=$bytes_received out=$bytes_sent proto=$protocol';
+{% endif %}
 map $ssl_preread_server_name $relay_backend {
     {{ relay_domain }}     local_https;
     {{ relay_sub_my }}     local_https;
@@ -65,16 +83,47 @@ upstream xray_bridge_xhttp_v2 {
 
 {% endif %}
 upstream eu_vpn {
+{% if relay_haproxy_enabled | default(false) %}
+    # Primary: local HAProxy hop that owns the path choice to EU and checks every
+    # path actively (TLS handshake with the Reality cover SNI).
+    # Backup: EU public IP directly, used only while HAProxy itself is down.
+    server 127.0.0.1:{{ relay_haproxy_port }} max_fails=1 fail_timeout=10s;
+    server {{ relay_upstream_host }}:{{ relay_upstream_port }} backup;
+{% elif relay_upstream_via_wg | default(false) %}
+    # Primary: EU over the wg0 tunnel (UDP on the wire; survives TCP-only IP bans).
+    # Backup: EU public IP, used only while the tunnel upstream is marked down.
+    server {{ relay_upstream_wg_host }}:{{ relay_upstream_port }} max_fails=1 fail_timeout={{ relay_upstream_wg_fail_timeout }};
+    server {{ relay_upstream_host }}:{{ relay_upstream_port }} backup;
+{% else %}
     server {{ relay_upstream_host }}:{{ relay_upstream_port }};
+{% endif %}
 }
 
+{% for fwd in relay_hysteria_udp_forwards | default([]) %}
+# Hysteria2 UDP reserve forward ({{ fwd.note | default('') }}) — relay :{{ fwd.port }}/udp → EU
+upstream hy_udp_{{ fwd.port }} {
+    server {{ fwd.upstream }};
+}
 server {
-    listen 443 reuseport;
+    listen {{ fwd.port }} udp reuseport;
+    proxy_pass hy_udp_{{ fwd.port }};
+    proxy_timeout {{ fwd.timeout | default('120s') }};
+}
+{% endfor %}
+server {
+    listen 443 reuseport backlog={{ relay_listen_backlog | default(4096) }};
     proxy_pass $relay_backend;
     ssl_preread on;
-    proxy_connect_timeout 10s;
+    # Cap concurrent connections per source IP (CGNAT-tolerant ceiling; xmux uses ~16-32
+    # per client). A flooder is bounded here instead of overrunning the whole listener.
+    limit_conn relay_perip {{ relay_limit_conn_per_ip | default(128) }};
+    # EU is ~45 ms away; a short connect timeout bounds the stall a client sees
+    # while a dead upstream (e.g. a black-holed tunnel) is detected and skipped.
+    proxy_connect_timeout {{ relay_upstream_connect_timeout | default('10s') }};
     proxy_timeout 600s;
-{% if not relay_access_log | default(false) %}
+{% if relay_access_log | default(false) %}
+    access_log /var/log/nginx/relay-sni.log relay_sni;
+{% else %}
     access_log off;
 {% endif %}
 }

@@ -23,6 +23,11 @@
   ansible.builtin.import_tasks: nginx_ssl.yml
   tags: relay_nginx_ssl
 
+- name: Relay | Configure HAProxy hop to EU (active health checks)
+  ansible.builtin.import_tasks: haproxy.yml
+  tags: relay_haproxy
+  when: relay_haproxy_enabled | default(false)
+
 - name: Relay | Configure TCP stream relay
   ansible.builtin.import_tasks: stream.yml
   tags: relay_stream

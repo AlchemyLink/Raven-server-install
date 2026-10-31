@@ -8,6 +8,7 @@
 # apt.grafana.com is geoblocked from RU (403). Download .deb on control
 # machine (no geo restrictions) and copy to remote for local install.
 - name: Get latest Grafana release version (GitHub API)
+  when: grafana_version == "latest"
   ansible.builtin.uri:
     url: "https://api.github.com/repos/grafana/grafana/releases/latest"
     method: GET
@@ -24,7 +25,9 @@
 
 - name: Set Grafana version fact
   ansible.builtin.set_fact:
-    grafana_resolved_version: "{{ grafana_release_info.json.tag_name | regex_replace('^v', '') }}"
+    grafana_resolved_version: >-
+      {{ (grafana_release_info.json.tag_name if grafana_version == "latest" else grafana_version)
+         | regex_replace('^v', '') }}
 
 # Grafana ships a .sha256 sidecar but the filename inside is the build-prefixed
 # `dist/grafana_<ver>_<build>_linux_amd64.deb`, which doesn't match Ansible's
@@ -246,6 +249,16 @@
   ansible.builtin.file:
     path: "{{ grafana_data_dir }}/dashboards/ru-traffic-split.json"
     state: absent
+  notify: Restart grafana
+  tags: grafana_dashboards
+
+- name: Deploy Grafana RU censorship map dashboard (Taucloud + IODA)
+  ansible.builtin.template:
+    src: dashboards/ru-censorship-map.json.j2
+    dest: "{{ grafana_data_dir }}/dashboards/ru-censorship-map.json"
+    owner: grafana
+    group: grafana
+    mode: "0640"
   notify: Restart grafana
   tags: grafana_dashboards
 

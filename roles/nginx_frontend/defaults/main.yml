@@ -35,19 +35,23 @@ nginx_frontend_stream_enabled: true
 nginx_frontend_stream_v2_enabled: true
 nginx_frontend_stream_v2_reality_sni: "dl.google.com"        # Must match xray_v2_vless.reality.server_names[0]
 nginx_frontend_stream_v2_reality_port: 4444                  # Must match xray_v2_vless.port
-nginx_frontend_stream_v2_xhttp_sni: "addons.mozilla.org"     # Must match xray_v2_xhttp.reality.server_names[0]
+nginx_frontend_stream_v2_xhttp_sni: "www.python.org"         # Must match xray_v2_xhttp.reality.server_names[0] (migrated from addons.mozilla.org 2026-06-07)
 nginx_frontend_stream_v2_xhttp_port: 2054                    # Must match xray_v2_xhttp.port
 
-# Fallback inbound — multi-SNI на StackExchange-инфраструктуре (один upstream)
-# Все 4 SNI идут на один backend port — Reality сама выбирает соединение по UIRD-маркеру.
-# StackExchange использует SNI-virtual-hosting → cert всегда совпадает с любым из этих SNI.
+# Fallback inbound — VLESS+XHTTP+Reality (2026-06-06).
+# Single cover-SNI www.adobe.com (H2, 200, no-redirect, datacenter-friendly).
+# SNI должен совпадать с xray_fallback.reality.server_names И с realitySettings.dest.
 nginx_frontend_stream_fallback_enabled: true
 nginx_frontend_stream_fallback_port: 5443                    # Must match xray_fallback.port
 nginx_frontend_stream_fallback_snis:                          # Must match xray_fallback.reality.server_names
-  - "stackoverflow.com"
-  - "superuser.com"
-  - "serverfault.com"
-  - "unix.stackexchange.com"
+  - "www.adobe.com"
+
+# Experimental inbound — VLESS+XHTTP+Reality sandbox (anti-freeze).
+# DISABLED by default. Enable ТОЛЬКО вместе с xray_experimental_enabled=true.
+# SNI/port ДОЛЖНЫ совпадать с xray_experimental.reality.server_names[0] и .port.
+nginx_frontend_stream_experimental_enabled: false
+nginx_frontend_stream_experimental_port: 5444                # Must match xray_experimental.port
+nginx_frontend_stream_experimental_sni: "www.python.org"    # Must match xray_experimental.reality.server_names[0]
 
 # ── Raven Dashboard SNI integration ──────────────────────────────────────────
 # Routes SNI <dashboard_domain> → separate nginx HTTPS server on dashboard_port.

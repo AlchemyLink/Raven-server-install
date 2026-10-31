@@ -24,7 +24,12 @@ chmod +x tests/run.sh tests/scripts/gen-reality-keys.sh
 1. Скачивает Xray (кэш в `tests/.cache/`), выполняет `xray x25519`, пишет `tests/fixtures/test_secrets.yml` (в `.gitignore`).
 2. Запускает `playbooks/validate_vars.yml` — импорт `roles/xray/tasks/validate.yml`.
 3. Рендерит все шаблоны `roles/xray/templates/conf/*/*.j2` в `tests/.output/conf.d/`.
-4. Собирает образ из `docker/test/xray-client` (если ещё нет) и выполняет `xray -test -confdir /etc/xray/config.d`.
+4. То же для роли `xray_bridge` → `tests/.output/bridge.conf.d/`.
+5. Запускает `scripts/assert_rendered.py` — проверяет, что в отрендеренном
+   конфиге нет ключей, которые Xray молча игнорирует (не тот уровень
+   вложенности, устаревшее имя). `xray -test` такое не ловит: неизвестный ключ
+   просто отбрасывается, и конфиг проходит проверку, ничего не делая.
+6. Собирает образ из `docker/test/xray-client` (если ещё нет) и выполняет `xray -test -confdir /etc/xray/config.d`.
 
 Только Ansible (без Docker):
 

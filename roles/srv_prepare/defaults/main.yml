@@ -4,6 +4,8 @@
 # Apt package for install
 srv_prepare_apps_list_apt:
   - iptables
+  - unzip          # xray role unarchives the release zip (absent on fresh Debian 13)
+  - rsync          # raven_dashboard backup → MON (absent on fresh Debian 13)
   - htop
   - sudo
   - vim

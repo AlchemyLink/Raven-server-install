@@ -163,10 +163,14 @@ all:
         vm_my_srv:
           ansible_host: "IP_EU_VPS"
           ansible_port: 22
-        vm_my_ru2:                        # опционально: RU VPS для relay + bridge
-          ansible_host: "IP_RU_VPS"
-          ansible_port: 22
-          ansible_user: deploy
+      children:
+        ru:                               # RU-роли таргетят ГРУППУ, а не имя хоста —
+          hosts:                          # шаблоны идут циклом по groups['ru'], поэтому
+            vm_my_ru:                     # новые RU-ноды добавляются слотами сюда же
+              ansible_host: "IP_RU_VPS"
+              ansible_port: 22
+              ansible_user: deploy
+              wg_ip: 10.10.0.2
       vars:
         ansible_user: deploy
         ansible_python_interpreter: /usr/bin/python3
@@ -380,6 +384,8 @@ ansible-playbook roles/role_raven_dashboard.yml -i roles/hosts.yml \
 Создаёт WireGuard mesh между EU и RU VPS. Требуется для:
 - Синхронизации gRPC Raven-subscribe → мост (EU пушит пользователей на RU мост через WireGuard)
 - Мониторинга (vmagent на EU пушит метрики на VictoriaMetrics на RU)
+
+**Второй туннель AmneziaWG (`wg_awg_enabled: true`, тег `wireguard_awg`).** У обычного WireGuard фиксированная сигнатура на проводе; AmneziaWG 3.x добавляет шифрование заголовков, паддинг, junk-пакеты и случайные хвосты, сохраняя криптографию WireGuard. Роль поднимает `awg0` (подсеть `10.11.0.0/24`, UDP `wg_awg_port`) рядом с `wg0` на userspace `amneziawg-go`, собранном на контроллере из закреплённого тега, плюс закреплённый релиз `amneziawg-tools`, так что от ядра хоста ничего не зависит. Ключи, PSK, `HeaderProtectionKey` и размеры паддинга `S1`–`S4` лежат в vault (см. `secrets.yml.example`). Изменения конфига применяются на месте через `awg syncconf` (сессии живут); порт разрешить только с RU в `edge_firewall_wg_only_udp`, затем добавить `10.11.0.1` как путь в `relay_haproxy_paths` relay.
 
 ---
 
@@ -605,6 +611,13 @@ hysteria_salamander_obfs_password: "СЛУЧАЙНЫЙ_ПАРОЛЬ"       # о�
 | `relay_domain` | `example.com` | Домен RU VPS — stub-сайт и SNI routing |
 | `relay_sub_my` | `my.example.com` | Поддомен, проксируемый на EU Raven-subscribe |
 | `relay_upstream_host` | `EU_VPS_IP` | IP EU сервера (задать в secrets.yml) |
+| `relay_upstream_via_wg` | `false` | Отправлять VPN-сессии на EU через WireGuard-туннель (на проводе UDP, переживает TCP-баны IP); публичный IP остаётся как nginx `backup` |
+| `relay_upstream_wg_host` | `10.10.0.1` | Адрес wg0 EU при включённом `relay_upstream_via_wg` (= `wg_eu_ip`) |
+| `relay_upstream_wg_fail_timeout` | `30s` | Сколько nginx держится на backup после неудачного коннекта в туннель |
+| `relay_upstream_connect_timeout` | `5s` | `proxy_connect_timeout` stream-сервера :443 (ограничивает паузу, пока мёртвый апстрим пропускается) |
+| `relay_haproxy_enabled` | `false` | Пускать VPN-сессии через локальный HAProxy, который проверяет каждый путь до EU настоящим TLS-handshake (`relay_haproxy_check_sni`) и переключает за секунды; nginx держит публичный IP как собственный backup |
+| `relay_haproxy_paths` | wg0 primary, публичный IP backup | Пути до EU для бэкенда HAProxy (`name`, `host`, `port`, `backup`) |
+| `relay_haproxy_metrics_bind` | `<wg_ip>:8405` | Prometheus-эндпоинт с up/down по путям для vmagent на EU; пустое значение отключает |
 
 ---
 
@@ -855,7 +868,7 @@ ansible-vault encrypt roles/raven_subscribe/defaults/secrets.yml --vault-passwor
 
 ### `no hosts matched` — плейбук пропускает все хосты
 
-Проверьте, что `roles/hosts.yml` содержит `vm_my_srv` (для EU ролей) и `vm_my_ru2` (для RU ролей). Плейбуки таргетируют именно эти имена хостов.
+Проверьте, что `roles/hosts.yml` содержит хост `vm_my_srv` (EU-роли таргетят его по имени) и непустую группу `ru` (RU-роли таргетят *группу*, поэтому RU-хост вне неё ни с чем не сматчится). Учтите: `roles/relay/inventory.ini` пуст и не используется — для relay-плейбука передавайте `-i roles/hosts.yml`.
 
 ### nginx не перезапускается после деплоя конфига
 

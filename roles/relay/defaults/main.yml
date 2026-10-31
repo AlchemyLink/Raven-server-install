@@ -24,6 +24,70 @@ relay_upstream_port: 443
 # Port where nginx_frontend HTTPS listens on EU server (Raven-subscribe behind it)
 relay_upstream_raven_port: 8443
 
+# ── VPN upstream over WireGuard ───────────────────────────────────────────────
+# When true, the :443 stream forwards VPN sessions to EU's WireGuard address instead
+# of its public IP, so the RU→EU hop is a UDP tunnel rather than plain TCP:
+#   • a per-IP TCP ban of the EU address (the 2026-09/10 waves were TCP-only) no
+#     longer breaks the main chain;
+#   • border DPI sees one WireGuard flow, not thousands of TLS sessions to a foreign IP.
+# The public IP stays in the upstream as `backup`: nginx uses it only while the
+# tunnel upstream fails (connect timeout → marked down for
+# relay_upstream_wg_fail_timeout, then retried). Requires the wireguard role on both
+# hosts (same tunnel the Hysteria2 forwards already use). Only the stream is affected;
+# the HTTPS relay for relay_sub_my (:8443) keeps using relay_upstream_host.
+# Rollback = set false and re-run `--tags relay_stream` (graceful nginx reload).
+relay_upstream_via_wg: false
+relay_upstream_wg_host: "10.10.0.1"        # EU wg0 address (wireguard role: wg_eu_ip)
+relay_upstream_wg_fail_timeout: "30s"      # how long a failed tunnel attempt sticks to backup
+# nginx proxy_connect_timeout for the :443 stream. Bounds the stall one client sees
+# while a dead upstream is detected before nginx moves to the next server.
+relay_upstream_connect_timeout: "5s"
+
+# ── HAProxy hop with ACTIVE health checks (optional, recommended) ─────────────
+# nginx can only notice an upstream when connect() fails; a tunnel that is up
+# but losing packets keeps receiving traffic. With relay_haproxy_enabled the
+# :443 stream sends VPN sessions to a local HAProxy (127.0.0.1:relay_haproxy_port)
+# whose backend lists every PATH to EU and checks each one every few seconds
+# with a real TLS handshake using a Reality cover SNI — i.e. the full chain
+# nginx-stream → Xray on EU. A failing path is pulled in fall×interval seconds
+# and returns after rise×interval. nginx keeps the EU public IP as its own
+# backup in case HAProxy itself is down. Traffic stays raw TCP (no PROXY
+# protocol, checks only use TLS). HAProxy does not log (privacy).
+# Rollout: `--tags relay_haproxy` first (installs + checks, nginx untouched),
+# inspect `echo "show servers state" | socat - /run/haproxy/admin.sock`, then
+# `--tags relay_stream` to point nginx at it (graceful reload).
+relay_haproxy_enabled: false
+relay_haproxy_port: 14443                  # loopback only; 4443/4444/2053/2054 are taken by xray_bridge on RU
+# SNI for health checks — must be one the EU stream map routes to an Xray
+# Reality inbound (e.g. your XHTTP cover), never a tcp_close default.
+relay_haproxy_check_sni: "www.python.org"
+relay_haproxy_check_interval: "3s"
+relay_haproxy_check_fall: 2
+relay_haproxy_check_rise: 2
+relay_haproxy_connect_timeout: "2s"        # EU is ~45 ms away; bounds the stall on a dead path
+relay_haproxy_idle_timeout: "600s"         # = nginx proxy_timeout on the stream
+relay_haproxy_maxconn: "{{ relay_worker_connections }}"
+# Paths to EU. Non-backup servers share traffic, backups are used only when
+# every primary is down. The AmneziaWG tunnel (wireguard role, awg0) joins via
+# relay_upstream_awg_mode so it can be soaked as a checked-but-idle backup
+# before taking traffic:
+#   off     — not in the backend
+#   backup  — health-checked, used only when wg0 and the public IP are down
+#   primary — takes traffic; wg0 and the public IP become backups
+relay_upstream_awg_mode: "off"
+relay_upstream_awg_host: "10.11.0.1"       # EU awg0 address (wireguard role: wg_awg_eu_ip)
+relay_haproxy_paths: >-
+  {{
+    ([{'name': 'eu_awg', 'host': relay_upstream_awg_host, 'backup': relay_upstream_awg_mode == 'backup'}]
+      if relay_upstream_awg_mode in ['backup', 'primary'] else [])
+    + [{'name': 'eu_wg', 'host': relay_upstream_wg_host, 'backup': relay_upstream_awg_mode == 'primary'}]
+    + [{'name': 'eu_pub', 'host': relay_upstream_host, 'backup': true}]
+  }}
+# Prometheus metrics (haproxy_server_up etc.) on the WG address, for the EU
+# vmagent to scrape and alert on. Empty bind disables the frontend.
+relay_haproxy_metrics_enabled: true
+relay_haproxy_metrics_bind: "{{ (wg_ip ~ ':8405') if wg_ip is defined else '' }}"
+
 
 # ── SNI stream routing on :443 ───────────────────────────────────────────────
 # nginx stream with ssl_preread reads SNI from TLS ClientHello and routes:
@@ -32,13 +96,40 @@ relay_upstream_raven_port: 8443
 relay_stream_enabled: true
 relay_https_port: 8443                 # Local HTTPS port (behind stream, stub + Raven relay)
 
+# Listener hardening against connection-exhaustion floods (incident 2026-06-08).
+# nginx defaults the per-listener accept backlog to 511 regardless of net.core.somaxconn,
+# so a flood of SYN-less/empty connections overflows it and drops real clients' SYNs.
+relay_listen_backlog: 4096             # explicit listen backlog (somaxconn is 65535 via srv_prepare)
+# Per-source-IP concurrent :443 cap (limit_conn, keyed on $binary_remote_addr in the stream).
+# For CGNAT'd RU mobile (hundreds of users behind one carrier IP) this is SHARED across many
+# real users. 512 was still too low — one MTS CGNAT IP (85.140.3.114) hit it 108× on 2026-06-09
+# ("limiting connections … while initializing session" → dropped legit VPN connects). Raised to
+# 2048. MUST stay < relay_worker_connections so one IP at the cap can't exhaust the whole worker.
+relay_limit_conn_per_ip: 2048
+# nginx event capacity. Distro default worker_connections=1024 is a hard ceiling for the WHOLE
+# relay (1 vCPU → 1 worker); with the per-IP cap at 2048 the global pool must be well above it.
+# fd limit ≥ 2×conns. Applied to nginx.conf by tasks/nginx.yml.
+relay_worker_connections: 16384
+relay_worker_rlimit_nofile: 32768
+
+# Hysteria2 UDP reserve forwards (client → relay :port/udp → EU over WG mesh, bypassing the
+# DO cloud firewall which blocks public UDP). EU runs native hysteria servers (systemd):
+# 47012 = gecco obfs (strong, native/CLI client), 47014 = salamander obfs (Xray/v2rayN client).
+# Upstream is EU's WG IP (10.10.0.1) so traffic rides the existing wg0 tunnel.
+relay_hysteria_udp_forwards:
+  - { port: 47012, upstream: "10.10.0.1:47012", note: "gecco" }
+  - { port: 47014, upstream: "10.10.0.1:47014", note: "salamander" }
+
 # ── nginx ─────────────────────────────────────────────────────────────────────
 relay_nginx_user: "www-data"
 relay_webroot: "/var/www/{{ relay_domain }}"
 
 # Disable nginx access logs on RU relay for client privacy.
-# When false: nginx does not log client IPs, timing, or traffic volume.
-# Set to true only if you need RU-side traffic analysis and accept the privacy tradeoff.
+# When false: nginx does not log anything for the :443 stream.
+# When true: logs the stream via the privacy-preserving `relay_sni` format —
+#   SNI + session_time + status + upstream + byte counts, but NEVER the client IP.
+#   Used for first-hop diagnostics (Reality-vs-XHTTP drops, TSPU short-session detection).
+# Keep this false in steady state; enable per-run with `-e relay_access_log=true`.
 relay_access_log: false
 
 # ── Certbot ───────────────────────────────────────────────────────────────────

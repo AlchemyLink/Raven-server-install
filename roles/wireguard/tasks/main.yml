@@ -15,3 +15,8 @@
     inventory_hostname in (groups['ru'] | default([]))
     or inventory_hostname in (groups['nodes'] | default([]))
   tags: wireguard_ru
+
+- name: Configure AmneziaWG second tunnel (awg0)
+  ansible.builtin.import_tasks: awg.yml
+  when: wg_awg_enabled | default(false)
+  tags: wireguard_awg

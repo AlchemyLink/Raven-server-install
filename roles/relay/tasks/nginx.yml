@@ -1,6 +1,24 @@
 ---
 # Initial HTTP-only config — needed for certbot HTTP-01 challenge
 
+# Lift the distro default worker_connections (1024) — it caps the WHOLE relay (1 vCPU → 1
+# worker) and, with limit_conn at relay_limit_conn_per_ip, a couple of busy CGNAT source IPs
+# exhaust it → dropped connects. Raise the global pool + matching fd limit. Idempotent.
+- name: Relay | Set nginx worker_rlimit_nofile (fd headroom)
+  ansible.builtin.lineinfile:
+    path: /etc/nginx/nginx.conf
+    regexp: '^\s*worker_rlimit_nofile\s'
+    line: "worker_rlimit_nofile {{ relay_worker_rlimit_nofile }};"
+    insertafter: '^worker_processes'
+  notify: Reload nginx
+
+- name: Relay | Raise nginx worker_connections (CGNAT headroom)
+  ansible.builtin.lineinfile:
+    path: /etc/nginx/nginx.conf
+    regexp: '^\s*worker_connections\s+\d+;'
+    line: "    worker_connections  {{ relay_worker_connections }};"
+  notify: Reload nginx
+
 # Deploy stream config early so any existing stale config on disk is fixed
 # before the first flush_handlers reload. Prevents "invalid parameter" errors
 # from old configs when nginx reloads during this task file.

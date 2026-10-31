@@ -1,0 +1,104 @@
+{
+  "inbounds": [
+{% if xray_experimental_enabled | default(false) %}
+{# ─────────────────────────────────────────────────────────────────────────────
+   EXPERIMENTAL inbound 221 — STAGING CLONE of the primary XHTTP (211 /
+   vless-xhttp-v2-in / outbound vless-xhttp-v2-in-0).
+
+   Purpose: a faithful mirror of 211's transport profile so XHTTP-improvement
+   experiments run apples-to-apples with the real primary WITHOUT touching it.
+   Mirrors 211: XHTTP + packet-up + Vision (xtls-rprx-vision) + VLESS Encryption
+   (PQ) + testseed/testpre + extra{xPaddingBytes}. The Raven generator adds the
+   default client xmux inside extra (same as 211, post-v0.3.1).
+
+   Isolation: own port/tag, own Reality keypair (xray_experimental_reality), own
+   cover SNI (routing requires a distinct SNI from 211's addons.mozilla.org).
+   REUSES 211's VLESS-Encryption keypair (xray_vless_decryption / _client_encryption)
+   for byte-identical crypto — each inbound decrypts independently, so this does
+   NOT couple to 211.
+
+   Topology = via RELAY (like 211): raven maps fallback_inbound_hosts
+   [vless-experimental-in] = server_host (relay apex). Served on /sub/fallback/*
+   (raven_subscribe_fallback_inbound_tags) to a dedicated test token.
+
+   Experiments = change xray_experimental.* below (mode/path/extra/…); a working
+   delta gets ported to 211 (xray_v2_xhttp). Disabled by default — vault flag.
+   ───────────────────────────────────────────────────────────────────────────── #}
+{% set _x = xray_experimental %}
+{% set _xr = xray_experimental_reality %}
+{% set _pq = xray_vless_decryption | default('none') != 'none' %}
+{% set _clients = [] %}
+{% for user in xray_users %}
+{%   set _ = _clients.append({
+       "id": user.id,
+       "flow": ('xtls-rprx-vision' if _pq else ''),
+       "email": ((user.email | default('') | trim) or user.id),
+       "level": 0
+     }) %}
+{% endfor %}
+{% for c in (xray_extra_clients | default({})).get('221-in-experimental.json', []) %}
+{%   set _ = _clients.append(c) %}
+{% endfor %}
+    {
+      "listen": "{{ _x.listen | default('127.0.0.1') }}",
+      "port": {{ _x.port }},
+      "protocol": "vless",
+      "tag": "{{ _x.tag | default('vless-experimental-in') }}",
+      "settings": {
+        "clients": {{ _clients | to_json }},
+        {% set _ts = xray_experimental_testseed | default(xray_v2_testseed | default(xray_testseed | default([]))) %}
+        {% if _ts | length == 4 %}
+        "testseed": {{ _ts | to_json }},
+        {% endif %}
+        {% set _tp = xray_experimental_testpre | default(xray_v2_testpre | default(xray_testpre | default(0))) %}
+        {% if _tp | int > 0 %}
+        "testpre": {{ _tp | int }},
+        {% endif %}
+        "decryption": "{{ xray_vless_decryption | default('none') }}"
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls",
+          "quic"
+        ],
+        "routeOnly": true
+      },
+      "streamSettings": {
+        "network": "{{ _x.network | default('xhttp') }}",
+        "realitySettings": {
+          "show": false,
+          {% set _mcv = xray_reality_min_client_ver | default("") | trim %}
+          {% if _mcv %}
+          "minClientVer": "{{ _mcv }}",
+          {% endif %}
+          "dest": "{{ _x.reality.dest }}",
+          "spiderX": "{{ _xr.spiderX | default('/') }}",
+          "serverNames": [
+            {% for name in _x.reality.server_names %}
+            "{{ name }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "privateKey": "{{ _xr.private_key }}",
+          "shortIds": [
+            {% for short_id in _xr.short_id %}
+            "{{ short_id }}"{{ "," if not loop.last }}
+            {% endfor %}
+          ],
+          "xver": 0
+        },
+        "security": "reality",
+        "xhttpSettings": {
+          "mode": "{{ _x.xhttpSettings.mode | default('packet-up') }}",
+          "path": "{{ _x.xhttpSettings.path }}",
+          "scMaxPacketSize": {{ _x.xhttpSettings.scMaxPacketSize | default(1048576) }},
+          "extra": {
+            "xPaddingBytes": "{{ _x.xhttpSettings.xPaddingBytes | default('100-1000') }}"
+          }
+        }
+      }
+    }
+{% endif %}
+  ]
+}

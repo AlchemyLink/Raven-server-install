@@ -18,12 +18,26 @@ all:
               ansible_host: "RU_VPS_IP"   # Replace with your RU VPS IP
               ansible_port: 22
               wg_ip: 10.10.0.2            # WireGuard IP for this peer
+              # wg_awg_enabled: true      # AmneziaWG second tunnel (awg0) to EU; also set on the EU host
+              # wg_awg_ip: 10.11.0.2      # awg0 address of this peer (default wg_awg_ru_ip)
               # wg_public_key:            # Per-host (optional). Falls back to global wg_ru_public_key.
               relay_cloudflare_proxy: true
               relay_cloudflare_enforce: true
               relay_bridge_enabled: false
               relay_bridge_sni: ""
+              # relay_upstream_via_wg: true  # VPN sessions → EU over wg0 (needs the wireguard role)
+              # relay_haproxy_enabled: true  # local HAProxy hop with active TLS checks over every path to EU
             # Add a second RU here when scaling, e.g.:
+            #
+            # ⚠ If you also add the new node as a second origin A record on a
+            # Cloudflare-PROXIED hostname, be aware CF's free tier round-robins
+            # origins with NO health check. A node that dies by blackholing packets
+            # (VPS powered off — no TCP RST) then costs a ~20 s connect timeout on
+            # every request before CF retries the surviving origin: the site still
+            # answers 200, just far past any client's timeout, which is much harder
+            # to spot than a clean 5xx. Either pair the second origin with a real
+            # reachability alert and pull its A record the moment it dies, or keep
+            # exactly one origin A record per proxied hostname.
             # vm_my_ru_b:
             #   ansible_host: "SECOND_RU_VPS_IP"
             #   ansible_port: 22

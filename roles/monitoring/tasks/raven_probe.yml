@@ -6,9 +6,23 @@
 # raven-probe repo (sibling of Raven-server-install). Override with
 # raven_probe_local_binary=/path/to/raven-probe to skip the build.
 
+- name: raven-probe | Resolve source version (git describe)
+  ansible.builtin.command:
+    cmd: git describe --tags --always --dirty
+    chdir: "{{ raven_probe_repo_path }}"
+  delegate_to: localhost
+  run_once: true
+  register: _raven_probe_describe
+  changed_when: false
+  check_mode: false   # read-only; lets --check render the real version string
+  when: raven_probe_local_binary is not defined
+
 - name: raven-probe | Build binary on controller
   ansible.builtin.command:
-    cmd: go build -o raven-probe-linux-amd64 .
+    cmd: >-
+      {{ raven_probe_go_bin }} build -trimpath
+      -ldflags "-s -w -X main.version={{ _raven_probe_describe.stdout | default('ansible') }}"
+      -o raven-probe-linux-amd64 .
     chdir: "{{ raven_probe_repo_path }}"
   environment:
     GOOS: linux

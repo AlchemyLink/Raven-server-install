@@ -1,2 +1,18 @@
 ---
-# nginx_frontend uses self-signed cert — no domain or certbot required
+# Main :8443 vhost uses self-signed cert (auto-generated). Dashboard and sub
+# vhosts use a CF Origin CA cert deployed from vault — assert it's present
+# before rendering, otherwise nginx -t will fail with "no such file" on the
+# cert path referenced by dashboard.conf.j2 / sub.conf.j2.
+- name: Nginx frontend | Validate CF Origin cert is set when dashboard/sub vhosts enabled
+  ansible.builtin.assert:
+    that:
+      - nginx_frontend_cf_origin_cert is defined
+      - nginx_frontend_cf_origin_key is defined
+    fail_msg: >-
+      nginx_frontend_dashboard_enabled or nginx_frontend_sub_enabled is true,
+      but nginx_frontend_cf_origin_cert / nginx_frontend_cf_origin_key are not
+      set in roles/nginx_frontend/defaults/secrets.yml. Generate a CF Origin
+      CA cert in the Cloudflare dashboard and paste it into the vault.
+  when: >-
+    (nginx_frontend_dashboard_enabled | default(false))
+    or (nginx_frontend_sub_enabled | default(false))

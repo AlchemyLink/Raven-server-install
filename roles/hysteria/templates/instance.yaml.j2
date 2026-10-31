@@ -1,0 +1,30 @@
+{% set use_real_cert = (hysteria_real_cert_enabled | default(false)) and (item.real_cert | default(false)) %}
+listen: :{{ item.port }}
+tls:
+  cert: {{ hysteria_le_cert if use_real_cert else hysteria_selfsigned_cert }}
+  key: {{ hysteria_le_key if use_real_cert else hysteria_selfsigned_key }}
+obfs:
+  type: {{ item.obfs_type }}
+  {{ item.obfs_type }}:
+    password: {{ item.obfs_password }}
+{% if item.auth_mode | default('password') == 'http' %}
+auth:
+  type: http
+  http:
+    url: {{ hysteria_auth_http_url }}
+    insecure: false
+{% else %}
+auth:
+  type: password
+  password: {{ hysteria_auth_password }}
+{% endif %}
+masquerade:
+  type: proxy
+  proxy:
+    url: {{ hysteria_masq_url }}
+    rewriteHost: true
+{% if item.traffic_stats_port is defined %}
+trafficStats:
+  listen: 127.0.0.1:{{ item.traffic_stats_port }}
+  secret: {{ hysteria_traffic_stats_secret }}
+{% endif %}

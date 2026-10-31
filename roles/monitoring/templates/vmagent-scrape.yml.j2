@@ -78,6 +78,20 @@ scrape_configs:
           server: mon
           instance: "{{ hostvars[groups['mon'][0]].ansible_host }}"
 
+{% if raven_subscribe_metrics_addr | default('') != '' %}
+  # raven-subscribe app metrics: raven_fallback_enabled (Model A invariant,
+  # 1 = steady state) and raven_fallback_denied_total (user-facing 403s from a
+  # disabled fallback). Added after the 2026-06-09 forgotten-fallback incident.
+  # Also gives up{job="raven-subscribe"} a real series for the down-alert.
+  - job_name: raven-subscribe
+    static_configs:
+      - targets:
+          - {{ raven_subscribe_metrics_addr }}
+        labels:
+          server: eu
+          instance: "{{ monitoring_eu_instance }}"
+{% endif %}
+
   # raven-dashboard app metrics: raven_users_total/active, http_responses,
   # worker_last_tick_age_seconds (broadcast/quota/sync background workers),
   # schema_version, goroutines, mem stats.
@@ -107,6 +121,19 @@ scrape_configs:
     static_configs:
       - targets:
           - {{ hostvars[h].wg_ip | default(wg_ru_ip) }}:9113
+        labels:
+          server: ru
+          instance: "{{ hostvars[h].ansible_host }}"
+{% endfor %}
+
+  # HAProxy hop on RU (relay role, relay_haproxy_enabled) — per-path health of
+  # relay→EU (wg0 tunnel vs public IP), check failures, sessions per path.
+  # Built-in prometheus-exporter bound to the WG address. Scraped over WireGuard.
+{% for h in groups['ru'] %}
+  - job_name: haproxy-{{ h }}
+    static_configs:
+      - targets:
+          - {{ hostvars[h].wg_ip | default(wg_ru_ip) }}:{{ monitoring_relay_haproxy_metrics_port }}
         labels:
           server: ru
           instance: "{{ hostvars[h].ansible_host }}"

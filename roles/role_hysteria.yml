@@ -1,0 +1,17 @@
+---
+# Hysteria2 UDP reserve servers on EU (vm_my_srv).
+# Usage:
+#   ansible-playbook roles/role_hysteria.yml -i roles/hosts.yml \
+#     --vault-password-file vault_password.txt
+#
+# Pairs with the relay role's relay_hysteria_udp_forwards (RU relay UDP forward → EU WG).
+
+- name: Deploy Hysteria2 reserves
+  hosts: vm_my_srv
+  become: true
+
+  vars_files:
+    - hysteria/defaults/secrets.yml
+
+  roles:
+    - hysteria

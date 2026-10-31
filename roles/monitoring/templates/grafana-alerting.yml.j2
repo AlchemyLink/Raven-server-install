@@ -25,6 +25,7 @@ groups:
             model:
               type: threshold
               refId: C
+              expression: A
               conditions:
                 - evaluator:
                     params: [1]
@@ -62,6 +63,7 @@ groups:
             model:
               type: threshold
               refId: C
+              expression: A
               conditions:
                 - evaluator:
                     params: [1]
@@ -99,6 +101,7 @@ groups:
             model:
               type: threshold
               refId: C
+              expression: A
               conditions:
                 - evaluator:
                     params: [1]
@@ -136,6 +139,7 @@ groups:
             model:
               type: threshold
               refId: C
+              expression: A
               conditions:
                 - evaluator:
                     params: [1]
@@ -153,6 +157,120 @@ groups:
           summary: "RU сервер ({{ monitoring_ru_host }}) недоступен"
           description: "node_exporter на RU сервере не отвечает более 3 минут."
         labels:
+          severity: critical
+
+      - uid: relay-eu-path-down
+        title: "Relay: путь до EU недоступен"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "max by (instance, server) (haproxy_server_status{proxy=\"eu_vpn\", state=\"UP\"})"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Error
+        for: 2m
+        annotations:
+          summary: "Relay {% raw %}{{ $labels.instance }}{% endraw %}: путь {% raw %}{{ $labels.server }}{% endraw %} до EU не проходит TLS-проверку"
+          description: "HAProxy на relay выводит путь {% raw %}{{ $labels.server }}{% endraw %} (eu_wg = туннель wg0, eu_pub = публичный IP EU) из ротации: TLS-handshake с cover-SNI через него не проходит 2+ минуты. Трафик идёт по оставшимся путям. Проверьте `wg show` / бан IP EU."
+        labels:
+          severity: warning
+
+      - uid: relay-eu-all-paths-down
+        title: "Relay: EU недоступен ни одним путём"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "max by (instance) (haproxy_backend_status{proxy=\"eu_vpn\", state=\"UP\"})"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 1m
+        annotations:
+          summary: "Relay {% raw %}{{ $labels.instance }}{% endraw %}: EU недоступен по всем путям"
+          description: "Бэкенд eu_vpn HAProxy на relay в состоянии DOWN: ни туннель wg0, ни публичный IP EU не проходят TLS-проверку. VPN через этот relay не работает. NoData тоже алертит: HAProxy не скрейпится."
+        labels:
+          severity: critical
+
+      - uid: relay-eu-path-flapping
+        title: "Relay: путь до EU нестабилен"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 1800
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "max by (instance, server) (increase(haproxy_server_check_failures_total{proxy=\"eu_vpn\"}[30m]))"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [3]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: OK
+        for: 5m
+        annotations:
+          summary: "Relay {% raw %}{{ $labels.instance }}{% endraw %}: путь {% raw %}{{ $labels.server }}{% endraw %} моргает"
+          description: "Больше 3 провалов TLS-проверки пути {% raw %}{{ $labels.server }}{% endraw %} за 30 минут: туннель деградирует (потери/рукопожатие) или EU под нагрузкой. Пользователи ещё не страдают, но стоит посмотреть раньше, чем путь уйдёт в DOWN."
+        labels:
           severity: warning
 
       - uid: inbound-probe-down
@@ -165,7 +283,7 @@ groups:
               to: 0
             datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
             model:
-              expr: "probe_success{job=~\"blackbox_.*\"} == 0"
+              expr: "probe_success{job=~\"blackbox_vless.*\"} == 0"
               instant: true
               refId: A
           - refId: C
@@ -173,6 +291,7 @@ groups:
             model:
               type: threshold
               refId: C
+              expression: A
               conditions:
                 - evaluator:
                     params: [1]
@@ -183,7 +302,7 @@ groups:
                     params: [A]
                   reducer:
                     type: last
-        noDataState: NoData
+        noDataState: OK
         execErrState: Alerting
         for: 2m
         annotations:
@@ -193,7 +312,7 @@ groups:
           severity: critical
 
       - uid: eu-disk-high
-        title: "EU диск заполнен >85%"
+        title: "Диск заполнен >85%"
         condition: C
         data:
           - refId: A
@@ -202,7 +321,7 @@ groups:
               to: 0
             datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
             model:
-              expr: "1 - node_filesystem_avail_bytes{server=\"eu\", mountpoint=\"/\"} / node_filesystem_size_bytes{server=\"eu\", mountpoint=\"/\"}"
+              expr: "max by (server) (1 - node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"})"
               instant: true
               refId: A
           - refId: C
@@ -210,6 +329,7 @@ groups:
             model:
               type: threshold
               refId: C
+              expression: A
               conditions:
                 - evaluator:
                     params: [0.85]
@@ -224,8 +344,96 @@ groups:
         execErrState: Error
         for: 5m
         annotations:
-          summary: "EU диск заполнен более чем на 85%"
-          description: "Дисковое пространство на EU сервере критически мало. Могут перестать писаться логи."
+          summary: "{% raw %}Диск на {{ $labels.server }} заполнен более чем на 85%{% endraw %}"
+          description: "{% raw %}Корневая ФС на {{ $labels.server }} почти заполнена. EU: логи Xray/nginx; MON: TSDB VictoriaMetrics перестанет принимать точки; RU: логи relay.{% endraw %}"
+        labels:
+          severity: warning
+
+  - orgId: 1
+    name: raven-fallback
+    folder: Raven
+    interval: 1m
+    rules:
+
+      # Fallback Model A invariant: enabled=true is the steady state, false only
+      # during short sanitization windows. Fires when the flag stays off for 2h —
+      # catches the forgotten-rollback pattern (killswitch 2026-04-30, fallback
+      # 2026-06-07..09) before users accumulate days of 403s.
+      - uid: fallback-disabled-stuck
+        title: "Fallback выключен дольше 2 часов"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "raven_fallback_enabled"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: NoData
+        execErrState: Error
+        for: 2h
+        annotations:
+          summary: "Глобальный fallback-флаг выключен более 2 часов"
+          description: "raven_fallback_enabled == 0 дольше окна санации. По Decision Fallback Model A steady state = enabled. Все /sub/fallback/* отвечают 403, killswitch держит fallback-инбаунд вне рантайма Xray. Включить: дашборд Emergency или POST /api/fallback/enable."
+        labels:
+          severity: warning
+
+      # User impact: clients actually hitting the disabled fallback. Low threshold —
+      # during the 2026-06-09 incident there were ~27 denials/day across 8 users.
+      - uid: fallback-denied-requests
+        title: "Пользователи получают 403 на fallback-подписке"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 1800
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "sum(increase(raven_fallback_denied_total[30m]))"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [3]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "Fallback-подписка отдаёт 403 реальным клиентам"
+          description: "Более 3 отклонённых fallback-запросов за 30 минут при выключенном глобальном флаге. Клиенты с fallback-URL не могут обновить подписку (инцидент 2026-06-09). Если санация не идёт прямо сейчас — включить fallback."
         labels:
           severity: warning
 
@@ -234,154 +442,6 @@ groups:
     folder: Raven
     interval: 1m
     rules:
-
-      - uid: dpi-handshake-spike
-        title: "DPI: всплеск ошибок TLS handshake"
-        condition: C
-        data:
-          - refId: A
-            relativeTimeRange:
-              from: 600
-              to: 0
-            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
-            model:
-              expr: "sum(increase(xray_handshake_failure_total[5m]))"
-              instant: true
-              refId: A
-          - refId: C
-            datasourceUid: __expr__
-            model:
-              type: threshold
-              refId: C
-              conditions:
-                - evaluator:
-                    params: [10]
-                    type: gt
-                  operator:
-                    type: and
-                  query:
-                    params: [A]
-                  reducer:
-                    type: last
-        noDataState: OK
-        execErrState: Error
-        for: 2m
-        annotations:
-          summary: "Всплеск TLS handshake failures — возможна DPI-блокировка"
-          description: "Более 10 TLS handshake failures за 5 минут. Промежуточный DPI может активно обрывать соединения. Проверьте дашборд DPI Detection."
-        labels:
-          severity: warning
-
-      - uid: dpi-probe-detected
-        title: "DPI: обнаружен активный probe"
-        condition: C
-        data:
-          - refId: A
-            relativeTimeRange:
-              from: 600
-              to: 0
-            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
-            model:
-              expr: "sum(increase(xray_probe_detected_total[5m]))"
-              instant: true
-              refId: A
-          - refId: C
-            datasourceUid: __expr__
-            model:
-              type: threshold
-              refId: C
-              conditions:
-                - evaluator:
-                    params: [1]
-                    type: gt
-                  operator:
-                    type: and
-                  query:
-                    params: [A]
-                  reducer:
-                    type: last
-        noDataState: OK
-        execErrState: Error
-        for: 1m
-        annotations:
-          summary: "Обнаружен активный DPI probe на инбаунде"
-          description: "Получены нетипичные данные (garbage TLS record, unexpected ALPN, i/o timeout). Признак активного DPI-зондирования."
-        labels:
-          severity: critical
-
-      - uid: dpi-rst-spike
-        title: "DPI: всплеск TCP RST"
-        condition: C
-        data:
-          - refId: A
-            relativeTimeRange:
-              from: 600
-              to: 0
-            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
-            model:
-              expr: "sum(increase(xray_connection_reset_total[5m]))"
-              instant: true
-              refId: A
-          - refId: C
-            datasourceUid: __expr__
-            model:
-              type: threshold
-              refId: C
-              conditions:
-                - evaluator:
-                    params: [20]
-                    type: gt
-                  operator:
-                    type: and
-                  query:
-                    params: [A]
-                  reducer:
-                    type: last
-        noDataState: OK
-        execErrState: Error
-        for: 2m
-        annotations:
-          summary: "Массовые TCP RST — возможна инжекция RST со стороны DPI"
-          description: "Более 20 connection reset за 5 минут. Промежуточный DPI может инжектировать TCP RST пакеты. Проверьте blackbox probe_success."
-        labels:
-          severity: warning
-
-      - uid: dpi-degradation-sustained
-        title: "DPI: устойчивая деградация пропускной способности"
-        condition: C
-        data:
-          - refId: A
-            relativeTimeRange:
-              from: 3600
-              to: 0
-            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
-            model:
-              expr: "sum(increase(xray_throughput_degradation_total[1h]))"
-              instant: true
-              refId: A
-          - refId: C
-            datasourceUid: __expr__
-            model:
-              type: threshold
-              refId: C
-              conditions:
-                - evaluator:
-                    params: [100]
-                    type: gt
-                  operator:
-                    type: and
-                  query:
-                    params: [A]
-                  reducer:
-                    type: last
-        noDataState: OK
-        execErrState: Error
-        for: 10m
-        annotations:
-          summary: "Устойчивая деградация трафика на инбаундах"
-          description: "Более 100 событий деградации пропускной способности за час. Возможно DPI-ограничение или перегрузка канала."
-        labels:
-          severity: warning
 
       - uid: raven-probe-sni-blocked
         title: "raven-probe: SNI блокируется с RU vantage"
@@ -393,7 +453,7 @@ groups:
               to: 0
             datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
             model:
-              expr: "max by (vantage, name, sni, verdict) (raven_probe_verdict{verdict=~\"TLS_BLOCK|TLS_RESET|TLS_DROP|TCP_RESET|DNS_BLOCK\",name=~\"eu_.*\"} == 1)"
+              expr: "max by (vantage, name, sni, verdict) (raven_probe_verdict{verdict=~\"TLS_BLOCK|TLS_RESET|TLS_DROP|TCP_RESET|DNS_BLOCK|SYN_DROP|TIMEOUT\",name=~\"eu_.*\"} == 1)"
               instant: true
               refId: A
           - refId: C
@@ -401,6 +461,7 @@ groups:
             model:
               type: threshold
               refId: C
+              expression: A
               conditions:
                 - evaluator:
                     params: [0.5]
@@ -438,6 +499,7 @@ groups:
             model:
               type: threshold
               refId: C
+              expression: A
               conditions:
                 - evaluator:
                     params: [2]
@@ -456,3 +518,660 @@ groups:
           description: "Из всех cover-SNI на пути к EU работает меньше 2. Это критично: VPN из этой vantage скорее всего сломан для большинства клиентов. Проверьте egress DPI и срочно эскалируйте."
         labels:
           severity: critical
+
+  # Self-monitoring of the monitoring stack + dead-man switch. Until 2026-10-31
+  # none of the rules above were delivered anywhere (receiver "empty"), so the
+  # first thing this group guarantees is that silence means "fine", not "dead".
+  - orgId: 1
+    name: raven-stack
+    folder: Raven
+    interval: 1m
+    rules:
+
+      - uid: watchdog
+        title: "Watchdog: мониторинг жив"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 60
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "vector(1)"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0.5]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 0s
+        annotations:
+          summary: "Heartbeat: Grafana вычисляет правила и доставляет их в Telegram"
+          description: "Всегда горит. Приходит раз в {{ grafana_alert_watchdog_repeat }}. Если это сообщение перестало приходить — Grafana, VictoriaMetrics или доставка в Telegram сломаны. Проверить: EU monitoring-heartbeat.timer, MON `systemctl status grafana-server victoriametrics`."
+        labels:
+          severity: info
+
+      - uid: mon-stack-down
+        title: "Компонент мониторинга недоступен"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "up{job=~\"victoriametrics|grafana|vmagent|blackbox_.*\"} == 0"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0.5]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Alerting
+        for: 3m
+        annotations:
+          summary: "{% raw %}Scrape {{ $labels.job }} провален{% endraw %}"
+          description: "{% raw %}vmagent не может снять метрики с {{ $labels.job }} ({{ $labels.instance }}) 3+ минуты. VM/Grafana — слепота всего мониторинга; blackbox — все inbound-пробы уходят в NoData.{% endraw %}"
+        labels:
+          severity: critical
+
+      - uid: vmagent-remotewrite-backlog
+        title: "vmagent: очередь remote-write растёт"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "sum(vmagent_remotewrite_pending_data_bytes)"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [50000000]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Error
+        for: 10m
+        annotations:
+          summary: "vmagent не может отправить метрики в VictoriaMetrics"
+          description: "Более 50 MB ждут в persistent queue 10+ минут: VPC EU→MON, basic-auth или VM недоступны. Данные не теряются, пока есть место на диске EU, но Grafana показывает устаревшее состояние."
+        labels:
+          severity: warning
+
+      - uid: raven-probe-down
+        title: "raven-probe не скрейпится"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "up{job=~\"raven-probe.*\"} == 0"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0.5]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "{% raw %}raven-probe на {{ $labels.server }} недоступен{% endraw %}"
+          description: "{% raw %}Экспортер raven-probe ({{ $labels.instance }}) не отвечает 5+ минут: сервис упал или wg0 до RU лежит. Без него нет взгляда «из России».{% endraw %}"
+        labels:
+          severity: warning
+
+      - uid: raven-probe-stale
+        title: "raven-probe: раунды не выполняются"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "(time() - raven_probe_last_run_timestamp_seconds) > 900 and raven_probe_last_run_timestamp_seconds > 0"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0.5]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "{% raw %}raven-probe {{ $labels.vantage }}: последний раунд старше 15 минут{% endraw %}"
+          description: "{% raw %}Процесс отвечает на /metrics, но раунды проб не завершаются (интервал 5 мин). Зависшая цель или сломанная конфигурация после SIGHUP. `journalctl -u raven-probe` на {{ $labels.vantage }}.{% endraw %}"
+        labels:
+          severity: warning
+
+      - uid: hysteria-down
+        title: "Hysteria2 (резерв) недоступен"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "hysteria_up"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [1]
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "Hysteria2 trafficStats API не отвечает"
+          description: "xray-stats-exporter не может опросить hysteria trafficStats 5+ минут: hysteria-gecco/-salamander упали или секрет не совпадает. Резервный UDP-канал, вероятно, мёртв."
+        labels:
+          severity: warning
+
+      - uid: dashboard-worker-stuck
+        title: "raven-dashboard: фоновый воркер завис"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "raven_dashboard_worker_last_tick_age_seconds > 7200"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0.5]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Error
+        for: 10m
+        annotations:
+          summary: "{% raw %}Воркер {{ $labels.worker }} не тикал 2+ часа{% endraw %}"
+          description: "{% raw %}quota_checker (квоты и уведомления пользователям), broadcast_worker или probe_alert_watcher не выполнялись 2+ часа. -1 = никогда не запускался (нет конфигурации), это сюда не попадает.{% endraw %}"
+        labels:
+          severity: warning
+
+      - uid: ext-feed-stale
+        title: "Внешний источник (Taucloud/IODA) не собирается"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 86400
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "time() - max by (feed) (last_over_time(ext_feed_last_success_timestamp_seconds[2d]))"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [21600]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Error
+        for: 30m
+        annotations:
+          summary: "{% raw %}ext-feeds: {{ $labels.feed }} не обновлялся 6+ часов{% endraw %}"
+          description: "{% raw %}Сборщик ext-feeds на MON не получает {{ $labels.feed }} 6+ часов: источник недоступен, сменил формат или таймер встал. `journalctl -u ext-feeds` на MON. Карта на дашборде «Россия — карта белых списков и сбоев» показывает устаревшие данные.{% endraw %}"
+        labels:
+          severity: warning
+
+  # raven-probe v0.2 mechanism alerts. Each one requires: >=2 eu_* targets on the
+  # same vantage in that state, the vantage NOT in whitelist/offline mode (controls),
+  # and the EU host answering its own local blackbox probe (so EU is not just down).
+  - orgId: 1
+    name: raven-tspu
+    folder: Raven
+    interval: 1m
+    rules:
+
+      - uid: tspu-ipblock
+        title: "TSPU: IP EU не отвечает с vantage (ipblock)"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "(count by (vantage) (raven_probe_state_code{kind=\"eu\"} == 2) >= 2) unless on(vantage) (raven_probe_vantage_mode >= 2) and on() (min(probe_success{job=~\"blackbox_vless.*\"}) == 1)"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0.5]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Error
+        for: 10m
+        annotations:
+          summary: "{% raw %}{{ $labels.vantage }}: SYN к EU не отвечают по {{ $value }} cover-SNI{% endraw %}"
+          description: "{% raw %}С vantage {{ $labels.vantage }} TCP-коннект к EU не устанавливается (state=ipblock) на 2+ целях 10+ минут, при этом EU жив (локальный blackbox OK) и сеть vantage не в whitelist-режиме. Паттерн: бан IP/подсети (TCP-only). Проверить relay-путь (HAProxy eu_pub vs eu_awg), затем Reserved-IP ротацию.{% endraw %}"
+        labels:
+          severity: critical
+
+      - uid: tspu-freeze
+        title: "TSPU: TLS freeze к EU с vantage"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "(count by (vantage) (raven_probe_state_code{kind=\"eu\"} == 3) >= 2) unless on(vantage) (raven_probe_vantage_mode >= 2) and on() (min(probe_success{job=~\"blackbox_vless.*\"}) == 1)"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0.5]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Error
+        for: 10m
+        annotations:
+          summary: "{% raw %}{{ $labels.vantage }}: ClientHello к EU без ServerHello на {{ $value }} cover-SNI{% endraw %}"
+          description: "{% raw %}TCP до EU есть, TLS не завершается (freeze/RST) на 2+ cover-SNI с {{ $labels.vantage }} 10+ минут. IP не забанен (SYN проходит), EU жив. Паттерн: SNI/отпечаток-keyed фриз или RST-инъекция. Сравнить с eu_python_ff (Firefox-отпечаток) и isp_* для тех же SNI.{% endraw %}"
+        labels:
+          severity: critical
+
+      - uid: tspu-volume-freeze
+        title: "TSPU: передача через туннель умирает на ~16 KB"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "(count by (vantage) (raven_probe_state_code == 4) >= 1) unless on(vantage) (raven_probe_vantage_mode >= 2)"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0.5]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Error
+        for: 15m
+        annotations:
+          summary: "{% raw %}{{ $labels.vantage }}: volume freeze (стоп на 14–34 KB){% endraw %}"
+          description: "{% raw %}proto-rung с {{ $labels.vantage }}: соединение устанавливается, но загрузка останавливается после ~16 KB 15+ минут. Сигнатура 16 KB-счётчика ТСПУ на foreign-IP. Лекарство — ротация соединений (xmux) / XHTTP packet-up; проверить, что клиенты получают extra(xmux) в подписке.{% endraw %}"
+        labels:
+          severity: critical
+
+      - uid: tspu-slow
+        title: "TSPU: throughput через туннель ниже пола"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "(count by (vantage) (raven_probe_state_code == 5) >= 1) unless on(vantage) (raven_probe_vantage_mode >= 2)"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0.5]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Error
+        for: 30m
+        annotations:
+          summary: "{% raw %}{{ $labels.vantage }}: скорость через туннель < 1 Mbit/s без стопов{% endraw %}"
+          description: "{% raw %}proto-rung завершает загрузку, но медленнее 1 Mbit/s 30+ минут. Паттерн: шейпинг non-RU направлений оператором. Сравнить с тем же часом неделю назад на дашборде raven-probe.{% endraw %}"
+        labels:
+          severity: warning
+
+      - uid: vantage-whitelist-mode
+        title: "Vantage в режиме «белого списка»"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "raven_probe_vantage_mode == 2"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0.5]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: OK
+        for: 10m
+        annotations:
+          summary: "{% raw %}{{ $labels.vantage }}: сеть переключилась в whitelist-режим{% endraw %}"
+          description: "{% raw %}Канарейки с {{ $labels.vantage }}: ya.ru доступен, twitter.com и UDP/53 к 8.8.8.8 мертвы 10+ минут. Это режим «белых списков» оператора, а не поломка наших серверов; алерты tspu-* подавлены для этой vantage. Информационно.{% endraw %}"
+        labels:
+          severity: info
+
+      - uid: vantage-offline
+        title: "Vantage offline (канарейки мертвы)"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "raven_probe_vantage_mode == 3"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0.5]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: OK
+        for: 15m
+        annotations:
+          summary: "{% raw %}{{ $labels.vantage }}: даже ya.ru недоступен{% endraw %}"
+          description: "{% raw %}Vantage {{ $labels.vantage }} не достаёт даже до whitelisted-хоста 15+ минут: сеть пробы лежит целиком. Результаты по EU с этой vantage не показательны.{% endraw %}"
+        labels:
+          severity: warning
+
+  # User-side liveness (monitoring v2 phase 3): clients that refreshed their
+  # subscription in the last 3 h yet moved <100 KB over Xray AND Hysteria2.
+  # Some of that is normal (background refresh with the VPN off), so this is a
+  # ratio with a high bar and a long window — it catches "everyone's tunnel
+  # died", not individual idle users.
+  - orgId: 1
+    name: raven-users
+    folder: Raven
+    interval: 5m
+    rules:
+
+      - uid: users-fetch-but-no-traffic
+        title: "Пользователи обновляют подписку, но трафика нет"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 10800
+              to: 0
+            datasourceUid: "{{ grafana_prometheus_datasource_uid }}"
+            model:
+              expr: "(count((max by (email) (raven_sub_last_fetch_timestamp_seconds) > time() - 10800) unless on(email) (sum by (email) (increase(xray_user_downlink_bytes_total[3h])) > 100000) unless on(email) (sum by (email) (increase(hysteria_user_downlink_bytes_total[3h])) > 100000)) / count((max by (email) (raven_sub_last_fetch_timestamp_seconds) > time() - 10800))) and on() (count((max by (email) (raven_sub_last_fetch_timestamp_seconds) > time() - 10800)) >= 4)"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0.5]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+        noDataState: OK
+        execErrState: Error
+        for: 1h
+        annotations:
+          summary: "{% raw %}Доля «подписка обновлена, трафика нет»: {{ $value | humanizePercentage }}{% endraw %}"
+          description: "Больше половины пользователей (минимум 4), чьи клиенты обновили подписку за последние 3 часа, не передали и 100 KB ни через Xray, ни через Hysteria2 — уже час подряд. Подписка доходит, туннель — нет: бан relay у оператора, несовместимость клиента после обновления, устаревший конфиг после ротации. Смотреть raven-probe state timeline и разбивку по client в raven_sub_last_fetch_timestamp_seconds."
+        labels:
+          severity: warning
+
+{% if grafana_alert_telegram_enabled %}
+contactPoints:
+  - orgId: 1
+    name: raven-telegram
+    receivers:
+      - uid: raven-telegram
+        type: telegram
+        disableResolveMessage: false
+        settings:
+          bottoken: "{{ grafana_alert_telegram_bot_token }}"
+          chatid: "{{ grafana_alert_telegram_chat_id }}"
+          parse_mode: HTML
+          disable_web_page_preview: true
+
+policies:
+  - orgId: 1
+    receiver: raven-telegram
+    group_by: [grafana_folder, alertname]
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: {{ grafana_alert_repeat_critical }}
+    routes:
+      # Dead-man switch: one message per period means evaluation + delivery work.
+      - receiver: raven-telegram
+        object_matchers:
+          - ["alertname", "=", "Watchdog: мониторинг жив"]
+        group_wait: 0s
+        repeat_interval: {{ grafana_alert_watchdog_repeat }}
+        continue: false
+      - receiver: raven-telegram
+        object_matchers:
+          - ["severity", "=", "warning"]
+        repeat_interval: {{ grafana_alert_repeat_warning }}
+        continue: false
+{% endif %}
+
+# Rules removed in the 2026-10 monitoring v2 pass. File provisioning does not
+# delete rules that merely disappear from the file; list them here so Grafana
+# drops them from its DB. Safe to remove this block after one deploy.
+deleteRules:
+  # pre-rename (2026-05-02 TSPU->DPI) uids that survived in Grafana's DB
+  - orgId: 1
+    uid: tspu-handshake-spike
+  - orgId: 1
+    uid: tspu-probe-detected
+  - orgId: 1
+    uid: tspu-rst-spike
+  - orgId: 1
+    uid: tspu-degradation-sustained
+  - orgId: 1
+    uid: dpi-handshake-spike
+  - orgId: 1
+    uid: dpi-probe-detected
+  - orgId: 1
+    uid: dpi-rst-spike
+  - orgId: 1
+    uid: dpi-degradation-sustained

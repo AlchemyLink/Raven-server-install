@@ -37,6 +37,20 @@ xray_bridge_tag_in: "vless-bridge-in"
 # Reality dest for bridge inbound — must be TLS 1.3 + H2, different from EU Reality dests.
 # Clients connect using this domain as SNI.
 xray_bridge_reality_dest: "www.wikipedia.org:443"
+
+# ── REALITY: minimum client Xray-core version ───────────────────────────────
+# Since upstream commit af7eb68 (shipped in v26.7.11) a REALITY server whose
+# `minClientVer` is unset silently defaults to "26.3.27" and refuses every
+# client running an older core — i.e. an Xray upgrade cuts off every user who
+# has not updated their app. Set it explicitly so that decision is ours.
+#
+# Trade-off: older clients have a REALITY handshake pattern that censors can
+# fingerprint, which is why upstream raised the floor. Once the user base has
+# updated, raise this to "26.3.27" (or higher) deliberately.
+#
+# Empty string omits the field entirely and lets the server default apply.
+xray_bridge_reality_min_client_ver: "24.9.30"
+
 xray_bridge_reality_server_names:
   - "www.wikipedia.org"
 

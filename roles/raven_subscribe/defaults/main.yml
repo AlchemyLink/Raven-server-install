@@ -7,8 +7,29 @@ raven_subscribe_db_dir: "/var/lib/xray-subscription"
 raven_subscribe_service_name: "xray-subscription"
 
 raven_subscribe_listen_addr: "127.0.0.1:8080"
+# Dedicated Prometheus listener (/metrics): raven_fallback_enabled gauge +
+# raven_fallback_denied_total counter (added after the 2026-06-09 forgotten-fallback
+# incident). Loopback-only — must never share the public sub vhost. vmagent scrapes
+# it as job "raven-subscribe" (monitoring role). Empty string = metrics disabled.
+# Requires raven-subscribe >= v0.3.10; older binaries ignore the unknown field.
+raven_subscribe_metrics_listen: "127.0.0.1:9091"
+# Subscription-fetch liveness (monitoring v2 phase 3, raven-subscribe >= the
+# release carrying PR #175). raven_sub_last_fetch_timestamp_seconds{email,…}
+# joins with xray-stats-exporter per-user traffic only if the email label is
+# pseudonymised with the SAME secret, so it defaults to xray_stats_anonymize_secret
+# from the monitoring vault (role_raven_subscribe.yml loads it) — one source of truth.
+# Profile-Update-Interval (hours) makes clients refresh on a predictable cadence,
+# which is what turns "last fetch" into a liveness signal. 0 = header not sent.
+raven_subscribe_metrics_anonymize_secret: "{{ xray_stats_anonymize_secret | default('') }}"
+raven_subscribe_profile_update_interval_hours: 2
 raven_subscribe_sync_interval_seconds: 60
-raven_subscribe_rate_limit_sub_per_min: 60
+# 0 = disabled (2026-06-09). Per-IP limiting at the origin is wrong for our audience:
+# RU mobile users sit behind carrier-grade NAT (hundreds/thousands share one public IP),
+# so a per-IP /sub bucket is shared across many real users → mass 429 "can't fetch subscription"
+# (the burst is only perMin/6, capped 20). The endpoint is protected by an unguessable 64-hex
+# token + Cloudflare edge DDoS/rate protection, so the origin per-IP limit added little. Matches
+# rate_limit_admin_per_min=0. Raise to a finite value only if origin abuse is observed.
+raven_subscribe_rate_limit_sub_per_min: 0
 raven_subscribe_rate_limit_admin_per_min: 30
 
 # DNS servers injected into generated client subscription configs.
@@ -50,7 +71,16 @@ raven_subscribe_client_dns_servers: []
 
 # Balancer settings (used in generated client subscription configs)
 # Strategy: random, roundRobin, leastPing, leastLoad
-raven_subscribe_balancer_strategy: "leastPing"
+# NOTE: keep this "random" under the current RU DPI regime. leastPing/leastLoad
+# spin up an Observatory that has NO probe data at startup → the balancer routes
+# to FallbackTag (= the non-XHTTP Reality outbound, which TSPU resets on the RU
+# first hop) for the whole observatory cold-start window → clients see 5-10 min of
+# dead traffic before the first successful XHTTP probe flips them over, plus
+# mid-session re-balances that tear down connections ("обрывы"). "random" has no
+# Observatory: selector is XHTTP-only, so traffic routes to XHTTP immediately and
+# never flips. Revisit only if Reality first-hop becomes viable again (re-measure
+# with xray-lab). See Raven-subscribe internal/xray/generator.go balancer block.
+raven_subscribe_balancer_strategy: "random"
 raven_subscribe_balancer_probe_url: "https://www.gstatic.com/generate_204"
 raven_subscribe_balancer_probe_interval: "30s"
 
@@ -74,11 +104,41 @@ raven_subscribe_inbound_ports:
     vless-reality-v2-in: 443
     vless-xhttp-v2-in: 443
     vless-fallback-in: 443
+    vless-experimental-in: 443     # harmless until the inbound exists in config.d
 
 # Fallback subscription inbound allowlist — restricts /sub/fallback/* to outbounds
 # whose inbound tag is in this list. Empty = no filtering (legacy behaviour).
-# Should contain ONLY isolated fallback-only inbounds (NOT primary inbounds).
+# Normally ONLY isolated fallback-only inbounds (see the reality-v2 exception below).
+# This list is blacklisted on primary /sub/* and whitelisted on /sub/fallback/*.
 raven_subscribe_fallback_inbound_tags:
+  - vless-fallback-in
+  # Experimental 221 — STAGING CLONE of primary XHTTP (211). Served on /sub/fallback/*
+  # (excluded from primary /sub/*: this list is blacklisted on primary, whitelisted on
+  # fallback) to a dedicated test token. No-op until xray_experimental_enabled=true on EU.
+  - vless-experimental-in
+  # Retired primary transport: raw Reality+Vision. TSPU resets it on the RU first hop,
+  # so we blacklist it from the PRIMARY sub here (intentional exception to "fallback-only"
+  # above — a dead primary hidden from clients, not an isolated fallback). On /sub/fallback/*
+  # it lands as the balancer FallbackTag, which the `random` strategy never routes to → inert.
+  # NOT in killswitch_inbound_tags, so the inbound keeps listening; restore by removing this
+  # line if the first hop revives (re-measure with xray-lab).
+  - vless-reality-v2-in
+
+# Relay topology for the experimental clone: override its subscription host to the relay
+# apex (server_host) so it is reached like 211 (client→relay→EU), NOT EU-direct like the
+# real fallback (220). fallback_inbound_hosts overrides host per-tag ONLY for /sub/fallback/*
+# requests; vless-fallback-in stays on fallback_server_host (EU-direct), unaffected.
+raven_subscribe_fallback_inbound_hosts:
+  vless-experimental-in: "{{ raven_subscribe_server_host }}"
+
+# Killswitch target tags — which inbounds the fallback killswitch (enable/disable +
+# reconcile loop) actually adds/removes from the running Xray via gRPC. DELIBERATELY
+# separate from fallback_inbound_tags (which is subscription ROUTING). Experimental is
+# routed on /sub/fallback/* but is NOT listed here, so the killswitch never tears it
+# down — it lives as a normal config.d inbound (like the primaries), with independent
+# control and immune to emergency VPN-kill. Empty/unset → server falls back to
+# fallback_inbound_tags (legacy behaviour, where the two sets were identical).
+raven_subscribe_killswitch_inbound_tags:
   - vless-fallback-in
 
 # Bridge user sync — pushes all EU inbound users to xray-bridge transparent inbounds via gRPC.
@@ -97,6 +157,25 @@ raven_subscribe_group: "xrayuser"
 
 # Xray service name (for systemd After= dependency)
 raven_subscribe_xray_service_name: "xray"
+
+# ── Hysteria2 reserve channel (/sub/{token}/hy2) ──────────────────────────────
+# Requires Raven-subscribe built with the hysteria feature. Off by default; set
+# enabled=true + the vars below (obfs_password + cert_pin go in vault) to expose the
+# per-user hysteria2:// URI. Pairs with roles/hysteria (salamander :47014,
+# auth.type:http → /hysteria/auth) + relay_hysteria_udp_forwards.
+# cert_pin: set (hex sha256) for a self-signed server cert → URI carries insecure=1 +
+# pinSHA256 (no Certificate-Transparency leak, but the Xray engine drops allowInsecure
+# in Aug-2026). EMPTY ("") when the server has a publicly-trusted cert (roles/hysteria
+# hysteria_real_cert_enabled) → URI omits both → works on Xray-engine clients too; then
+# set sni to that real cert domain.
+raven_subscribe_hysteria_enabled: false
+raven_subscribe_hysteria_host: "{{ raven_subscribe_server_host }}"  # relay apex clients connect to
+raven_subscribe_hysteria_port: 47014                                 # salamander instance (relay UDP forward)
+raven_subscribe_hysteria_obfs_type: "salamander"
+raven_subscribe_hysteria_sni: "www.python.org"                       # self-signed cert CN, or the real cert domain
+raven_subscribe_hysteria_cert_pin: ""                                # empty = real cert (no insecure); vault sets hex pin for self-signed
+raven_subscribe_hysteria_in_main_sub: false                          # true = append hy2 URI to /sub/{token}/links
+# raven_subscribe_hysteria_obfs_password (+ cert_pin for self-signed) → vault secrets.yml
 
 ##### Set these in secrets.yml (ansible-vault encrypted) #####
 # raven_subscribe_server_host: ""     # EU VPS public IP or domain

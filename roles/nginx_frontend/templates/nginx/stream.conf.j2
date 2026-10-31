@@ -25,6 +25,9 @@ map $ssl_preread_server_name $sni_backend {
     {{ sni }}    vless_fallback;
     {% endfor %}
 {% endif %}
+{% if nginx_frontend_stream_experimental_enabled | default(false) %}
+    {{ nginx_frontend_stream_experimental_sni }}    vless_experimental;
+{% endif %}
 {% if nginx_frontend_dashboard_enabled | default(false) %}
     {{ nginx_frontend_dashboard_sni }}      dashboard_https;
 {% endif %}
@@ -54,6 +57,12 @@ upstream vless_reality_v2 {
 {% if nginx_frontend_stream_fallback_enabled | default(false) %}
 upstream vless_fallback {
     server 127.0.0.1:{{ nginx_frontend_stream_fallback_port }};
+}
+
+{% endif %}
+{% if nginx_frontend_stream_experimental_enabled | default(false) %}
+upstream vless_experimental {
+    server 127.0.0.1:{{ nginx_frontend_stream_experimental_port }};
 }
 
 {% endif %}

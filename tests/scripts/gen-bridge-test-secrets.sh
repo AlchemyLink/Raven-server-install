@@ -4,7 +4,7 @@
 set -eu
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 CACHE="${ROOT}/tests/.cache"
-VER="${XRAY_VERSION:-26.2.6}"
+VER="${XRAY_VERSION:-$(sed -nE 's/^xray_version_pin:[[:space:]]*"?v?([0-9.]+)"?.*/\1/p' "${ROOT}/roles/xray/defaults/main.yml")}"
 XRAY_BIN="${CACHE}/xray-${VER}"
 if [ ! -x "$XRAY_BIN" ]; then
   echo "ERROR: xray binary not found at ${XRAY_BIN}. Run gen-reality-keys.sh first." >&2
@@ -15,13 +15,13 @@ fi
 OUT_BRIDGE="${CACHE}/x25519-bridge.txt"
 "$XRAY_BIN" x25519 > "$OUT_BRIDGE"
 BRIDGE_PRIV=$(grep '^PrivateKey:' "$OUT_BRIDGE" | sed 's/^PrivateKey:[[:space:]]*//' | tr -d '\r')
-BRIDGE_PUB=$(grep '^Password:' "$OUT_BRIDGE" | sed 's/^Password:[[:space:]]*//' | tr -d '\r')
+BRIDGE_PUB=$(grep -E '^(Password|Password \(PublicKey\)|PublicKey):' "$OUT_BRIDGE" | sed -E 's/^[^:]+:[[:space:]]*//' | tr -d '\r')
 BRIDGE_SID=$(openssl rand -hex 8 2>/dev/null || echo "b1c2d3e4f5a67890")
 
 # EU Reality public key (what the bridge outbound connects to — simulate EU side)
 OUT_EU="${CACHE}/x25519-eu.txt"
 "$XRAY_BIN" x25519 > "$OUT_EU"
-EU_PUB=$(grep '^Password:' "$OUT_EU" | sed 's/^Password:[[:space:]]*//' | tr -d '\r')
+EU_PUB=$(grep -E '^(Password|Password \(PublicKey\)|PublicKey):' "$OUT_EU" | sed -E 's/^[^:]+:[[:space:]]*//' | tr -d '\r')
 EU_SID=$(openssl rand -hex 8 2>/dev/null || echo "cc8ec8e23620ea90")
 
 cat <<EOF

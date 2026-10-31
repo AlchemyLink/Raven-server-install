@@ -14,8 +14,9 @@
     - nodes
   become: true
 
+  # Role defaults load on their own; listing them under vars_files would outrank
+  # inventory host vars (e.g. wg_awg_enabled) — keep only the vault here.
   vars_files:
-    - wireguard/defaults/main.yml
     - wireguard/defaults/secrets.yml
 
   roles:
