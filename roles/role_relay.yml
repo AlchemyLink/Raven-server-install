@@ -10,6 +10,7 @@
 #   relay_nginx     — deploy HTTP nginx config
 #   relay_certbot   — obtain TLS certificates
 #   relay_nginx_ssl — deploy HTTPS nginx config with proxy_pass
+#   relay_haproxy   — local HAProxy hop to EU with active TLS health checks (relay_haproxy_enabled)
 #   relay_stream    — deploy TCP stream relay for VLESS Reality
 
 - name: Configure relay server

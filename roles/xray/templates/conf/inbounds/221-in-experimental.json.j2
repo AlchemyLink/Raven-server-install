@@ -2,31 +2,36 @@
   "inbounds": [
 {% if xray_experimental_enabled | default(false) %}
 {# ─────────────────────────────────────────────────────────────────────────────
-   EXPERIMENTAL inbound — sandbox для обхода TSPU "16-20 KB foreign-IP freeze".
-   НЕ трогает primary (201/211): изолированный keypair, порт, SNI, route.
-   Топология EU-direct (как fallback): отдаётся ТОЛЬКО на /sub/fallback/* через
-   raven_subscribe_fallback_inbound_tags → исключён из primary subscription.
+   EXPERIMENTAL inbound 221 — STAGING CLONE of the primary XHTTP (211 /
+   vless-xhttp-v2-in / outbound vless-xhttp-v2-in-0).
 
-   Гипотеза (research 2026-06-07, net4people #490/#546, NTC):
-   TSPU замораживает TCP-сессию к иностранному IP после ~15-20 KB. Reality
-   прячет только handshake, не post-handshake объём. Лечение для DIRECT-канала:
-   XHTTP packet-up + МЕЛКИЕ POST-ы (scMaxEachPostBytes < окна заморозки) +
-   агрессивная ротация xmux, чтобы НИ ОДНО TCP-соединение не накопило >16 KB.
-   Конфликт-риск: слишком агрессивная ротация = сигнатура concurrent-TLS (M2)
-   / TLS1.3-hammer (M3). Это и есть переменная эксперимента — крутить через
-   xray_experimental.* без правки шаблона.
+   Purpose: a faithful mirror of 211's transport profile so XHTTP-improvement
+   experiments run apples-to-apples with the real primary WITHOUT touching it.
+   Mirrors 211: XHTTP + packet-up + Vision (xtls-rprx-vision) + VLESS Encryption
+   (PQ) + testseed/testpre + extra{xPaddingBytes}. The Raven generator adds the
+   default client xmux inside extra (same as 211, post-v0.3.1).
 
-   Отличия от fallback (220): БЕЗ PQ-слоя (VLESS Encryption=none) и БЕЗ Vision
-   (flow="") — PQ не помогает прямому TSPU-траверсу (design note PR #5067), а
-   Vision концентрирует объём в одном потоке = ровно то, что ловит freeze.
-   ───────────────────────────────────────────────────────────────────────── #}
+   Isolation: own port/tag, own Reality keypair (xray_experimental_reality), own
+   cover SNI (routing requires a distinct SNI from 211's addons.mozilla.org).
+   REUSES 211's VLESS-Encryption keypair (xray_vless_decryption / _client_encryption)
+   for byte-identical crypto — each inbound decrypts independently, so this does
+   NOT couple to 211.
+
+   Topology = via RELAY (like 211): raven maps fallback_inbound_hosts
+   [vless-experimental-in] = server_host (relay apex). Served on /sub/fallback/*
+   (raven_subscribe_fallback_inbound_tags) to a dedicated test token.
+
+   Experiments = change xray_experimental.* below (mode/path/extra/…); a working
+   delta gets ported to 211 (xray_v2_xhttp). Disabled by default — vault flag.
+   ───────────────────────────────────────────────────────────────────────────── #}
 {% set _x = xray_experimental %}
 {% set _xr = xray_experimental_reality %}
+{% set _pq = xray_vless_decryption | default('none') != 'none' %}
 {% set _clients = [] %}
 {% for user in xray_users %}
 {%   set _ = _clients.append({
        "id": user.id,
-       "flow": "",
+       "flow": ('xtls-rprx-vision' if _pq else ''),
        "email": ((user.email | default('') | trim) or user.id),
        "level": 0
      }) %}
@@ -41,7 +46,15 @@
       "tag": "{{ _x.tag | default('vless-experimental-in') }}",
       "settings": {
         "clients": {{ _clients | to_json }},
-        "decryption": "none"
+        {% set _ts = xray_experimental_testseed | default(xray_v2_testseed | default(xray_testseed | default([]))) %}
+        {% if _ts | length == 4 %}
+        "testseed": {{ _ts | to_json }},
+        {% endif %}
+        {% set _tp = xray_experimental_testpre | default(xray_v2_testpre | default(xray_testpre | default(0))) %}
+        {% if _tp | int > 0 %}
+        "testpre": {{ _tp | int }},
+        {% endif %}
+        "decryption": "{{ xray_vless_decryption | default('none') }}"
       },
       "sniffing": {
         "enabled": true,
@@ -56,6 +69,10 @@
         "network": "{{ _x.network | default('xhttp') }}",
         "realitySettings": {
           "show": false,
+          {% set _mcv = xray_reality_min_client_ver | default("") | trim %}
+          {% if _mcv %}
+          "minClientVer": "{{ _mcv }}",
+          {% endif %}
           "dest": "{{ _x.reality.dest }}",
           "spiderX": "{{ _xr.spiderX | default('/') }}",
           "serverNames": [
@@ -77,13 +94,8 @@
           "path": "{{ _x.xhttpSettings.path }}",
           "scMaxPacketSize": {{ _x.xhttpSettings.scMaxPacketSize | default(1048576) }},
           "extra": {
-            "xPaddingBytes": "{{ _x.xhttpSettings.xPaddingBytes | default('100-1000') }}",
-            "scMaxEachPostBytes": "{{ _x.xhttpSettings.scMaxEachPostBytes | default('8000-15000') }}",
-            "scMinPostsIntervalMs": "{{ _x.xhttpSettings.scMinPostsIntervalMs | default('30') }}"
+            "xPaddingBytes": "{{ _x.xhttpSettings.xPaddingBytes | default('100-1000') }}"
           }
-{% if _x.xmux is defined and _x.xmux %}
-          ,"xmux": {{ _x.xmux | to_json }}
-{% endif %}
         }
       }
     }

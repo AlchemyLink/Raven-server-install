@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+# AmneziaWG — obfuscated RU->EU tunnel (second interface next to wg0).
+[Interface]
+Address = {{ hostvars[inventory_hostname].wg_awg_ip | default(wg_awg_ru_ip) }}/24
+PrivateKey = {{ hostvars[inventory_hostname].wg_awg_private_key | default(wg_awg_ru_private_key) }}
+MTU = {{ wg_awg_mtu }}
+{% include 'awg-obfs.conf.j2' %}
+
+[Peer]
+# EU server
+PublicKey = {{ wg_awg_eu_public_key }}
+PresharedKey = {{ wg_awg_preshared_key }}
+Endpoint = {{ hostvars['vm_my_srv']['ansible_host'] }}:{{ wg_awg_port }}
+AllowedIPs = {{ wg_awg_eu_ip }}/32
+PersistentKeepalive = {{ wg_awg_keepalive }}

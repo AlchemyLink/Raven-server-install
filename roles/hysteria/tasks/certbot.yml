@@ -23,6 +23,13 @@
     state: present
     update_cache: true
 
+# Right after snapd is installed on a fresh host `snap install` fails until the
+# daemon has finished seeding; wait for it, otherwise the certbot install below
+# is silently skipped (failed_when: false) and `snap set certbot` errors out.
+- name: Hysteria | Wait for snapd to finish seeding
+  ansible.builtin.command: snap wait system seed.loaded
+  changed_when: false
+
 - name: Hysteria | Remove apt certbot (incompatible with Python 3.11+)
   ansible.builtin.apt:
     name:

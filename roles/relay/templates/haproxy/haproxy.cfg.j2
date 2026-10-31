@@ -1,0 +1,47 @@
+# {{ ansible_managed }}
+# Local HAProxy hop between the nginx :443 SNI stream and the EU server.
+# nginx keeps the SNI routing; this backend owns the choice of PATH to EU and
+# checks every path actively with a real TLS handshake (Reality cover SNI),
+# so a degraded tunnel is taken out of rotation in seconds instead of only
+# when a connect() fails. No logging: user privacy (nginx already hides IPs).
+
+global
+    chroot /var/lib/haproxy
+    stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
+    stats timeout 30s
+    user haproxy
+    group haproxy
+    daemon
+    maxconn {{ relay_haproxy_maxconn }}
+
+defaults
+    mode tcp
+    option dontlognull
+    retries 1
+    # On a failed connect, the single retry goes to another server right away.
+    option redispatch 1
+    timeout connect {{ relay_haproxy_connect_timeout }}
+    timeout client {{ relay_haproxy_idle_timeout }}
+    timeout server {{ relay_haproxy_idle_timeout }}
+    timeout check 5s
+
+frontend eu_vpn_in
+    bind 127.0.0.1:{{ relay_haproxy_port }}
+    default_backend eu_vpn
+
+backend eu_vpn
+    # Health check = TLS handshake with the Reality cover SNI through this path.
+    # Traffic itself stays raw TCP (check-ssl applies to checks only).
+    default-server check check-ssl check-sni {{ relay_haproxy_check_sni }} verify none inter {{ relay_haproxy_check_interval }} fall {{ relay_haproxy_check_fall }} rise {{ relay_haproxy_check_rise }}
+{% for p in relay_haproxy_paths %}
+    server {{ p.name }} {{ p.host }}:{{ p.port | default(relay_upstream_port) }}{{ ' backup' if p.backup | default(false) else '' }}
+{% endfor %}
+{% if relay_haproxy_metrics_enabled and relay_haproxy_metrics_bind %}
+
+# Prometheus metrics (server up/down, check failures) on the WG address only.
+frontend metrics
+    mode http
+    bind {{ relay_haproxy_metrics_bind }}
+    http-request use-service prometheus-exporter if { path /metrics }
+    http-request deny
+{% endif %}

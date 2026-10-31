@@ -59,6 +59,10 @@
             {% endfor %}
           ],
           "show": false,
+          {% set _mcv = xray_reality_min_client_ver | default("") | trim %}
+          {% if _mcv %}
+          "minClientVer": "{{ _mcv }}",
+          {% endif %}
           "xver": 0
         },
         "security": "reality",

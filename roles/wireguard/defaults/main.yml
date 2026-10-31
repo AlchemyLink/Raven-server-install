@@ -7,6 +7,58 @@ wg_network: "10.10.0.0/24"
 wg_config_dir: "/etc/wireguard"
 wg_config_path: "/etc/wireguard/{{ wg_interface }}.conf"
 
+# ── AmneziaWG: obfuscated second tunnel (awg0) ────────────────────────────────
+# Plain WireGuard has a fixed on-the-wire signature (4 message types, fixed
+# sizes) that DPI matches. AmneziaWG 3.x keeps the WireGuard crypto and adds
+# header encryption, padding, junk and random trailers so the flow has no
+# stable signature. Deployed as a SECOND interface next to wg0 (own subnet,
+# own keys, own UDP port) so consumers move over one by one — the relay's
+# HAProxy hop adds 10.11.0.1 as another path and promotes it only once its
+# TLS checks pass. Userspace amneziawg-go on both hosts: no DKMS, no kernel
+# coupling (EU runs Debian 12 / kernel 6.1, too old for the 3.x module).
+wg_awg_enabled: false
+wg_awg_interface: awg0
+wg_awg_port: 48213                 # UDP on EU; edge_firewall must allow it from RU only
+wg_awg_eu_ip: "10.11.0.1"
+wg_awg_ru_ip: "10.11.0.2"
+wg_awg_network: "10.11.0.0/24"
+# S4 padding + random trailers add per-packet overhead on top of the usual
+# WireGuard 60 bytes; 1360 keeps every obfuscated datagram under 1500.
+wg_awg_mtu: 1360
+wg_awg_config_dir: "/etc/amnezia/amneziawg"      # awg-quick's default search path
+wg_awg_keepalive: 25
+
+# Junk packets before each handshake (sent by the initiator, RU). Jmax < MTU.
+wg_awg_jc: 6
+wg_awg_jmin: 50
+wg_awg_jmax: 1000
+# Random trailers (AWG 3.1): handshake packets lose their fixed size. Must
+# match on both sides.
+wg_awg_random_trailers: true
+# Padding S1–S4 and HeaderProtectionKey live in secrets.yml: they are the
+# tunnel's fingerprint. H1–H4 stay at their defaults (1–4), as recommended
+# when header protection is on.
+
+# amneziawg-go: built on the controller from the pinned tag (static binary),
+# or point wg_awg_go_local_binary at a prebuilt one. Needs Go on the controller.
+wg_awg_go_version: "v3.1.20260828"
+wg_awg_go_repo: "https://github.com/amnezia-vpn/amneziawg-go.git"
+wg_awg_go_build_dir: "{{ lookup('env', 'HOME') }}/.cache/alchemylink/amneziawg-go"
+wg_awg_go_local_binary: ""
+wg_awg_go_bin: "/usr/local/bin/amneziawg-go"
+
+# amneziawg-tools (awg, awg-quick): prebuilt release zip, pinned by sha256.
+# Fetched on the controller, binaries copied to the hosts.
+wg_awg_tools_version: "v3.1.20260812"
+wg_awg_tools_zip_url: "https://github.com/amnezia-vpn/amneziawg-tools/releases/download/{{ wg_awg_tools_version }}/ubuntu-22.04-amneziawg-tools.zip"
+wg_awg_tools_zip_sha256: "919e9d0a367c7c72f9c16b7d0a9e4840b943628353b2210a33cb4b582785ba56"
+wg_awg_tools_dir: "{{ lookup('env', 'HOME') }}/.cache/alchemylink/amneziawg-tools-{{ wg_awg_tools_version }}"
+wg_awg_tools_bin_dir: "/usr/local/bin"
+
+# wg_awg_eu_private_key / wg_awg_eu_public_key / wg_awg_ru_private_key /
+# wg_awg_ru_public_key / wg_awg_preshared_key / wg_awg_header_protection_key /
+# wg_awg_s1..s4: set in secrets.yml (ansible-vault)
+
 # wg_eu_private_key: set in secrets.yml (ansible-vault)
 # wg_eu_public_key:  set in secrets.yml (ansible-vault)
 # wg_ru_private_key: set in secrets.yml (ansible-vault)

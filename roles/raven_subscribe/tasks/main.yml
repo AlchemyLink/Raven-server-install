@@ -43,6 +43,9 @@
         else 'linux-arm64' if ansible_architecture in ['aarch64', 'arm64']
         else 'linux-arm'
       }}
+  # Only needed for the GitHub-release download path. Skipped for local-binary
+  # deploys, where the release-info task above is also skipped.
+  when: raven_subscribe_local_binary is not defined
 
 - name: Raven-subscribe | Download binary
   ansible.builtin.get_url:

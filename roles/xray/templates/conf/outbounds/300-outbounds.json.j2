@@ -2,22 +2,33 @@
   "outbounds": [
     {
       "protocol": "freedom",
-      "settings": {
-        {% set _frag = xray_freedom_fragment | default({}) %}
-        {% set _noises = xray_freedom_noises | default([]) %}
-        {% if _frag.packets is defined %}
+      {# ── Finalmask ─────────────────────────────────────────────────────── #}
+      {# Finalmask is a STREAM setting, not a freedom `settings` key, and its #}
+      {# lists are `tcp`/`udp` holding {type, settings} entries — see          #}
+      {# infra/conf: StreamConfig.FinalMask + FinalMask{Tcp,Udp} + Mask.       #}
+      {# The old `settings.finalmask.tcpmasks[].fragment` shape parsed as an   #}
+      {# unknown key and was silently discarded, so no fragmentation ran.      #}
+      {% set _frag = xray_freedom_fragment | default({}) %}
+      {% set _noises = xray_freedom_noises | default([]) %}
+      {% if _frag.packets is defined %}
+      "streamSettings": {
         "finalmask": {
-          "tcpmasks": [
+          "tcp": [
             {
-              "fragment": {
+              "type": "fragment",
+              "settings": {
                 "packets": "{{ _frag.packets }}",
                 "length": "{{ _frag.length | default('100-200') }}",
-                "interval": "{{ _frag.interval | default('10-20') }}"
+                {# `delay`, not the legacy freedom.settings.fragment          #}
+                {# `interval`; `interval` kept as an alias for old host_vars. #}
+                "delay": "{{ _frag.delay | default(_frag.interval | default('10-20')) }}"
               }
             }
           ]
-        },
-        {% endif %}
+        }
+      },
+      {% endif %}
+      "settings": {
         {% if _noises | length > 0 %}
         "noises": [
           {% for noise in _noises %}

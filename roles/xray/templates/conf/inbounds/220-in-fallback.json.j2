@@ -3,11 +3,12 @@
 {% if xray_fallback_enabled | default(false) %}
 {% set _fb = xray_fallback %}
 {% set _fbr = xray_fallback_reality %}
+{% set _pq = xray_vless_fallback_decryption | default('none') != 'none' %}
 {% set _clients = [] %}
 {% for user in xray_users %}
 {%   set _ = _clients.append({
        "id": user.id,
-       "flow": "",
+       "flow": ('xtls-rprx-vision' if _pq else ''),
        "email": ((user.email | default('') | trim) or user.id),
        "level": 0
      }) %}
@@ -22,6 +23,14 @@
       "tag": "{{ _fb.tag | default('vless-fallback-in') }}",
       "settings": {
         "clients": {{ _clients | to_json }},
+        {% set _ts = xray_fallback_testseed | default(xray_v2_testseed | default(xray_testseed | default([]))) %}
+        {% if _ts | length == 4 %}
+        "testseed": {{ _ts | to_json }},
+        {% endif %}
+        {% set _tp = xray_fallback_testpre | default(xray_v2_testpre | default(xray_testpre | default(0))) %}
+        {% if _tp | int > 0 %}
+        "testpre": {{ _tp | int }},
+        {% endif %}
         "decryption": "{{ xray_vless_fallback_decryption | default('none') }}"
       },
       "sniffing": {
@@ -37,6 +46,10 @@
         "network": "{{ _fb.network | default('xhttp') }}",
         "realitySettings": {
           "show": false,
+          {% set _mcv = xray_reality_min_client_ver | default("") | trim %}
+          {% if _mcv %}
+          "minClientVer": "{{ _mcv }}",
+          {% endif %}
           "dest": "{{ _fb.reality.dest }}",
           "spiderX": "{{ _fbr.spiderX | default('/') }}",
           "serverNames": [
